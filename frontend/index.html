@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PropertyIQ — AI Property Research Reports</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --navy:       #1a3c5e;
+      --navy-dark:  #0f2540;
+      --gold:       #c9a84c;
+      --gold-light: #e8c96a;
+      --cream:      #faf8f3;
+      --white:      #ffffff;
+      --grey-light: #f0f2f5;
+      --grey-mid:   #8a9bb0;
+      --grey-text:  #4a5568;
+      --green:      #2e7d32;
+      --radius:     12px;
+      --shadow:     0 8px 40px rgba(26,60,94,0.12);
+      --shadow-sm:  0 2px 12px rgba(26,60,94,0.08);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--cream);
+      color: var(--grey-text);
+      min-height: 100vh;
+    }
+
+    /* ── NAV ── */
+    nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 60px;
+      background: var(--navy);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo {
+      font-family: 'Playfair Display', serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--white);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .logo span { color: var(--gold); }
+    .nav-tag {
+      background: rgba(201,168,76,0.15);
+      border: 1px solid rgba(201,168,76,0.4);
+      color: var(--gold-light);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 4px 12px;
+      border-radius: 20px;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy) 60%, #1e4a72 100%);
+      padding: 80px 60px 100px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -80px; right: -80px;
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(201,168,76,0.12) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+    .hero::after {
+      content: '';
+      position: absolute;
+      bottom: -60px; left: -60px;
+      width: 300px; height: 300px;
+      background: radial-gradient(circle, rgba(201,168,76,0.08) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+    .hero-eyebrow {
+      display: inline-block;
+      background: rgba(201,168,76,0.15);
+      border: 1px solid rgba(201,168,76,0.35);
+      color: var(--gold-light);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 6px 16px;
+      border-radius: 20px;
+      margin-bottom: 24px;
+    }
+    .hero h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(38px, 5vw, 62px);
+      font-weight: 900;
+      color: var(--white);
+      line-height: 1.1;
+      margin-bottom: 20px;
+      position: relative;
+    }
+    .hero h1 em {
+      font-style: normal;
+      color: var(--gold);
+    }
+    .hero p {
+      font-size: 18px;
+      color: rgba(255,255,255,0.72);
+      max-width: 520px;
+      margin: 0 auto 48px;
+      line-height: 1.6;
+      font-weight: 300;
+    }
+
+    /* ── REPORT CARD ── */
+    .report-card {
+      background: var(--white);
+      border-radius: 20px;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.22);
+      max-width: 580px;
+      margin: 0 auto;
+      padding: 40px;
+      position: relative;
+      z-index: 2;
+    }
+    .card-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 6px;
+    }
+    .card-subtitle {
+      font-size: 14px;
+      color: var(--grey-mid);
+      margin-bottom: 28px;
+    }
+
+    .form-group { margin-bottom: 18px; }
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--navy);
+      margin-bottom: 7px;
+      letter-spacing: 0.3px;
+    }
+    .form-group input {
+      width: 100%;
+      padding: 13px 16px;
+      border: 1.5px solid #dde3ec;
+      border-radius: 10px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      color: var(--navy);
+      background: var(--grey-light);
+      transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+      outline: none;
+    }
+    .form-group input:focus {
+      border-color: var(--navy);
+      background: var(--white);
+      box-shadow: 0 0 0 3px rgba(26,60,94,0.08);
+    }
+    .form-group input::placeholder { color: #aab4c4; }
+
+    .price-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--grey-light);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 22px;
+    }
+    .price-label { font-size: 14px; color: var(--grey-text); }
+    .price-amount {
+      font-family: 'Playfair Display', serif;
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--navy);
+    }
+    .price-amount small {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--grey-mid);
+    }
+
+    .btn-pay {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, var(--navy) 0%, #1e4a72 100%);
+      color: var(--white);
+      border: none;
+      border-radius: 10px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-pay::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(201,168,76,0.18) 0%, transparent 60%);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .btn-pay:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(26,60,94,0.3); }
+    .btn-pay:hover::after { opacity: 1; }
+    .btn-pay:active { transform: translateY(0); }
+    .btn-pay:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    .secure-badge {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 14px;
+      font-size: 12px;
+      color: var(--grey-mid);
+    }
+
+    /* ── WHAT'S INCLUDED ── */
+    .section { padding: 80px 60px; max-width: 1100px; margin: 0 auto; }
+    .section-eyebrow {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 12px;
+    }
+    .section h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(28px, 3.5vw, 42px);
+      color: var(--navy);
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
+    .section-sub {
+      font-size: 17px;
+      color: var(--grey-mid);
+      max-width: 500px;
+      line-height: 1.6;
+      margin-bottom: 52px;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+    }
+    .feature-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 28px;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid rgba(26,60,94,0.06);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .feature-card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow);
+    }
+    .feature-icon {
+      font-size: 28px;
+      margin-bottom: 14px;
+      display: block;
+    }
+    .feature-card h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--navy);
+      margin-bottom: 8px;
+    }
+    .feature-card p {
+      font-size: 14px;
+      color: var(--grey-mid);
+      line-height: 1.6;
+    }
+
+    /* ── STATUS PANEL ── */
+    #status-panel {
+      display: none;
+      background: var(--white);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      max-width: 560px;
+      margin: 40px auto;
+      padding: 40px;
+      text-align: center;
+    }
+    .status-icon { font-size: 48px; margin-bottom: 16px; }
+    .status-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 22px;
+      color: var(--navy);
+      margin-bottom: 10px;
+    }
+    .status-message { color: var(--grey-mid); font-size: 15px; margin-bottom: 24px; }
+
+    .progress-bar-wrap {
+      background: var(--grey-light);
+      border-radius: 8px;
+      height: 8px;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--navy), var(--gold));
+      border-radius: 8px;
+      transition: width 0.6s ease;
+      width: 0%;
+    }
+
+    .step-list { text-align: left; }
+    .step-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      font-size: 14px;
+      color: var(--grey-text);
+      border-bottom: 1px solid var(--grey-light);
+    }
+    .step-item:last-child { border-bottom: none; }
+    .step-dot {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+    .step-dot.done { background: #e8f5e9; color: var(--green); }
+    .step-dot.active { background: rgba(26,60,94,0.08); color: var(--navy); animation: pulse 1.5s infinite; }
+    .step-dot.pending { background: var(--grey-light); color: var(--grey-mid); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      background: var(--navy-dark);
+      color: rgba(255,255,255,0.5);
+      text-align: center;
+      padding: 28px;
+      font-size: 13px;
+    }
+    footer strong { color: rgba(255,255,255,0.8); }
+
+    /* ── UTILITY ── */
+    .error-msg {
+      background: #fdecea;
+      color: #c62828;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      margin-top: 12px;
+      display: none;
+    }
+
+    @media (max-width: 768px) {
+      nav { padding: 16px 20px; }
+      .hero { padding: 60px 20px 80px; }
+      .section { padding: 60px 20px; }
+      .report-card { padding: 28px 20px; margin: 0 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="logo">Property<span>IQ</span></div>
+  <div class="nav-tag">🇦🇺 Australia Only</div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-eyebrow">AI-Powered Property Intelligence</div>
+  <h1>Know everything before<br/>you <em>make an offer.</em></h1>
+  <p>Get a comprehensive research report on any Australian property — schools, suburb trends, government projects, transport and risk overlays — delivered to your inbox in minutes.</p>
+
+  <!-- FORM CARD -->
+  <div class="report-card">
+    <div class="card-title">Generate Your Report</div>
+    <div class="card-subtitle">Enter the property address and your details below</div>
+
+    <div class="form-group">
+      <label>Property Address</label>
+      <input type="text" id="address" placeholder="e.g. 45 Chapel St, Windsor VIC 3181" />
+    </div>
+    <div class="form-group">
+      <label>Your Full Name</label>
+      <input type="text" id="name" placeholder="Jane Smith" />
+    </div>
+    <div class="form-group">
+      <label>Email Address</label>
+      <input type="email" id="email" placeholder="jane@example.com" />
+    </div>
+
+    <div class="price-row">
+      <span class="price-label">One-time report price</span>
+      <span class="price-amount">$49 <small>AUD</small></span>
+    </div>
+
+    <button class="btn-pay" id="pay-btn" onclick="handleCheckout()">
+      <span>🔒</span> Pay & Generate Report
+    </button>
+
+    <div class="error-msg" id="error-msg"></div>
+
+    <div class="secure-badge">
+      🔒 Secured by Stripe &nbsp;·&nbsp; No card data stored &nbsp;·&nbsp; Instant delivery
+    </div>
+  </div>
+</section>
+
+<!-- STATUS PANEL (shown after payment redirect) -->
+<div id="status-panel">
+  <div class="status-icon" id="status-icon">⏳</div>
+  <div class="status-title" id="status-title">Processing your report...</div>
+  <div class="status-message" id="status-message">Please wait while our AI researches your property.</div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar" id="progress-bar"></div>
+  </div>
+  <div class="step-list" id="step-list"></div>
+</div>
+
+<!-- FEATURES -->
+<div style="background: var(--white); padding: 20px 0;">
+  <div class="section">
+    <div class="section-eyebrow">What's included</div>
+    <h2>Everything you need<br/>to buy with confidence</h2>
+    <p class="section-sub">Our AI scours dozens of Australian data sources so you don't have to.</p>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <span class="feature-icon">🏘️</span>
+        <h3>Suburb Profile</h3>
+        <p>Median prices, 5-year growth trends, rental yields, demographics, crime statistics and liveability scores.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">🏫</span>
+        <h3>School Catchments</h3>
+        <p>ICSEA ratings, catchment zones, public and private options within 5km — the #1 driver of family buyer decisions.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">🏗️</span>
+        <h3>Government Projects</h3>
+        <p>Planned infrastructure, rail extensions, road upgrades, zoning changes and council developments that impact value.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">🚆</span>
+        <h3>Transport & Connectivity</h3>
+        <p>Train lines, travel time to CBD (peak + off-peak), walkability score and cycling infrastructure.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">📈</span>
+        <h3>Property Market Analysis</h3>
+        <p>Recent comparable sales, auction clearance rates, days on market and growth outlook for the suburb.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">⚠️</span>
+        <h3>Risk Assessment</h3>
+        <p>Flood zones, bushfire ratings, heritage overlays, development restrictions and environmental flags.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <strong>PropertyIQ</strong> · AI Property Research for Australian Buyers<br/>
+  Not financial advice. Always conduct independent due diligence.
+</footer>
+
+<script>
+  const API_URL = "http://localhost:8000";  // Change to your deployed API URL
+
+  const STEPS = [
+    { key: "researching",     label: "Researching suburb, schools & transport",  progress: 25 },
+    { key: "researching",     label: "Analysing government projects & overlays",  progress: 50 },
+    { key: "generating_pdf",  label: "Generating PDF report",                     progress: 75 },
+    { key: "emailing",        label: "Sending report to your inbox",              progress: 90 },
+    { key: "complete",        label: "Report delivered! Check your email.",        progress: 100 },
+  ];
+
+  function showError(msg) {
+    const el = document.getElementById("error-msg");
+    el.textContent = msg;
+    el.style.display = "block";
+  }
+
+  async function handleCheckout() {
+    const address = document.getElementById("address").value.trim();
+    const name    = document.getElementById("name").value.trim();
+    const email   = document.getElementById("email").value.trim();
+
+    document.getElementById("error-msg").style.display = "none";
+
+    if (!address || !name || !email) {
+      showError("Please fill in all fields.");
+      return;
+    }
+    if (!email.includes("@")) {
+      showError("Please enter a valid email address.");
+      return;
+    }
+
+    const btn = document.getElementById("pay-btn");
+    btn.disabled = true;
+    btn.innerHTML = "⏳ Creating checkout...";
+
+    try {
+      const res = await fetch(`${API_URL}/create-checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address, buyer_name: name, buyer_email: email })
+      });
+
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      const data = await res.json();
+
+      // Redirect to Stripe Checkout
+      window.location.href = data.checkout_url;
+
+    } catch (err) {
+      showError("Something went wrong. Please try again.");
+      btn.disabled = false;
+      btn.innerHTML = "<span>🔒</span> Pay & Generate Report";
+    }
+  }
+
+  // ── Status polling (shown on /success?job_id=xxx) ──
+  function getQueryParam(name) {
+    return new URLSearchParams(window.location.search).get(name);
+  }
+
+  function renderSteps(currentStatus) {
+    const statusOrder = ["pending", "researching", "generating_pdf", "emailing", "complete"];
+    const currentIdx  = statusOrder.indexOf(currentStatus);
+    const list        = document.getElementById("step-list");
+
+    list.innerHTML = STEPS.map((step, i) => {
+      const stepStatusIdx = statusOrder.indexOf(step.key);
+      let dotClass = "pending", icon = "○";
+      if (currentStatus === "complete" || stepStatusIdx < currentIdx) { dotClass = "done"; icon = "✓"; }
+      else if (step.key === currentStatus && i === STEPS.findIndex(s => s.key === currentStatus)) {
+        dotClass = "active"; icon = "●";
+      }
+      return `<div class="step-item">
+        <div class="step-dot ${dotClass}">${icon}</div>
+        <span>${step.label}</span>
+      </div>`;
+    }).join("");
+  }
+
+  async function pollStatus(jobId) {
+    document.getElementById("status-panel").style.display = "block";
+    document.querySelector(".hero").style.display = "none";
+
+    const poll = async () => {
+      try {
+        const res  = await fetch(`${API_URL}/report/${jobId}`);
+        const data = await res.json();
+
+        const statusMap = {
+          pending:        { icon: "⏳", title: "Payment confirmed!", message: "Starting research...", progress: 5 },
+          researching:    { icon: "🔍", title: "Researching your property...", message: "Our AI is analysing suburb data, schools, transport and government projects.", progress: 40 },
+          generating_pdf: { icon: "📄", title: "Building your report...", message: "Compiling findings into a polished PDF.", progress: 75 },
+          emailing:       { icon: "📧", title: "Almost done!", message: "Sending your report now.", progress: 90 },
+          complete:       { icon: "✅", title: "Report delivered!", message: `Check your inbox — your PropertyIQ report is on its way!`, progress: 100 },
+          failed:         { icon: "❌", title: "Something went wrong", message: data.message || "Please contact support.", progress: 0 },
+        };
+
+        const s = statusMap[data.status] || statusMap.pending;
+        document.getElementById("status-icon").textContent    = s.icon;
+        document.getElementById("status-title").textContent   = s.title;
+        document.getElementById("status-message").textContent = s.message;
+        document.getElementById("progress-bar").style.width   = s.progress + "%";
+        renderSteps(data.status);
+
+        if (data.status !== "complete" && data.status !== "failed") {
+          setTimeout(poll, 5000);
+        }
+      } catch (e) {
+        setTimeout(poll, 8000);
+      }
+    };
+
+    poll();
+  }
+
+  // Auto-start polling if returning from Stripe
+  const jobId = getQueryParam("job_id");
+  if (jobId) pollStatus(jobId);
+</script>
+</body>
+</html>

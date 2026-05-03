@@ -1,0 +1,23 @@
+# PropertyIQ — Python Dependencies
+# Install: pip install -r requirements.txt
+
+# Core AI
+anthropic>=0.40.0
+
+# API & web server
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9
+pydantic[email]>=2.0.0
+
+# Payments
+stripe>=8.0.0
+
+# PDF generation
+reportlab>=4.1.0
+
+# Email
+sendgrid>=6.9.0
+
+# Environment variable loading
+python-dotenv>=1.0.0

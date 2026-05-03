@@ -1,0 +1,45 @@
+# ─── Secrets — NEVER commit these ───────────────
+.env
+.env.local
+.env.production
+*.pem
+*.key
+secrets/
+
+# ─── Python ──────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+*.egg-info/
+dist/
+build/
+.eggs/
+pip-log.txt
+
+# ─── Generated files ─────────────────────────────
+report_output.json
+*.pdf
+/tmp/
+
+# ─── IDEs ────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ─── Logs ────────────────────────────────────────
+*.log
+logs/
+
+# ─── Testing ─────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/

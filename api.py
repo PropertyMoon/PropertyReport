@@ -259,7 +259,8 @@ def health():
 
 @app.post("/create-checkout", response_model=CheckoutResponse)
 async def create_checkout(req: CheckoutRequest, request: Request):
-    client_ip = request.headers.get("x-forwarded-for", request.client.host).split(",")[0].strip()
+    client_ip = (request.headers.get("x-forwarded-for") or
+                 (request.client.host if request.client else "unknown")).split(",")[0].strip()
     if not _check_rate_limit(client_ip):
         log.warning("Rate limit hit for IP %s", client_ip)
         raise HTTPException(429, f"Too many requests. Max {_RATE_LIMIT} per {_RATE_WINDOW // 60} minutes.")

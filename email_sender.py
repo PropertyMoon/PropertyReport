@@ -15,12 +15,12 @@ def send_report_email(
     recipient_email: str,
     recipient_name: str = "Valued Buyer",
     sender_email: str = None,
-    sender_name: str = "PropertyIQ Reports",
+    sender_name: str = "PropertyReport Reports",
     pdf_attachment_path: str = None,
 ):
-    sender_email = sender_email or os.getenv("SENDER_EMAIL", "reports@propertyiq.com.au")
+    sender_email = sender_email or os.getenv("SENDER_EMAIL", "reports@propertyreport.com.au")
     sendgrid_key = os.getenv("SENDGRID_API_KEY")
-    subject      = f"Your PropertyIQ Report — {report.address}"
+    subject      = f"Your PropertyReport Report — {report.address}"
     html_body    = build_email_html(report, recipient_name)
 
     if sendgrid_key:
@@ -65,7 +65,7 @@ def build_email_html(report: PropertyReport, recipient_name: str) -> str:
   style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);max-width:100%;">
 <tr><td style="padding:36px 40px 0;">
   <p style="font-size:16px;color:#4a5568;margin:0 0 6px">Hi {recipient_name},</p>
-  <p style="font-size:15px;color:#4a5568;line-height:1.6;margin:0 0 24px">Your PropertyIQ report is ready. We've researched the suburb, schools, transport, government infrastructure and risk overlays.</p>
+  <p style="font-size:15px;color:#4a5568;line-height:1.6;margin:0 0 24px">Your PropertyReport report is ready. We've researched the suburb, schools, transport, government infrastructure and risk overlays.</p>
   <div style="background:#e8f0f8;border-left:4px solid #1a3c5e;padding:14px 18px;border-radius:0 8px 8px 0;margin-bottom:28px;">
     <span style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#8a9bb0;">Property Address</span><br/>
     <span style="font-size:17px;font-weight:700;color:#1a3c5e;">{report.address}</span>
@@ -81,7 +81,7 @@ def build_email_html(report: PropertyReport, recipient_name: str) -> str:
 </table></td></tr></table>
 <table width="100%" cellpadding="0" cellspacing="0"><tr>
   <td style="background:#0f2540;padding:20px;text-align:center;">
-    <p style="font-size:12px;color:rgba(255,255,255,0.4);margin:0;">© PropertyIQ · Australia's AI Property Research Platform</p>
+    <p style="font-size:12px;color:rgba(255,255,255,0.4);margin:0;">© PropertyReport · Australia's AI Property Research Platform</p>
   </td></tr></table>
 </body></html>"""
 
@@ -107,7 +107,7 @@ def _send_via_sendgrid(api_key, sender_email, sender_name,
         pdf_data = _read_pdf_base64(pdf_path)
         if pdf_data:
             message.attachment = Attachment(FileContent(pdf_data),
-                FileName("PropertyIQ_Report.pdf"), FileType("application/pdf"), Disposition("attachment"))
+                FileName("PropertyReport_Report.pdf"), FileType("application/pdf"), Disposition("attachment"))
         response = sg.client.mail.send.post(request_body=message.get())
         if response.status_code in (200, 202):
             print(f"✅ Email sent to {recipient_email} via SendGrid")
@@ -145,7 +145,7 @@ def _send_via_smtp(sender_email, recipient_email, subject, html_body, pdf_path=N
             part = MIMEBase("application", "pdf")
             part.set_payload(f.read())
             encoders.encode_base64(part)
-            part.add_header("Content-Disposition", "attachment", filename="PropertyIQ_Report.pdf")
+            part.add_header("Content-Disposition", "attachment", filename="PropertyReport_Report.pdf")
             msg.attach(part)
 
     try:

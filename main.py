@@ -1,5 +1,5 @@
 """
-PropertyIQ - Main Runner
+PropertyReport - Main Runner
 Run this to generate and email a property report in one command.
 
 Usage:
@@ -36,7 +36,7 @@ def main():
         print("❌ Error: ANTHROPIC_API_KEY environment variable not set")
         sys.exit(1)
     
-    print(f"\n🚀 PropertyIQ Report Generator")
+    print(f"\n🚀 PropertyReport Report Generator")
     print(f"   Address: {address}")
     print(f"   Sending to: {recipient_email} ({recipient_name})")
     print()

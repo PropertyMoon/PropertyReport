@@ -3,24 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PropertyIQ — AI Property Research Reports</title>
+  <title>PropertyReport — AI Property Research Reports</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --navy:       #1a3c5e;
-      --navy-dark:  #0f2540;
-      --gold:       #c9a84c;
-      --gold-light: #e8c96a;
-      --cream:      #faf8f3;
+      --navy:       #1e293b;
+      --navy-dark:  #0f172a;
+      --gold:       #10b981;
+      --gold-light: #6ee7b7;
+      --cream:      #f8fafc;
       --white:      #ffffff;
-      --grey-light: #f0f2f5;
-      --grey-mid:   #8a9bb0;
-      --grey-text:  #4a5568;
-      --green:      #2e7d32;
+      --grey-light: #f1f5f9;
+      --grey-mid:   #94a3b8;
+      --grey-text:  #475569;
+      --green:      #059669;
       --radius:     12px;
-      --shadow:     0 8px 40px rgba(26,60,94,0.12);
-      --shadow-sm:  0 2px 12px rgba(26,60,94,0.08);
+      --shadow:     0 8px 40px rgba(15,23,42,0.12);
+      --shadow-sm:  0 2px 12px rgba(15,23,42,0.08);
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -65,7 +65,7 @@
 
     /* ── HERO ── */
     .hero {
-      background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy) 60%, #1e4a72 100%);
+      background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy) 60%, #1e3a5f 100%);
       padding: 80px 60px 100px;
       text-align: center;
       position: relative;
@@ -76,7 +76,7 @@
       position: absolute;
       top: -80px; right: -80px;
       width: 400px; height: 400px;
-      background: radial-gradient(circle, rgba(201,168,76,0.12) 0%, transparent 70%);
+      background: radial-gradient(circle, rgba(16,185,129,0.14) 0%, transparent 70%);
       border-radius: 50%;
     }
     .hero::after {
@@ -84,13 +84,13 @@
       position: absolute;
       bottom: -60px; left: -60px;
       width: 300px; height: 300px;
-      background: radial-gradient(circle, rgba(201,168,76,0.08) 0%, transparent 70%);
+      background: radial-gradient(circle, rgba(16,185,129,0.08) 0%, transparent 70%);
       border-radius: 50%;
     }
     .hero-eyebrow {
       display: inline-block;
-      background: rgba(201,168,76,0.15);
-      border: 1px solid rgba(201,168,76,0.35);
+      background: rgba(16,185,129,0.15);
+      border: 1px solid rgba(16,185,129,0.35);
       color: var(--gold-light);
       font-size: 12px;
       font-weight: 600;
@@ -200,7 +200,7 @@
     .btn-pay {
       width: 100%;
       padding: 16px;
-      background: linear-gradient(135deg, var(--navy) 0%, #1e4a72 100%);
+      background: linear-gradient(135deg, var(--navy) 0%, #0f4c75 100%);
       color: var(--white);
       border: none;
       border-radius: 10px;
@@ -220,11 +220,11 @@
       content: '';
       position: absolute;
       inset: 0;
-      background: linear-gradient(135deg, rgba(201,168,76,0.18) 0%, transparent 60%);
+      background: linear-gradient(135deg, rgba(16,185,129,0.18) 0%, transparent 60%);
       opacity: 0;
       transition: opacity 0.2s;
     }
-    .btn-pay:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(26,60,94,0.3); }
+    .btn-pay:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(15,23,42,0.3); }
     .btn-pay:hover::after { opacity: 1; }
     .btn-pay:active { transform: translateY(0); }
     .btn-pay:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
@@ -274,7 +274,7 @@
       border-radius: var(--radius);
       padding: 28px;
       box-shadow: var(--shadow-sm);
-      border: 1px solid rgba(26,60,94,0.06);
+      border: 1px solid rgba(15,23,42,0.07);
       transition: transform 0.2s, box-shadow 0.2s;
     }
     .feature-card:hover {
@@ -351,8 +351,8 @@
       font-size: 13px;
       flex-shrink: 0;
     }
-    .step-dot.done { background: #e8f5e9; color: var(--green); }
-    .step-dot.active { background: rgba(26,60,94,0.08); color: var(--navy); animation: pulse 1.5s infinite; }
+    .step-dot.done { background: #d1fae5; color: var(--green); }
+    .step-dot.active { background: rgba(16,185,129,0.12); color: var(--gold); animation: pulse 1.5s infinite; }
     .step-dot.pending { background: var(--grey-light); color: var(--grey-mid); }
 
     @keyframes pulse {
@@ -423,7 +423,7 @@
 
     <div class="price-row">
       <span class="price-label">One-time report price</span>
-      <span class="price-amount">$49 <small>AUD</small></span>
+      <span class="price-amount">$20 <small>AUD</small></span>
     </div>
 
     <button class="btn-pay" id="pay-btn" onclick="handleCheckout()">
@@ -493,12 +493,12 @@
 
 <!-- FOOTER -->
 <footer>
-  <strong>PropertyIQ</strong> · AI Property Research for Australian Buyers<br/>
+  <strong>PropertyReport</strong> · AI Property Research for Australian Buyers<br/>
   Not financial advice. Always conduct independent due diligence.
 </footer>
 
 <script>
-  const API_URL = "http://localhost:8000";  // Change to your deployed API URL
+  const API_URL = "";  // Empty = same origin (works locally and in production)
 
   const STEPS = [
     { key: "researching",     label: "Researching suburb, schools & transport",  progress: 25 },
@@ -592,7 +592,7 @@
           researching:    { icon: "🔍", title: "Researching your property...", message: "Our AI is analysing suburb data, schools, transport and government projects.", progress: 40 },
           generating_pdf: { icon: "📄", title: "Building your report...", message: "Compiling findings into a polished PDF.", progress: 75 },
           emailing:       { icon: "📧", title: "Almost done!", message: "Sending your report now.", progress: 90 },
-          complete:       { icon: "✅", title: "Report delivered!", message: `Check your inbox — your PropertyIQ report is on its way!`, progress: 100 },
+          complete:       { icon: "✅", title: "Report delivered!", message: `Check your inbox — your PropertyReport report is on its way!`, progress: 100 },
           failed:         { icon: "❌", title: "Something went wrong", message: data.message || "Please contact support.", progress: 0 },
         };
 

@@ -27,6 +27,11 @@ report_output.json
 *.pdf
 /tmp/
 
+# ─── Database ─────────────────────────────────────
+*.db
+*.db-shm
+*.db-wal
+
 # ─── IDEs ────────────────────────────────────────
 .vscode/
 .idea/

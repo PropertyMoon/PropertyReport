@@ -120,17 +120,14 @@ def print_test_flow():
   END-TO-END TEST FLOW
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Terminal 1 — Start API:
+Terminal 1 — Start API + frontend:
   uvicorn api:app --reload --port 8000
 
 Terminal 2 — Forward webhooks:
   stripe listen --forward-to localhost:8000/webhook
 
-Terminal 3 — Serve frontend:
-  cd frontend && python -m http.server 3000
-
 Browser:
-  http://localhost:3000
+  http://localhost:8000
   → Enter any Melbourne address
   → Enter your email
   → Click Pay → use test card 4242 4242 4242 4242
@@ -175,7 +172,7 @@ def verify_stripe_connection():
 
 if __name__ == "__main__":
     print("=" * 50)
-    print("  PropertyIQ — Stripe Test Mode Setup")
+    print("  PropertyReport — Stripe Test Mode Setup")
     print("=" * 50)
 
     env_ok = check_env()

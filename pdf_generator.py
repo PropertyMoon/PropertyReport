@@ -1,19 +1,99 @@
 """
 PDF Report Generator
 Converts a PropertyReport into a professional branded PDF
-Uses reportlab for PDF generation
 """
 
+import os
 import re
+import tempfile
+import urllib.request
+import urllib.parse
 from datetime import datetime
+
+
+# ─── State Detection ──────────────────────────────────────────────────────────
+
+_STATE_SOURCES = {
+    "VIC": {
+        "label":   "Melbourne, Victoria, Australia",
+        "planning": "planning.vic.gov.au",
+        "crime":    "crimestats.vic.gov.au",
+        "flood":    "vicfloodmap.com.au",
+    },
+    "NSW": {
+        "label":   "New South Wales, Australia",
+        "planning": "planning.nsw.gov.au",
+        "crime":    "bocsar.nsw.gov.au",
+        "flood":    "floodplanning.nsw.gov.au",
+    },
+    "QLD": {
+        "label":   "Queensland, Australia",
+        "planning": "dsdilgp.qld.gov.au",
+        "crime":    "police.qld.gov.au/maps-and-statistics",
+        "flood":    "floodcheck.qld.gov.au",
+    },
+    "SA": {
+        "label":   "South Australia, Australia",
+        "planning": "plan.sa.gov.au",
+        "crime":    "police.sa.gov.au/services-and-stats",
+        "flood":    "environment.sa.gov.au/flood",
+    },
+    "WA": {
+        "label":   "Western Australia, Australia",
+        "planning": "planning.wa.gov.au",
+        "crime":    "police.wa.gov.au/crime-statistics",
+        "flood":    "planning.wa.gov.au/flood",
+    },
+    "TAS": {
+        "label":   "Tasmania, Australia",
+        "planning": "listmap.tas.gov.au",
+        "crime":    "justice.tas.gov.au/crime-statistics",
+        "flood":    "dpipwe.tas.gov.au/flood",
+    },
+    "ACT": {
+        "label":   "Australian Capital Territory, Australia",
+        "planning": "actmapi.act.gov.au",
+        "crime":    "police.act.gov.au/crime-statistics",
+        "flood":    "esa.act.gov.au/flood",
+    },
+    "NT": {
+        "label":   "Northern Territory, Australia",
+        "planning": "planning.nt.gov.au",
+        "crime":    "pfes.nt.gov.au/crime-statistics",
+        "flood":    "nt.gov.au/emergency/flood",
+    },
+}
+
+_DEFAULT_SOURCES = {
+    "label":    "Australia",
+    "planning": "planning.gov.au",
+    "crime":    "aic.gov.au",
+    "flood":    "ga.gov.au/flood",
+}
+
+_STATE_RE = re.compile(
+    r'\b(VIC|NSW|QLD|SA|WA|TAS|ACT|NT)\b', re.IGNORECASE
+)
+
+
+def detect_state(address: str) -> dict:
+    m = _STATE_RE.search(address)
+    if m:
+        return _STATE_SOURCES.get(m.group(1).upper(), _DEFAULT_SOURCES)
+    return _DEFAULT_SOURCES
+
+
+def state_data_sources(address: str) -> str:
+    s = detect_state(address)
+    return f"realestate.com.au · myschool.edu.au · {s['planning']} · {s['crime']}"
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.units import mm
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+from reportlab.lib.enums import TA_LEFT, TA_CENTER
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-    HRFlowable, PageBreak, KeepTogether
+    HRFlowable, PageBreak, KeepTogether, Image
 )
 from reportlab.platypus import BaseDocTemplate, Frame, PageTemplate
 from reportlab.pdfgen import canvas as rl_canvas
@@ -21,76 +101,74 @@ from reportlab.pdfgen import canvas as rl_canvas
 
 # ─── Brand Colors ─────────────────────────────────────────────────────────────
 
-NAVY       = colors.HexColor("#1a3c5e")
-GOLD       = colors.HexColor("#c9a84c")
-LIGHT_BLUE = colors.HexColor("#e8f0f8")
-MID_GREY   = colors.HexColor("#666666")
-LIGHT_GREY = colors.HexColor("#f5f7fa")
+NAVY       = colors.HexColor("#1e293b")
+NAVY_DARK  = colors.HexColor("#0f172a")
+TEAL       = colors.HexColor("#334155")
+GOLD       = colors.HexColor("#10b981")
+GOLD_LIGHT = colors.HexColor("#6ee7b7")
+LIGHT_BLUE = colors.HexColor("#d1fae5")
+MID_GREY   = colors.HexColor("#94a3b8")
+LIGHT_GREY = colors.HexColor("#f1f5f9")
+BORDER_GREY= colors.HexColor("#e2e8f0")
 WHITE      = colors.white
-RED        = colors.HexColor("#d9534f")
-GREEN      = colors.HexColor("#2e7d32")
+RED        = colors.HexColor("#c0392b")
+GREEN      = colors.HexColor("#059669")
+ORANGE     = colors.HexColor("#d97706")
+TEXT_DARK  = colors.HexColor("#0f172a")
+TEXT_MID   = colors.HexColor("#475569")
 
 
 # ─── Custom Page Template ──────────────────────────────────────────────────────
 
 class PropertyReportTemplate(BaseDocTemplate):
-    """Custom doc template with header/footer on every page."""
-
     def __init__(self, filename, address, **kwargs):
         self.address = address
         super().__init__(filename, **kwargs)
-
         frame = Frame(
-            15*mm, 20*mm,             # x, y (bottom-left of content area)
-            self.width, self.height,   # width, height
+            15*mm, 22*mm,
+            self.width, self.height,
             leftPadding=0, rightPadding=0,
             topPadding=5*mm, bottomPadding=5*mm
         )
-        template = PageTemplate(
-            id="main",
-            frames=[frame],
-            onPage=self._draw_page
-        )
-        self.addPageTemplates([template])
+        self.addPageTemplates([PageTemplate(id="main", frames=[frame], onPage=self._draw_page)])
 
     def _draw_page(self, canv, doc):
         canv.saveState()
         w, h = A4
 
-        # ── Header bar ──
-        canv.setFillColor(NAVY)
-        canv.rect(0, h - 18*mm, w, 18*mm, fill=1, stroke=0)
+        # Header bar
+        canv.setFillColor(NAVY_DARK)
+        canv.rect(0, h - 16*mm, w, 16*mm, fill=1, stroke=0)
+
+        # Gold accent stripe
+        canv.setFillColor(GOLD)
+        canv.rect(0, h - 17.5*mm, w, 1.5*mm, fill=1, stroke=0)
 
         canv.setFillColor(GOLD)
-        canv.setFont("Helvetica-Bold", 13)
-        canv.drawString(15*mm, h - 12*mm, "PropertyIQ")
+        canv.setFont("Helvetica-Bold", 12)
+        canv.drawString(15*mm, h - 11*mm, "PropertyReport")
 
         canv.setFillColor(WHITE)
-        canv.setFont("Helvetica", 8)
-        canv.drawRightString(w - 15*mm, h - 12*mm, "Australia's AI Property Research Platform")
+        canv.setFont("Helvetica", 7.5)
+        canv.drawRightString(w - 15*mm, h - 11*mm, "AI Property Intelligence Report")
 
-        # ── Gold accent line under header ──
-        canv.setStrokeColor(GOLD)
-        canv.setLineWidth(1.5)
-        canv.line(0, h - 18*mm, w, h - 18*mm)
-
-        # ── Footer ──
+        # Footer
         canv.setFillColor(LIGHT_GREY)
-        canv.rect(0, 0, w, 14*mm, fill=1, stroke=0)
+        canv.rect(0, 0, w, 16*mm, fill=1, stroke=0)
+        canv.setFillColor(GOLD)
+        canv.rect(0, 15.5*mm, w, 0.5*mm, fill=1, stroke=0)
 
         canv.setFillColor(MID_GREY)
         canv.setFont("Helvetica", 7)
-        canv.drawString(15*mm, 5*mm, f"Property: {self.address}")
-        canv.drawCentredString(w / 2, 5*mm, f"Generated {datetime.now().strftime('%d %B %Y')}")
-        canv.drawRightString(w - 15*mm, 5*mm, f"Page {doc.page}")
+        addr = self.address[:70] + "..." if len(self.address) > 70 else self.address
+        canv.drawString(15*mm, 9*mm, addr)
+        canv.drawCentredString(w / 2, 9*mm, datetime.now().strftime("%d %B %Y"))
+        canv.drawRightString(w - 15*mm, 9*mm, f"Page {doc.page}")
 
-        # ── Disclaimer line ──
-        canv.setFont("Helvetica-Oblique", 6)
+        canv.setFont("Helvetica-Oblique", 5.5)
         canv.setFillColor(colors.HexColor("#aaaaaa"))
-        canv.drawCentredString(
-            w / 2, 10*mm,
-            "For informational purposes only. Not financial advice. Always conduct independent due diligence."
-        )
+        canv.drawCentredString(w / 2, 4*mm,
+            "For informational purposes only. Not financial advice. Always conduct independent due diligence.")
 
         canv.restoreState()
 
@@ -98,137 +176,311 @@ class PropertyReportTemplate(BaseDocTemplate):
 # ─── Styles ───────────────────────────────────────────────────────────────────
 
 def get_styles():
-    base = getSampleStyleSheet()
-
     styles = {
-        "report_title": ParagraphStyle(
-            "report_title",
-            fontSize=22,
-            fontName="Helvetica-Bold",
-            textColor=NAVY,
-            spaceAfter=4*mm,
-            leading=28,
-        ),
-        "address": ParagraphStyle(
-            "address",
-            fontSize=13,
-            fontName="Helvetica",
-            textColor=MID_GREY,
-            spaceAfter=6*mm,
-        ),
-        "section_heading": ParagraphStyle(
-            "section_heading",
-            fontSize=13,
-            fontName="Helvetica-Bold",
-            textColor=WHITE,
-            spaceBefore=4*mm,
-            spaceAfter=3*mm,
-            leftIndent=4*mm,
-        ),
-        "subheading": ParagraphStyle(
-            "subheading",
-            fontSize=10,
-            fontName="Helvetica-Bold",
-            textColor=NAVY,
-            spaceBefore=3*mm,
-            spaceAfter=1*mm,
-        ),
-        "body": ParagraphStyle(
-            "body",
-            fontSize=9,
-            fontName="Helvetica",
-            textColor=colors.HexColor("#333333"),
-            leading=14,
-            spaceAfter=2*mm,
-        ),
-        "bullet": ParagraphStyle(
-            "bullet",
-            fontSize=9,
-            fontName="Helvetica",
-            textColor=colors.HexColor("#333333"),
-            leading=13,
-            leftIndent=8*mm,
-            bulletIndent=3*mm,
-            spaceAfter=1*mm,
-        ),
-        "tag_good": ParagraphStyle(
-            "tag_good",
-            fontSize=8,
-            fontName="Helvetica-Bold",
-            textColor=GREEN,
-        ),
-        "tag_warn": ParagraphStyle(
-            "tag_warn",
-            fontSize=8,
-            fontName="Helvetica-Bold",
-            textColor=colors.HexColor("#e65100"),
-        ),
-        "tag_bad": ParagraphStyle(
-            "tag_bad",
-            fontSize=8,
-            fontName="Helvetica-Bold",
-            textColor=RED,
-        ),
-        "footer_note": ParagraphStyle(
-            "footer_note",
-            fontSize=7,
-            fontName="Helvetica-Oblique",
-            textColor=MID_GREY,
-            leading=10,
-        ),
+        "hero_eyebrow": ParagraphStyle("hero_eyebrow", fontSize=8, fontName="Helvetica-Bold",
+            textColor=GOLD_LIGHT, spaceAfter=3*mm, leading=10),
+        "hero_title": ParagraphStyle("hero_title", fontSize=26, fontName="Helvetica-Bold",
+            textColor=WHITE, spaceAfter=3*mm, leading=32),
+        "hero_address": ParagraphStyle("hero_address", fontSize=13, fontName="Helvetica",
+            textColor=GOLD_LIGHT, spaceAfter=2*mm, leading=18),
+        "hero_meta": ParagraphStyle("hero_meta", fontSize=8, fontName="Helvetica",
+            textColor=colors.HexColor("#aabbcc"), leading=12),
+        "report_title": ParagraphStyle("report_title", fontSize=20, fontName="Helvetica-Bold",
+            textColor=NAVY, spaceAfter=4*mm, leading=26),
+        "address": ParagraphStyle("address", fontSize=12, fontName="Helvetica",
+            textColor=MID_GREY, spaceAfter=5*mm),
+        "section_heading": ParagraphStyle("section_heading", fontSize=11, fontName="Helvetica-Bold",
+            textColor=WHITE, spaceBefore=3*mm, spaceAfter=2*mm, leftIndent=3*mm),
+        "subheading": ParagraphStyle("subheading", fontSize=10, fontName="Helvetica-Bold",
+            textColor=NAVY, spaceBefore=3*mm, spaceAfter=1*mm),
+        "body": ParagraphStyle("body", fontSize=9, fontName="Helvetica",
+            textColor=TEXT_MID, leading=14, spaceAfter=2*mm),
+        "bullet": ParagraphStyle("bullet", fontSize=9, fontName="Helvetica",
+            textColor=TEXT_MID, leading=13, leftIndent=6*mm, spaceAfter=1.5*mm),
+        "scorecard_label": ParagraphStyle("scorecard_label", fontSize=7.5, fontName="Helvetica-Bold",
+            textColor=MID_GREY, leading=10, alignment=TA_CENTER),
+        "scorecard_value": ParagraphStyle("scorecard_value", fontSize=11, fontName="Helvetica-Bold",
+            textColor=NAVY, leading=14, alignment=TA_CENTER),
+        "scorecard_sub": ParagraphStyle("scorecard_sub", fontSize=7, fontName="Helvetica",
+            textColor=MID_GREY, leading=10, alignment=TA_CENTER),
+        "footer_note": ParagraphStyle("footer_note", fontSize=7, fontName="Helvetica-Oblique",
+            textColor=MID_GREY, leading=10),
     }
     return styles
 
 
-# ─── Section Header Helper ────────────────────────────────────────────────────
+# ─── Section Header ───────────────────────────────────────────────────────────
+
+_section_count = 0
 
 def section_header(title: str, emoji: str, styles: dict):
-    """Renders a coloured section header bar."""
-    items = []
-    # Coloured background table
+    global _section_count
+    bg = TEAL if _section_count % 2 == 1 else NAVY
+    _section_count += 1
+
     data = [[Paragraph(f"{emoji}  {title}", styles["section_heading"])]]
     t = Table(data, colWidths=[180*mm])
     t.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, -1), NAVY),
-        ("ROWPADDING", (0, 0), (-1, -1), 6),
-        ("LEFTPADDING", (0, 0), (-1, -1), 8),
-        ("TOPPADDING", (0, 0), (-1, -1), 4),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("BACKGROUND",    (0,0), (-1,-1), bg),
+        ("LEFTPADDING",   (0,0), (-1,-1), 8),
+        ("RIGHTPADDING",  (0,0), (-1,-1), 8),
+        ("TOPPADDING",    (0,0), (-1,-1), 5),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 5),
+        ("ROWBORDERPADDING", (0,0), (-1,-1), 0),
+    ]))
+    return [t, Spacer(1, 3*mm)]
+
+
+# ─── Scorecard ────────────────────────────────────────────────────────────────
+
+def _safe_get(d, *keys, default="N/A"):
+    """Safely traverse nested dict/list."""
+    for k in keys:
+        if not isinstance(d, dict):
+            return default
+        d = d.get(k, default)
+        if d in (None, "", default):
+            return default
+    return str(d) if d != default else default
+
+
+def build_scorecard(report, styles: dict) -> list:
+    suburb  = report.suburb  if isinstance(report.suburb,  dict) else {}
+    schools = report.schools if isinstance(report.schools, dict) else {}
+    transport = report.transport if isinstance(report.transport, dict) else {}
+    market  = report.property_market if isinstance(report.property_market, dict) else {}
+    risk    = report.risk_overlays   if isinstance(report.risk_overlays,   dict) else {}
+
+    def cell(label, value, sub=""):
+        return [
+            Paragraph(label, styles["scorecard_label"]),
+            Paragraph(value, styles["scorecard_value"]),
+            Paragraph(sub,   styles["scorecard_sub"]),
+        ]
+
+    median = _safe_get(suburb, "median_house_price")
+    yield_  = _safe_get(suburb, "rental_yield")
+    school  = _safe_get(schools, "school_quality_summary")
+    if len(school) > 18: school = school[:18] + "…"
+    flood   = _safe_get(risk, "flood_risk")
+    if len(flood) > 18: flood = flood[:18] + "…"
+    cbd     = _safe_get(transport, "nearest_train", "cbd_mins")
+    if cbd != "N/A": cbd = f"{cbd} min"
+    outlook = _safe_get(market, "market_outlook")
+    if len(outlook) > 18: outlook = outlook[:18] + "…"
+
+    col_w = 30*mm
+    data = [
+        [
+            cell("MEDIAN PRICE",   median,  "house"),
+            cell("RENTAL YIELD",   yield_,  "estimate"),
+            cell("SCHOOLS",        school,  "quality"),
+            cell("FLOOD RISK",     flood,   "overlay"),
+            cell("TRAIN TO CBD",   cbd,     "nearest"),
+            cell("MARKET",         outlook, "outlook"),
+        ]
+    ]
+
+    # Flatten: each cell is a list of 3 paragraphs, put them in sub-rows
+    # Use a 6-column table where each column has 3 rows stacked
+    col_data = []
+    for c in data[0]:
+        col_data.append(c)  # list of [label, value, sub]
+
+    # Build as a single-row table with nested content
+    row = [[
+        Table([[p] for p in col], colWidths=[col_w])
+        for col in col_data
+    ]]
+    inner_styles = [
+        ("ALIGN",       (0,0), (-1,-1), "CENTER"),
+        ("VALIGN",      (0,0), (-1,-1), "MIDDLE"),
+        ("ROWPADDING",  (0,0), (-1,-1), 4),
+    ]
+    for col_i in range(6):
+        inner_styles.append(("ROWPADDING", (col_i,0), (col_i,0), 0))
+
+    t = Table(row, colWidths=[col_w]*6)
+    t.setStyle(TableStyle([
+        ("BACKGROUND",    (0,0), (-1,-1), LIGHT_GREY),
+        ("BOX",           (0,0), (-1,-1), 0.5, BORDER_GREY),
+        ("LINEBEFORE",    (1,0), (-1,-1), 0.5, BORDER_GREY),
+        ("ALIGN",         (0,0), (-1,-1), "CENTER"),
+        ("VALIGN",        (0,0), (-1,-1), "MIDDLE"),
+        ("TOPPADDING",    (0,0), (-1,-1), 6),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 6),
+    ]))
+
+    items = [
+        Paragraph("KEY METRICS AT A GLANCE", ParagraphStyle("sm", fontSize=7.5,
+            fontName="Helvetica-Bold", textColor=MID_GREY, spaceAfter=2*mm)),
+        t,
+        Spacer(1, 5*mm),
+    ]
+    return items
+
+
+# ─── Street View Image ────────────────────────────────────────────────────────
+
+def fetch_street_view(address: str, width: int = 560, height: int = 260) -> str | None:
+    """Download a Google Street View image for the address. Returns temp file path or None."""
+    api_key = os.getenv("GOOGLE_MAPS_API_KEY", "")
+    if not api_key or api_key == "your-google-maps-api-key-here":
+        return None
+    try:
+        params = urllib.parse.urlencode({
+            "size":               f"{width}x{height}",
+            "location":           address,
+            "key":                api_key,
+            "return_error_codes": "true",
+            "source":             "outdoor",
+        })
+        url  = f"https://maps.googleapis.com/maps/api/streetview?{params}"
+        path = os.path.join(tempfile.gettempdir(), f"sv_{abs(hash(address))}.jpg")
+        urllib.request.urlretrieve(url, path)
+        # Google returns a grey placeholder for unknown addresses with status 200;
+        # check file size — real images are >5 KB
+        if os.path.getsize(path) < 5_000:
+            return None
+        return path
+    except Exception as e:
+        print(f"⚠️  Street View fetch failed: {e}")
+        return None
+
+
+# ─── Cover Page ───────────────────────────────────────────────────────────────
+
+def build_cover_page(report, styles: dict) -> list:
+    address  = report.address
+    today    = datetime.now().strftime("%d %B %Y")
+    state    = detect_state(address)
+    sources  = state_data_sources(address)
+    items    = []
+
+    # ── Hero block (navy background via table) ──
+    hero_content = [
+        [Paragraph("AI PROPERTY INTELLIGENCE REPORT", styles["hero_eyebrow"])],
+        [Paragraph("Property<br/>Research Report", styles["hero_title"])],
+        [Spacer(1, 2*mm)],
+        [HRFlowable(width="100%", thickness=1, color=GOLD, spaceAfter=3*mm)],
+        [Paragraph(address, styles["hero_address"])],
+        [Paragraph(f"Generated {today}  ·  {state['label']}  ·  PropertyReport", styles["hero_meta"])],
+    ]
+    hero_table = Table([[row] for row in hero_content], colWidths=[180*mm])
+    hero_table.setStyle(TableStyle([
+        ("BACKGROUND",    (0,0), (-1,-1), NAVY_DARK),
+        ("LEFTPADDING",   (0,0), (-1,-1), 10*mm),
+        ("RIGHTPADDING",  (0,0), (-1,-1), 10*mm),
+        ("TOPPADDING",    (0,0), (-1,-1), 3),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 3),
+        ("TOPPADDING",    (0,0), (0,0),   8*mm),
+        ("BOTTOMPADDING", (0,5), (0,5),   8*mm),
+    ]))
+    items.append(Spacer(1, 5*mm))
+    items.append(hero_table)
+    items.append(Spacer(1, 4*mm))
+
+    # ── Street View photo ──
+    img_path = fetch_street_view(address)
+    if img_path:
+        img = Image(img_path, width=180*mm, height=84*mm)
+        img.hAlign = "LEFT"
+        # Wrap in a table to add a thin border
+        img_table = Table([[img]], colWidths=[180*mm])
+        img_table.setStyle(TableStyle([
+            ("BOX",           (0,0), (-1,-1), 0.5, BORDER_GREY),
+            ("TOPPADDING",    (0,0), (-1,-1), 0),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 0),
+            ("LEFTPADDING",   (0,0), (-1,-1), 0),
+            ("RIGHTPADDING",  (0,0), (-1,-1), 0),
+        ]))
+        items.append(img_table)
+        items.append(Spacer(1, 4*mm))
+
+    # ── Scorecard ──
+    items.extend(build_scorecard(report, styles))
+
+    # ── Info table ──
+    data = [
+        ["Report Date",  today],
+        ["Market",       state["label"]],
+        ["Data Sources", sources],
+        ["Prepared by",  "PropertyReport AI Research Platform"],
+    ]
+    t = Table(data, colWidths=[42*mm, 138*mm])
+    t.setStyle(TableStyle([
+        ("BACKGROUND",  (0,0), (0,-1), LIGHT_BLUE),
+        ("FONTNAME",    (0,0), (0,-1), "Helvetica-Bold"),
+        ("FONTSIZE",    (0,0), (-1,-1), 8.5),
+        ("TEXTCOLOR",   (0,0), (0,-1), NAVY),
+        ("TEXTCOLOR",   (1,0), (1,-1), TEXT_MID),
+        ("TOPPADDING",  (0,0), (-1,-1), 5),
+        ("BOTTOMPADDING",(0,0),(-1,-1), 5),
+        ("LEFTPADDING", (0,0), (-1,-1), 6),
+        ("GRID",        (0,0), (-1,-1), 0.5, BORDER_GREY),
+        ("VALIGN",      (0,0), (-1,-1), "TOP"),
     ]))
     items.append(t)
-    items.append(Spacer(1, 3*mm))
+    items.append(Spacer(1, 6*mm))
+
+    # ── Disclaimer ──
+    items.append(Paragraph(
+        "This report was generated by artificial intelligence using publicly available Australian data sources. "
+        "It is a research aid only and does not constitute financial, legal, or investment advice. "
+        "Always engage a licensed property professional before making purchasing decisions.",
+        styles["footer_note"]
+    ))
+    items.append(PageBreak())
     return items
 
 
 # ─── Parse Report Text ────────────────────────────────────────────────────────
 
+SECTION_MAP = {
+    "executive summary": ("📋", ),
+    "suburb profile":    ("🏘️", ),
+    "liveability":       ("🏘️", ),
+    "school":            ("🏫", ),
+    "infrastructure":    ("🏗️", ),
+    "government":        ("🏛️", ),
+    "transport":         ("🚆", ),
+    "property market":   ("📈", ),
+    "market analysis":   ("📈", ),
+    "risk":              ("⚠️", ),
+    "investment":        ("💡", ),
+    "verdict":           ("💡", ),
+    "recommendation":    ("💡", ),
+}
+
+def _emoji_for(heading: str) -> str:
+    lower = heading.lower()
+    for key, (em,) in SECTION_MAP.items():
+        if key in lower:
+            return em
+    return "📌"
+
+
 def parse_report_to_flowables(summary: str, styles: dict) -> list:
-    """
-    Converts the Claude-generated markdown-ish report text
-    into reportlab flowables with proper section headers.
-    """
     flowables = []
     lines = summary.split("\n")
-
-    SECTION_MAP = {
-        "Executive Summary":            ("📋", True),
-        "Suburb Profile":               ("🏘️", True),
-        "School Catchments":            ("🏫", True),
-        "Infrastructure":               ("🏗️", True),
-        "Government":                   ("🏛️", True),
-        "Transport":                    ("🚆", True),
-        "Property Market":              ("📈", True),
-        "Risk Assessment":              ("⚠️", True),
-        "Investment Verdict":           ("💡", True),
-        "Recommendation":               ("💡", True),
-    }
-
     current_bullets = []
 
     def flush_bullets():
         nonlocal current_bullets
         for b in current_bullets:
-            flowables.append(Paragraph(f"• {b}", styles["bullet"]))
+            # Detect sentiment for bullet color
+            lower_b = b.lower()
+            if any(w in lower_b for w in ("no ", "low ", "minimal", "excellent", "strong", "good", "well")):
+                dot_color = "#1e8449"
+            elif any(w in lower_b for w in ("risk", "concern", "flood", "high", "poor", "limited", "lack")):
+                dot_color = "#c0392b"
+            else:
+                dot_color = "#c9a84c"
+            clean = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", b)
+            flowables.append(Paragraph(
+                f'<font color="{dot_color}">■</font>  {clean}',
+                styles["bullet"]
+            ))
         current_bullets = []
 
     for line in lines:
@@ -237,17 +489,10 @@ def parse_report_to_flowables(summary: str, styles: dict) -> list:
             flush_bullets()
             continue
 
-        # H1 / H2 headings
         if stripped.startswith("## ") or stripped.startswith("# "):
             flush_bullets()
             heading_text = stripped.lstrip("#").strip()
-            # Find matching section
-            emoji = "📌"
-            for key, (em, _) in SECTION_MAP.items():
-                if key.lower() in heading_text.lower():
-                    emoji = em
-                    break
-            flowables.extend(section_header(heading_text, emoji, styles))
+            flowables.extend(section_header(heading_text, _emoji_for(heading_text), styles))
 
         elif stripped.startswith("### "):
             flush_bullets()
@@ -262,7 +507,6 @@ def parse_report_to_flowables(summary: str, styles: dict) -> list:
 
         else:
             flush_bullets()
-            # Clean up any remaining markdown bold
             clean = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", stripped)
             flowables.append(Paragraph(clean, styles["body"]))
 
@@ -270,67 +514,13 @@ def parse_report_to_flowables(summary: str, styles: dict) -> list:
     return flowables
 
 
-# ─── Cover Page ───────────────────────────────────────────────────────────────
-
-def build_cover_page(address: str, styles: dict) -> list:
-    items = []
-    items.append(Spacer(1, 20*mm))
-
-    # Title
-    items.append(Paragraph("Property Intelligence Report", styles["report_title"]))
-    items.append(HRFlowable(width="100%", thickness=2, color=GOLD, spaceAfter=4*mm))
-    items.append(Paragraph(address, styles["address"]))
-    items.append(Spacer(1, 8*mm))
-
-    # Info box
-    today = datetime.now().strftime("%d %B %Y")
-    data = [
-        ["Report Date", today],
-        ["Market",      "Melbourne, Victoria, Australia"],
-        ["Data Sources","realestate.com.au · myschool.edu.au · planning.vic.gov.au · crimestats.vic.gov.au"],
-        ["Prepared by", "PropertyIQ AI Research Platform"],
-    ]
-    t = Table(data, colWidths=[45*mm, 135*mm])
-    t.setStyle(TableStyle([
-        ("BACKGROUND",   (0, 0), (0, -1), LIGHT_BLUE),
-        ("FONTNAME",     (0, 0), (0, -1), "Helvetica-Bold"),
-        ("FONTSIZE",     (0, 0), (-1, -1), 9),
-        ("TEXTCOLOR",    (0, 0), (0, -1), NAVY),
-        ("TEXTCOLOR",    (1, 0), (1, -1), colors.HexColor("#333333")),
-        ("ROWPADDING",   (0, 0), (-1, -1), 6),
-        ("GRID",         (0, 0), (-1, -1), 0.5, colors.HexColor("#dddddd")),
-        ("VALIGN",       (0, 0), (-1, -1), "TOP"),
-    ]))
-    items.append(t)
-    items.append(Spacer(1, 10*mm))
-
-    # Disclaimer
-    items.append(Paragraph(
-        "This report was generated by artificial intelligence using publicly available Australian data sources. "
-        "It is intended as a research aid only and does not constitute financial, legal, or investment advice. "
-        "Always engage a licensed property professional before making purchasing decisions.",
-        styles["footer_note"]
-    ))
-
-    items.append(PageBreak())
-    return items
-
-
 # ─── Main PDF Builder ─────────────────────────────────────────────────────────
 
 def generate_pdf(report, output_path: str = "property_report.pdf") -> str:
-    """
-    Generate a PDF from a PropertyReport object.
+    global _section_count
+    _section_count = 0  # reset alternating colors per report
 
-    Args:
-        report: PropertyReport dataclass instance
-        output_path: Where to save the PDF
-
-    Returns:
-        Path to the generated PDF
-    """
     styles = get_styles()
-    w, h = A4
 
     doc = PropertyReportTemplate(
         output_path,
@@ -338,25 +528,19 @@ def generate_pdf(report, output_path: str = "property_report.pdf") -> str:
         pagesize=A4,
         leftMargin=15*mm,
         rightMargin=15*mm,
-        topMargin=22*mm,
-        bottomMargin=18*mm,
+        topMargin=20*mm,
+        bottomMargin=20*mm,
     )
 
     story = []
-
-    # Cover page
-    story.extend(build_cover_page(report.address, styles))
-
-    # Full report content (parsed from Claude's text)
+    story.extend(build_cover_page(report, styles))
     story.extend(parse_report_to_flowables(report.summary, styles))
-
-    # Build PDF
     doc.build(story)
     print(f"✅ PDF generated: {output_path}")
     return output_path
 
 
-# ─── CLI Test ──────────────────────────────────────────────────────────────────
+# ─── CLI Test ─────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     import json, sys
@@ -376,5 +560,4 @@ if __name__ == "__main__":
         risk_overlays=data["research_data"]["risk_overlays"],
         summary=data["summary"]
     )
-
     generate_pdf(report, "test_report.pdf")

@@ -1,4 +1,4 @@
-# 🏠 PropertyIQ
+# 🏠 PropertyReport
 
 AI-powered Australian property research reports. Buyer pays → AI researches → PDF generated → report emailed.
 
@@ -8,8 +8,8 @@ AI-powered Australian property research reports. Buyer pays → AI researches �
 
 ```bash
 # 1. Clone
-git clone https://github.com/yourusername/propertyiq.git
-cd propertyiq
+git clone https://github.com/yourusername/propertyreport.git
+cd propertyreport
 
 # 2. Install
 pip install -r requirements.txt
@@ -30,7 +30,7 @@ uvicorn api:app --reload --port 8000
 ## Project Structure
 
 ```
-propertyiq/
+propertyreport/
 │
 ├── 📄 api.py                   FastAPI backend (Stripe + webhook + job polling)
 ├── 🤖 orchestrator.py          Claude AI research agent (6 research tasks)
@@ -88,7 +88,7 @@ stripe login
 
 ### Step 3 — Run everything locally
 
-**Terminal 1 — API:**
+**Terminal 1 — API + Frontend:**
 ```bash
 uvicorn api:app --reload --port 8000
 ```
@@ -99,12 +99,9 @@ stripe listen --forward-to localhost:8000/webhook
 # Copy the whsec_... secret it prints → add to .env as STRIPE_WEBHOOK_SECRET
 ```
 
-**Terminal 3 — Frontend:**
-```bash
-cd frontend && python -m http.server 3000
-```
+**Browser:** http://localhost:8000
 
-**Browser:** http://localhost:3000
+> The frontend is now served directly by FastAPI — no separate server needed.
 
 ### Step 4 — Test card numbers
 
@@ -138,10 +135,10 @@ curl http://localhost:8000/report/{job_id}
 # 2. In your project folder:
 git init
 git add .
-git commit -m "Initial commit — PropertyIQ full stack"
+git commit -m "Initial commit — PropertyReport full stack"
 
 # 3. Connect to GitHub
-git remote add origin https://github.com/yourusername/propertyiq.git
+git remote add origin https://github.com/yourusername/propertyreport.git
 git branch -M main
 git push -u origin main
 ```

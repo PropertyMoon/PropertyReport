@@ -5,7 +5,26 @@ Uses Claude API with web search to research Australian properties
 
 import anthropic
 import json
+import re
+import time
 from dataclasses import dataclass
+
+# Reuse state detection from pdf_generator
+_STATE_SOURCES = {
+    "VIC": {"label": "Victoria",             "planning": "planning.vic.gov.au",   "crime": "crimestats.vic.gov.au",                 "flood": "vicfloodmap.com.au"},
+    "NSW": {"label": "New South Wales",      "planning": "planning.nsw.gov.au",   "crime": "bocsar.nsw.gov.au",                     "flood": "floodplanning.nsw.gov.au"},
+    "QLD": {"label": "Queensland",           "planning": "dsdilgp.qld.gov.au",    "crime": "police.qld.gov.au/maps-and-statistics", "flood": "floodcheck.qld.gov.au"},
+    "SA":  {"label": "South Australia",      "planning": "plan.sa.gov.au",         "crime": "police.sa.gov.au/services-and-stats",  "flood": "environment.sa.gov.au/flood"},
+    "WA":  {"label": "Western Australia",    "planning": "planning.wa.gov.au",     "crime": "police.wa.gov.au/crime-statistics",    "flood": "planning.wa.gov.au/flood"},
+    "TAS": {"label": "Tasmania",             "planning": "listmap.tas.gov.au",     "crime": "justice.tas.gov.au/crime-statistics",  "flood": "dpipwe.tas.gov.au/flood"},
+    "ACT": {"label": "ACT",                  "planning": "actmapi.act.gov.au",     "crime": "police.act.gov.au/crime-statistics",   "flood": "esa.act.gov.au/flood"},
+    "NT":  {"label": "Northern Territory",   "planning": "planning.nt.gov.au",     "crime": "pfes.nt.gov.au/crime-statistics",      "flood": "nt.gov.au/emergency/flood"},
+}
+_DEFAULT_STATE = {"label": "Australia", "planning": "planning.gov.au", "crime": "aic.gov.au", "flood": "ga.gov.au/flood"}
+
+def _get_state(address: str) -> dict:
+    m = re.search(r'\b(VIC|NSW|QLD|SA|WA|TAS|ACT|NT)\b', address, re.IGNORECASE)
+    return _STATE_SOURCES.get(m.group(1).upper(), _DEFAULT_STATE) if m else _DEFAULT_STATE
 
 
 @dataclass
@@ -23,97 +42,17 @@ class PropertyReport:
 # ─── Research Prompts ────────────────────────────────────────────────────────
 
 RESEARCH_TASKS = {
-    "suburb": """
-Research the suburb profile for the property at: {address}
+    "suburb": "Property: {address}\nState: {state}\nReturn JSON with: suburb, postcode, median_house_price, median_unit_price, price_growth_5yr, rental_yield, demographics, crime_rating, key_amenities, liveability_score. Use {crime_url} for crime data.",
 
-Find and return detailed information on:
-1. Suburb name and postcode
-2. Median house and unit prices (current + 1yr, 5yr growth trend)
-3. Rental yield estimates
-4. Population and demographic overview (family-friendly, young professionals, etc.)
-5. Crime statistics for this suburb (reference crimestats.vic.gov.au if possible)
-6. Key amenities (shopping centres, hospitals, parks, restaurants)
-7. Overall liveability rating and what makes this suburb attractive
+    "schools": "Property: {address}\nReturn JSON with: primary_schools (name, distance_km, icsea), secondary_schools (name, distance_km, icsea), private_schools (name, distance_km), in_catchment_zone, school_quality_summary. Use myschool.edu.au.",
 
-Be specific with numbers and cite sources where possible.
-Format your response as structured JSON.
-""",
+    "government_projects": "Property: {address}\nState: {state}\nReturn JSON with: transport_projects, federal_investment, council_developments, zoning_changes, impact_on_value (positive/negative), project_timelines. Use {planning_url} for planning data.",
 
-    "schools": """
-Research schools near this property address: {address}
+    "transport": "Property: {address}\nReturn JSON with: nearest_train (name, distance_km, line, cbd_mins), bus_routes, tram_access, drive_to_cbd_peak_mins, drive_to_cbd_offpeak_mins, walkability_score, cycling_infrastructure.",
 
-Find and return:
-1. All public primary schools within 3km (name, distance, ICSEA score, rating)
-2. All public secondary schools within 5km (name, distance, ICSEA score, rating)
-3. Notable private schools in the area (name, distance, fees range if available)
-4. Whether the property falls within a sought-after school catchment zone
-5. Overall school quality assessment for this area
+    "property_market": "Property: {address}\nReturn JSON with: recent_sales (last 6 months), days_on_market, auction_clearance_rate, price_per_sqm, best_pockets, market_outlook. Use realestate.com.au and domain.com.au.",
 
-Use myschool.edu.au data where possible.
-Format your response as structured JSON.
-""",
-
-    "government_projects": """
-Research planned and current government infrastructure projects near: {address}
-
-Find and return:
-1. State government transport projects (rail, road, tram extensions)
-2. Federal government investment in the area
-3. Council-approved developments (new parks, community centres, libraries)
-4. Zoning changes or urban renewal plans
-5. Any major upcoming projects that could affect property value positively or negatively
-6. Timeline for key projects
-
-Check planning.vic.gov.au, infrastructure.vic.gov.au and local council websites.
-Format your response as structured JSON.
-""",
-
-    "transport": """
-Research transport and connectivity for: {address}
-
-Find and return:
-1. Nearest train station (name, distance, line, travel time to Melbourne CBD)
-2. Bus routes available nearby
-3. Tram access if applicable
-4. Drive time to Melbourne CBD (peak hour and off-peak)
-5. Drive time to nearest major shopping centre
-6. Walkability assessment (can daily errands be done on foot?)
-7. Cycling infrastructure nearby
-
-Format your response as structured JSON.
-""",
-
-    "property_market": """
-Research the property market conditions for: {address}
-
-Find and return:
-1. Recent comparable sales in the same street or suburb (last 6 months)
-2. Average days on market for this suburb
-3. Auction clearance rates in this area
-4. Current supply vs demand indicators
-5. Price per square metre benchmarks
-6. Best streets or pockets within this suburb
-7. Market outlook for this suburb (growth potential)
-
-Use realestate.com.au and domain.com.au data where possible.
-Format your response as structured JSON.
-""",
-
-    "risk_overlays": """
-Research planning overlays and risk factors for: {address}
-
-Find and return:
-1. Flood risk zone (check vicfloodmap or council flood maps)
-2. Bushfire risk rating (BAL rating if applicable)
-3. Heritage overlay restrictions
-4. Significant landscape overlay
-5. Development potential (can subdivide? build up?)
-6. Any noise or flight path concerns
-7. Environmental contamination flags if any
-
-Check planning.vic.gov.au planning maps.
-Format your response as structured JSON.
-"""
+    "risk_overlays": "Property: {address}\nState: {state}\nReturn JSON with: flood_risk, bushfire_bal_rating, heritage_overlay, landscape_overlay, subdivision_potential, noise_concerns, contamination_flags. Use {planning_url} and {flood_url}.",
 }
 
 
@@ -121,22 +60,34 @@ Format your response as structured JSON.
 
 def run_research_task(client: anthropic.Anthropic, task_name: str, address: str) -> dict:
     """Run a single research task using Claude with web search."""
-    
+
     print(f"  🔍 Researching {task_name}...")
-    
-    prompt = RESEARCH_TASKS[task_name].format(address=address)
-    
-    response = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=2000,
-        tools=[{"type": "web_search_20250305", "name": "web_search"}],
-        system="""You are an expert Australian property researcher specialising in Melbourne and Victoria.
-Your job is to research specific aspects of a property and return accurate, structured data.
-Always respond with valid JSON only — no markdown, no preamble, no explanation outside the JSON.
-If you cannot find specific data, include the field with a null value and a "note" explaining why.
-Be thorough and use web search to find current, accurate information.""",
-        messages=[{"role": "user", "content": prompt}]
+
+    state  = _get_state(address)
+    prompt = RESEARCH_TASKS[task_name].format(
+        address=address,
+        state=state["label"],
+        planning_url=state["planning"],
+        crime_url=state["crime"],
+        flood_url=state["flood"],
     )
+
+    for attempt in range(4):
+        try:
+            response = client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=2000,
+                tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 3}],
+                system="Australian property researcher. Respond with valid JSON only. Use null for missing data.",
+                messages=[{"role": "user", "content": prompt}]
+            )
+            break
+        except anthropic.RateLimitError:
+            if attempt == 3:
+                raise
+            wait = 60 * (attempt + 1)
+            print(f"  ⏳ Rate limited on {task_name}, retrying in {wait}s...")
+            time.sleep(wait)
     
     # Extract text from response (may include tool use blocks)
     full_text = ""
@@ -159,40 +110,33 @@ Be thorough and use web search to find current, accurate information.""",
 
 def synthesise_report(client: anthropic.Anthropic, address: str, research_data: dict) -> str:
     """Take all research data and synthesise into a buyer-friendly narrative report."""
-    
+
     print("  ✍️  Synthesising final report...")
-    
-    response = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=4000,
-        system="""You are a senior property analyst writing detailed investment reports for Australian property buyers.
-Write in a clear, professional but accessible tone. Be honest about both positives and negatives.
-Structure the report clearly with sections. Use specific data points from the research provided.
-The goal is to help buyers make an informed decision about purchasing this property.""",
-        messages=[{
-            "role": "user",
-            "content": f"""Using the research data below, write a comprehensive property report for:
+    time.sleep(60)  # let rate limit window reset after research tasks
 
-ADDRESS: {address}
-
-RESEARCH DATA:
-{json.dumps(research_data, indent=2)}
-
-Write a detailed report with these sections:
-1. Executive Summary (3-4 sentences, verdict on the property)
-2. Suburb Profile & Liveability
-3. School Catchments & Education
-4. Infrastructure & Government Investment
-5. Transport & Connectivity
-6. Property Market Analysis
-7. Risk Assessment
-8. Investment Verdict & Recommendation
-
-Be specific with numbers. Highlight key strengths and flag any concerns clearly."""
-        }]
+    prompt = (
+        f"Address: {address}\n"
+        f"Data: {json.dumps(research_data, separators=(',', ':'))}\n\n"
+        "Write a property report with sections: Executive Summary, Suburb Profile, "
+        "Schools, Infrastructure, Transport, Market Analysis, Risk Assessment, Verdict. "
+        "Be specific with numbers."
     )
-    
-    return response.content[0].text
+
+    for attempt in range(4):
+        try:
+            response = client.messages.create(
+                model="claude-sonnet-4-5",
+                max_tokens=3000,
+                system="Senior Australian property analyst. Write clear, concise investment reports.",
+                messages=[{"role": "user", "content": prompt}]
+            )
+            return response.content[0].text
+        except anthropic.RateLimitError:
+            if attempt == 3:
+                raise
+            wait = 60 * (attempt + 1)
+            print(f"  ⏳ Rate limited on synthesis, retrying in {wait}s...")
+            time.sleep(wait)
 
 
 # ─── Main Orchestrator ────────────────────────────────────────────────────────

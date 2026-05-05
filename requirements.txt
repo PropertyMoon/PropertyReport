@@ -1,4 +1,4 @@
-# PropertyIQ — Python Dependencies
+# PropertyReport — Python Dependencies
 # Install: pip install -r requirements.txt
 
 # Core AI
@@ -9,6 +9,7 @@ fastapi>=0.110.0
 uvicorn[standard]>=0.29.0
 python-multipart>=0.0.9
 pydantic[email]>=2.0.0
+aiofiles>=23.0.0
 
 # Payments
 stripe>=8.0.0

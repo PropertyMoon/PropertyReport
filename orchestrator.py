@@ -7,7 +7,7 @@ import anthropic
 import json
 import re
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 # Reuse state detection from pdf_generator
 _STATE_SOURCES = {
@@ -37,6 +37,109 @@ class PropertyReport:
     property_market: dict
     risk_overlays: dict
     summary: str
+    metrics: dict = field(default_factory=dict)  # pre-extracted scorecard values
+
+
+# ─── Metric Helpers ───────────────────────────────────────────────────────────
+
+def _pick(source: dict, *keys) -> str | None:
+    """Return first non-empty value from source for any of the given keys."""
+    for k in keys:
+        v = source.get(k)
+        if v is not None and str(v).strip() not in ("", "null", "N/A", "n/a", "none", "None"):
+            return str(v).strip()
+    return None
+
+
+def _fmt_price(v: str) -> str:
+    try:
+        s = str(v).replace("$", "").replace(",", "").strip()
+        if s.upper().endswith("M"):
+            return f"${float(s[:-1]):.2f}M".rstrip("0").rstrip(".")
+        if s.upper().endswith("K"):
+            return f"${float(s[:-1]):.0f}K"
+        num = float(s)
+        if num >= 1_000_000:
+            return f"${num/1_000_000:.2f}M".rstrip("0").rstrip(".")
+        if num >= 1_000:
+            return f"${num/1_000:.0f}K"
+        return f"${num:,.0f}"
+    except (ValueError, TypeError):
+        return str(v)[:18]
+
+
+def _fmt_pct(v: str) -> str:
+    s = str(v).replace("%", "").strip()
+    try:
+        return f"{float(s):.1f}%"
+    except (ValueError, TypeError):
+        return str(v)[:10] if "%" not in str(v) else str(v)[:10]
+
+
+def _truncate(s: str, n: int = 20) -> str:
+    return s if len(s) <= n else s[:n] + "…"
+
+
+def extract_metrics(report: "PropertyReport") -> dict:
+    """
+    Build the 6 scorecard values from research data.
+    Tries multiple key variants per field so we degrade gracefully
+    when Claude returns slightly different schemas.
+    """
+    suburb   = report.suburb   if isinstance(report.suburb,   dict) else {}
+    schools  = report.schools  if isinstance(report.schools,  dict) else {}
+    transport = report.transport if isinstance(report.transport, dict) else {}
+    market   = report.property_market if isinstance(report.property_market, dict) else {}
+    risk     = report.risk_overlays   if isinstance(report.risk_overlays,   dict) else {}
+
+    # Median house price
+    raw_p = _pick(suburb,
+        "median_house_price", "median_price", "median_house_value",
+        "house_median_price", "median_dwelling_price", "median_property_price")
+    median = _fmt_price(raw_p) if raw_p else "N/A"
+
+    # Rental yield
+    raw_y = _pick(suburb,
+        "rental_yield", "gross_rental_yield", "rental_yield_percent",
+        "gross_yield", "yield")
+    rental_yield = _fmt_pct(raw_y) if raw_y else "N/A"
+
+    # School quality
+    school_raw = _pick(schools,
+        "school_quality_summary", "quality_summary", "overall_quality",
+        "school_summary", "quality_rating", "summary")
+    school = _truncate(school_raw) if school_raw else "N/A"
+
+    # Flood risk
+    flood_raw = _pick(risk,
+        "flood_risk", "flood_risk_level", "flood_risk_rating",
+        "flood_overlay", "flood_zone", "flood_category")
+    flood = _truncate(flood_raw) if flood_raw else "N/A"
+
+    # CBD by train (minutes)
+    cbd_mins = None
+    nearest = transport.get("nearest_train", {})
+    if isinstance(nearest, dict):
+        cbd_mins = _pick(nearest, "cbd_mins", "minutes_to_cbd", "travel_time_cbd", "time_to_cbd")
+    if not cbd_mins:
+        cbd_mins = _pick(transport, "drive_to_cbd_offpeak_mins", "drive_to_cbd_peak_mins",
+                         "cbd_drive_mins", "cbd_minutes")
+    cbd = f"{cbd_mins} min" if cbd_mins else "N/A"
+
+    # Market outlook
+    outlook_raw = _pick(market,
+        "market_outlook", "outlook", "market_direction",
+        "price_outlook", "market_trend", "forecast")
+    outlook = _truncate(outlook_raw) if outlook_raw else "N/A"
+
+    return {
+        "median_price":   median,
+        "rental_yield":   rental_yield,
+        "school_quality": school,
+        "flood_risk":     flood,
+        "cbd_train_mins": cbd,
+        "market_outlook": outlook,
+    }
 
 
 # ─── Research Prompts ────────────────────────────────────────────────────────
@@ -188,8 +291,9 @@ def research_property(address: str, api_key: str = None) -> PropertyReport:
         transport=research_data.get("transport", {}),
         property_market=research_data.get("property_market", {}),
         risk_overlays=research_data.get("risk_overlays", {}),
-        summary=summary
+        summary=summary,
     )
+    report.metrics = extract_metrics(report)
     
     print("\n✅ Report complete!")
     return report

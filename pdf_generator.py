@@ -233,73 +233,35 @@ def section_header(title: str, emoji: str, styles: dict):
 
 # ─── Scorecard ────────────────────────────────────────────────────────────────
 
-def _safe_get(d, *keys, default="N/A"):
-    """Safely traverse nested dict/list."""
-    for k in keys:
-        if not isinstance(d, dict):
-            return default
-        d = d.get(k, default)
-        if d in (None, "", default):
-            return default
-    return str(d) if d != default else default
-
-
 def build_scorecard(report, styles: dict) -> list:
-    suburb  = report.suburb  if isinstance(report.suburb,  dict) else {}
-    schools = report.schools if isinstance(report.schools, dict) else {}
-    transport = report.transport if isinstance(report.transport, dict) else {}
-    market  = report.property_market if isinstance(report.property_market, dict) else {}
-    risk    = report.risk_overlays   if isinstance(report.risk_overlays,   dict) else {}
+    m = report.metrics if isinstance(getattr(report, "metrics", None), dict) else {}
 
-    def cell(label, value, sub=""):
-        return [
-            Paragraph(label, styles["scorecard_label"]),
-            Paragraph(value, styles["scorecard_value"]),
-            Paragraph(sub,   styles["scorecard_sub"]),
-        ]
-
-    median = _safe_get(suburb, "median_house_price")
-    yield_  = _safe_get(suburb, "rental_yield")
-    school  = _safe_get(schools, "school_quality_summary")
-    if len(school) > 18: school = school[:18] + "…"
-    flood   = _safe_get(risk, "flood_risk")
-    if len(flood) > 18: flood = flood[:18] + "…"
-    cbd     = _safe_get(transport, "nearest_train", "cbd_mins")
-    if cbd != "N/A": cbd = f"{cbd} min"
-    outlook = _safe_get(market, "market_outlook")
-    if len(outlook) > 18: outlook = outlook[:18] + "…"
+    cells = [
+        ("MEDIAN PRICE",  m.get("median_price",   "N/A"), "house"),
+        ("RENTAL YIELD",  m.get("rental_yield",   "N/A"), "estimate"),
+        ("SCHOOLS",       m.get("school_quality", "N/A"), "quality"),
+        ("FLOOD RISK",    m.get("flood_risk",     "N/A"), "overlay"),
+        ("TRAIN TO CBD",  m.get("cbd_train_mins", "N/A"), "nearest"),
+        ("MARKET",        m.get("market_outlook", "N/A"), "outlook"),
+    ]
 
     col_w = 30*mm
-    data = [
-        [
-            cell("MEDIAN PRICE",   median,  "house"),
-            cell("RENTAL YIELD",   yield_,  "estimate"),
-            cell("SCHOOLS",        school,  "quality"),
-            cell("FLOOD RISK",     flood,   "overlay"),
-            cell("TRAIN TO CBD",   cbd,     "nearest"),
-            cell("MARKET",         outlook, "outlook"),
-        ]
-    ]
 
-    # Flatten: each cell is a list of 3 paragraphs, put them in sub-rows
-    # Use a 6-column table where each column has 3 rows stacked
-    col_data = []
-    for c in data[0]:
-        col_data.append(c)  # list of [label, value, sub]
+    def make_cell(label, value, sub):
+        inner = Table(
+            [[Paragraph(label, styles["scorecard_label"])],
+             [Paragraph(value, styles["scorecard_value"])],
+             [Paragraph(sub,   styles["scorecard_sub"])]],
+            colWidths=[col_w]
+        )
+        inner.setStyle(TableStyle([
+            ("ALIGN",         (0,0), (-1,-1), "CENTER"),
+            ("TOPPADDING",    (0,0), (-1,-1), 2),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 2),
+        ]))
+        return inner
 
-    # Build as a single-row table with nested content
-    row = [[
-        Table([[p] for p in col], colWidths=[col_w])
-        for col in col_data
-    ]]
-    inner_styles = [
-        ("ALIGN",       (0,0), (-1,-1), "CENTER"),
-        ("VALIGN",      (0,0), (-1,-1), "MIDDLE"),
-        ("ROWPADDING",  (0,0), (-1,-1), 4),
-    ]
-    for col_i in range(6):
-        inner_styles.append(("ROWPADDING", (col_i,0), (col_i,0), 0))
-
+    row = [[make_cell(label, val, sub) for label, val, sub in cells]]
     t = Table(row, colWidths=[col_w]*6)
     t.setStyle(TableStyle([
         ("BACKGROUND",    (0,0), (-1,-1), LIGHT_GREY),
@@ -307,17 +269,16 @@ def build_scorecard(report, styles: dict) -> list:
         ("LINEBEFORE",    (1,0), (-1,-1), 0.5, BORDER_GREY),
         ("ALIGN",         (0,0), (-1,-1), "CENTER"),
         ("VALIGN",        (0,0), (-1,-1), "MIDDLE"),
-        ("TOPPADDING",    (0,0), (-1,-1), 6),
-        ("BOTTOMPADDING", (0,0), (-1,-1), 6),
+        ("TOPPADDING",    (0,0), (-1,-1), 8),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 8),
     ]))
 
-    items = [
+    return [
         Paragraph("KEY METRICS AT A GLANCE", ParagraphStyle("sm", fontSize=7.5,
             fontName="Helvetica-Bold", textColor=MID_GREY, spaceAfter=2*mm)),
         t,
         Spacer(1, 5*mm),
     ]
-    return items
 
 
 # ─── Street View Image ────────────────────────────────────────────────────────
@@ -354,7 +315,6 @@ def build_cover_page(report, styles: dict) -> list:
     address  = report.address
     today    = datetime.now().strftime("%d %B %Y")
     state    = detect_state(address)
-    sources  = state_data_sources(address)
     items    = []
 
     # ── Hero block (navy background via table) ──
@@ -402,10 +362,9 @@ def build_cover_page(report, styles: dict) -> list:
 
     # ── Info table ──
     data = [
-        ["Report Date",  today],
-        ["Market",       state["label"]],
-        ["Data Sources", sources],
-        ["Prepared by",  "PropertyReport AI Research Platform"],
+        ["Report Date", today],
+        ["Market",      state["label"]],
+        ["Prepared by", "PropertyReport AI Research Platform"],
     ]
     t = Table(data, colWidths=[42*mm, 138*mm])
     t.setStyle(TableStyle([

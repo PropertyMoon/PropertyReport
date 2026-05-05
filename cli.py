@@ -3,7 +3,7 @@ PropertyReport - Main Runner
 Run this to generate and email a property report in one command.
 
 Usage:
-  python main.py "123 Smith St, Richmond VIC 3121" buyer@email.com "Jane Smith"
+  python cli.py "123 Smith St, Richmond VIC 3121" buyer@email.com "Jane Smith"
 
 Environment variables required:
   ANTHROPIC_API_KEY     - Your Anthropic API key
@@ -24,7 +24,7 @@ def main():
     if len(sys.argv) < 3:
         print(__doc__)
         print("\nExample:")
-        print('  python main.py "45 Chapel St, Windsor VIC 3181" buyer@gmail.com "John Smith"')
+        print('  python cli.py "45 Chapel St, Windsor VIC 3181" buyer@gmail.com "John Smith"')
         sys.exit(1)
     
     address = sys.argv[1]

@@ -36,7 +36,7 @@ propertyreport/
 ├── 🤖 orchestrator.py          Claude AI research agent (6 research tasks)
 ├── 📊 pdf_generator.py         Branded PDF report builder (reportlab)
 ├── 📧 email_sender.py          Email delivery (SendGrid / SMTP)
-├── 🖥️  main.py                 CLI runner — no payment required
+├── 🖥️  cli.py                  CLI runner — no payment required
 │
 ├── frontend/
 │   └── 🌐 index.html           Landing page + Stripe payment + status tracker

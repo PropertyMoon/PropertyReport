@@ -6,6 +6,7 @@
   <title>PropertyReport — AI Property Research Reports</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCR3RuGxTZeIPS23acNlL_qE2h4MZBJ4MA&libraries=places&callback=initGooglePlacesAutocomplete" async defer></script>
   <style>
     :root {
       --navy:       #1e293b;
@@ -69,7 +70,7 @@
       padding: 80px 60px 100px;
       text-align: center;
       position: relative;
-      overflow: hidden;
+      overflow: visible;
     }
     .hero::before {
       content: '';
@@ -132,6 +133,7 @@
       padding: 40px;
       position: relative;
       z-index: 2;
+      overflow: visible;
     }
     .card-title {
       font-family: 'Playfair Display', serif;
@@ -146,7 +148,11 @@
       margin-bottom: 28px;
     }
 
-    .form-group { margin-bottom: 18px; }
+    .form-group {
+      margin-bottom: 18px;
+      position: relative;
+      z-index: 10;
+    }
     .form-group label {
       display: block;
       font-size: 13px;
@@ -381,6 +387,48 @@
       display: none;
     }
 
+    /* ── GOOGLE PLACES AUTOCOMPLETE ── */
+    .address-input-wrapper {
+      position: relative;
+      z-index: 1000;
+    }
+    .pac-container {
+      background-color: var(--white);
+      z-index: 1051 !important;
+      border-radius: 0 0 10px 10px;
+      border: 1.5px solid #dde3ec;
+      border-top: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      font-family: 'DM Sans', sans-serif;
+      position: absolute;
+      width: 100%;
+      top: 100%;
+      left: 0;
+      right: 0;
+    }
+    .pac-item {
+      padding: 12px 16px;
+      cursor: pointer;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: 14px;
+      transition: background-color 0.15s;
+    }
+    .pac-item:last-child {
+      border-bottom: none;
+    }
+    .pac-item:hover,
+    .pac-item-selected {
+      background-color: var(--grey-light);
+    }
+    .pac-item-query {
+      color: var(--navy);
+      font-weight: 600;
+    }
+    .pac-matched {
+      font-weight: 600;
+      color: var(--navy);
+    }
+
     @media (max-width: 768px) {
       nav { padding: 16px 20px; }
       .hero { padding: 60px 20px 80px; }
@@ -410,7 +458,9 @@
 
     <div class="form-group">
       <label>Property Address</label>
-      <input type="text" id="address" placeholder="e.g. 45 Chapel St, Windsor VIC 3181" />
+      <div class="address-input-wrapper">
+        <input type="text" id="address" placeholder="e.g. 45 Chapel St, Windsor VIC 3181" autocomplete="off" />
+      </div>
     </div>
     <div class="form-group">
       <label>Your Full Name</label>
@@ -553,6 +603,88 @@
       btn.innerHTML = "<span>🔒</span> Pay & Generate Report";
     }
   }
+
+  // ── Google Places Autocomplete ──
+  function initGooglePlacesAutocomplete() {
+    console.log("🔧 Initializing Google Places Autocomplete...");
+
+    const addressInput = document.getElementById("address");
+
+    // Check if Google Maps API is loaded
+    if (!window.google || !window.google.maps || !window.google.maps.places) {
+      console.error("❌ Google Maps API not loaded. Retrying in 500ms...");
+      setTimeout(initGooglePlacesAutocomplete, 500);
+      return;
+    }
+
+    console.log("✅ Google Maps API loaded successfully");
+
+    // Set up autocomplete options - restrict to Australia
+    const options = {
+      componentRestrictions: { country: "au" },
+      types: ["address"],
+      fields: ["address_components", "formatted_address", "geometry", "place_id"]
+    };
+
+    try {
+      // Initialize autocomplete
+      const autocomplete = new window.google.maps.places.Autocomplete(addressInput, options);
+      console.log("✅ Autocomplete initialized");
+
+      // Listen for selection
+      autocomplete.addListener("place_changed", function() {
+        const place = autocomplete.getPlace();
+
+        console.log("📍 Place selected:", place);
+
+        if (!place.formatted_address) {
+          console.warn("⚠️ No address found for selected place");
+          return;
+        }
+
+        // Use the formatted address from Google
+        addressInput.value = place.formatted_address;
+        console.log("✅ Address filled:", place.formatted_address);
+
+        // Optional: Log place details
+        if (place.geometry) {
+          console.log("📍 Coordinates:", {
+            address: place.formatted_address,
+            lat: place.geometry.location.lat(),
+            lng: place.geometry.location.lng(),
+            placeId: place.place_id
+          });
+        }
+      });
+
+      // Prevent form submission on autocomplete selection
+      addressInput.addEventListener("keydown", function(e) {
+        if (e.key === "Enter") {
+          const value = this.value.trim();
+          if (value && !value.match(/^[a-zA-Z0-9\s,\.]*$/)) {
+            e.preventDefault();
+          }
+        }
+      });
+
+      console.log("✅ Google Places Autocomplete ready!");
+
+    } catch (err) {
+      console.error("❌ Error initializing autocomplete:", err);
+    }
+  }
+
+  // Make function globally available for Google callback
+  window.initGooglePlacesAutocomplete = initGooglePlacesAutocomplete;
+
+  // Also try initializing on page load as fallback
+  window.addEventListener("load", function() {
+    console.log("📄 Page loaded, checking if autocomplete is ready...");
+    if (window.google && window.google.maps && window.google.maps.places && !window.autocompleteInitialized) {
+      initGooglePlacesAutocomplete();
+      window.autocompleteInitialized = true;
+    }
+  });
 
   // ── Status polling (shown on /success?job_id=xxx) ──
   function getQueryParam(name) {

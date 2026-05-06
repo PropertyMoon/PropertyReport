@@ -224,6 +224,45 @@ RESEARCH_TASKS = {
 }
 
 
+# ─── JSON Extraction ──────────────────────────────────────────────────────────
+
+def _parse_json(text: str, label: str = "") -> dict:
+    """
+    Robustly extract a JSON object from a model response.
+    Handles: plain JSON, markdown fences, JSON embedded in prose.
+    """
+    # 1. Strip markdown code fences
+    clean = re.sub(r"```(?:json)?", "", text).replace("```", "").strip()
+
+    # 2. Try parsing the whole cleaned string first
+    try:
+        return json.loads(clean)
+    except json.JSONDecodeError:
+        pass
+
+    # 3. Find the outermost {...} block and try that
+    start = clean.find("{")
+    if start != -1:
+        depth, end = 0, -1
+        for i, ch in enumerate(clean[start:], start):
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    end = i
+                    break
+        if end != -1:
+            try:
+                return json.loads(clean[start:end + 1])
+            except json.JSONDecodeError:
+                pass
+
+    # 4. Give up — store raw text so summary extraction can still use it
+    print(f"  ⚠️  Could not parse JSON for {label}, storing raw text")
+    return {"raw_text": text, "parse_error": True}
+
+
 # ─── Individual Research Agent ────────────────────────────────────────────────
 
 def run_research_task(client: anthropic.Anthropic, task_name: str, address: str) -> dict:
@@ -263,15 +302,7 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
         if block.type == "text":
             full_text += block.text
     
-    # Parse JSON response
-    try:
-        # Strip markdown fences if present
-        clean = full_text.strip().replace("```json", "").replace("```", "").strip()
-        return json.loads(clean)
-    except json.JSONDecodeError:
-        # Return raw text if JSON parsing fails
-        print(f"  ⚠️  Could not parse JSON for {task_name}, storing raw text")
-        return {"raw_text": full_text, "parse_error": True}
+    return _parse_json(full_text, task_name)
 
 
 # ─── Synthesis Agent ─────────────────────────────────────────────────────────

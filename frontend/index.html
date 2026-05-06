@@ -497,6 +497,13 @@
     <div class="progress-bar" id="progress-bar"></div>
   </div>
   <div class="step-list" id="step-list"></div>
+  <div id="back-btn-wrap" style="display:none;margin-top:32px;text-align:center;">
+    <button onclick="goHome()"
+      style="background:linear-gradient(135deg,#1e293b,#0f4c75);color:#fff;border:none;border-radius:10px;
+             padding:14px 32px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;">
+      ← Get Another Report
+    </button>
+  </div>
 </div>
 
 <!-- FEATURES -->
@@ -710,32 +717,58 @@
     }).join("");
   }
 
-  async function pollStatus(jobId) {
+  const STATUS_MAP = {
+    pending:        { icon: "⏳", title: "Payment confirmed!", message: "Starting research...", progress: 5 },
+    researching:    { icon: "🔍", title: "Researching your property...", message: "Our AI is analysing suburb data, schools, transport and government projects.", progress: 40 },
+    generating_pdf: { icon: "📄", title: "Building your report...", message: "Compiling findings into a polished PDF.", progress: 75 },
+    emailing:       { icon: "📧", title: "Almost done!", message: "Sending your report now.", progress: 90 },
+    complete:       { icon: "✅", title: "Report delivered!", message: "Check your inbox — your PropertyReport report is on its way!", progress: 100 },
+    failed:         { icon: "❌", title: "Something went wrong", message: "Please contact support.", progress: 0 },
+  };
+
+  function renderStatus(status, message) {
+    const s = STATUS_MAP[status] || STATUS_MAP.pending;
+    document.getElementById("status-icon").textContent    = s.icon;
+    document.getElementById("status-title").textContent   = s.title;
+    document.getElementById("status-message").textContent = status === "failed" ? (message || s.message) : s.message;
+    document.getElementById("progress-bar").style.width   = s.progress + "%";
+    renderSteps(status);
+    if (status === "complete" || status === "failed") {
+      document.getElementById("back-btn-wrap").style.display = "block";
+    }
+  }
+
+  function showStatusPanel() {
     document.getElementById("status-panel").style.display = "block";
     document.querySelector(".hero").style.display = "none";
+  }
+
+  function goHome() {
+    window.location.href = "/";
+  }
+
+  async function pollStatus(jobId) {
+    showStatusPanel();
+
+    // Check localStorage cache — if already complete, show immediately without API call
+    const cached = localStorage.getItem("job_" + jobId);
+    if (cached) {
+      const saved = JSON.parse(cached);
+      renderStatus(saved.status, saved.message);
+      return;
+    }
 
     const poll = async () => {
       try {
         const res  = await fetch(`${API_URL}/report/${jobId}`);
         const data = await res.json();
 
-        const statusMap = {
-          pending:        { icon: "⏳", title: "Payment confirmed!", message: "Starting research...", progress: 5 },
-          researching:    { icon: "🔍", title: "Researching your property...", message: "Our AI is analysing suburb data, schools, transport and government projects.", progress: 40 },
-          generating_pdf: { icon: "📄", title: "Building your report...", message: "Compiling findings into a polished PDF.", progress: 75 },
-          emailing:       { icon: "📧", title: "Almost done!", message: "Sending your report now.", progress: 90 },
-          complete:       { icon: "✅", title: "Report delivered!", message: `Check your inbox — your PropertyReport report is on its way!`, progress: 100 },
-          failed:         { icon: "❌", title: "Something went wrong", message: data.message || "Please contact support.", progress: 0 },
-        };
+        renderStatus(data.status, data.message);
 
-        const s = statusMap[data.status] || statusMap.pending;
-        document.getElementById("status-icon").textContent    = s.icon;
-        document.getElementById("status-title").textContent   = s.title;
-        document.getElementById("status-message").textContent = s.message;
-        document.getElementById("progress-bar").style.width   = s.progress + "%";
-        renderSteps(data.status);
-
-        if (data.status !== "complete" && data.status !== "failed") {
+        if (data.status === "complete" || data.status === "failed") {
+          // Cache so refresh doesn't re-poll
+          localStorage.setItem("job_" + jobId, JSON.stringify({ status: data.status, message: data.message }));
+        } else {
           setTimeout(poll, 5000);
         }
       } catch (e) {

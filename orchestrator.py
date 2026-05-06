@@ -80,43 +80,99 @@ def _truncate(s: str, n: int = 20) -> str:
     return s if len(s) <= n else s[:n] + "…"
 
 
+def _parse_metrics_from_summary(summary: str) -> dict:
+    """Regex fallback: extract key values from the narrative summary text."""
+    result = {}
+
+    # Median price — e.g. "$850,000", "$1.2M", "$850K"
+    pm = re.search(
+        r'median\s+(?:house\s+|property\s+)?(?:price|value)[^\$\d]{0,20}\$([\d,]+(?:\.\d+)?)\s*([KkMm])?',
+        summary, re.IGNORECASE
+    )
+    if not pm:
+        pm = re.search(r'\$([\d,]+(?:\.\d+)?)\s*([Mm]illion|[Kk])', summary)
+    if pm:
+        try:
+            num = float(pm.group(1).replace(",", ""))
+            suffix = (pm.group(2) or "").lower()
+            if suffix.startswith("m"): num *= 1_000_000
+            elif suffix.startswith("k"): num *= 1_000
+            result["median_price"] = _fmt_price(str(int(num)))
+        except (ValueError, TypeError):
+            pass
+
+    # Rental yield — e.g. "3.5% yield" or "yield of 3.5%"
+    ym = re.search(
+        r'(?:rental\s+)?yield[^\d]{0,10}(\d+(?:\.\d+)?)\s*%|(\d+(?:\.\d+)?)\s*%\s*(?:rental\s+)?yield',
+        summary, re.IGNORECASE
+    )
+    if ym:
+        pct = ym.group(1) or ym.group(2)
+        result["rental_yield"] = f"{float(pct):.1f}%"
+
+    # Flood risk — e.g. "low flood risk", "minimal flood risk"
+    fm = re.search(
+        r'(low|minimal|moderate|medium|high|significant)\s+flood\s*risk',
+        summary, re.IGNORECASE
+    )
+    if fm:
+        result["flood_risk"] = fm.group(0)[:20]
+
+    # CBD train time — e.g. "12 minutes to CBD", "10-15 min to the CBD"
+    cm = re.search(
+        r'(\d+)(?:\s*[-–]\s*\d+)?\s*min(?:utes?)?\s*(?:from|to)\s*(?:the\s*)?CBD',
+        summary, re.IGNORECASE
+    )
+    if cm:
+        result["cbd_train_mins"] = f"{cm.group(1)} min"
+
+    # Market outlook — keyword scan
+    if re.search(r'strong\s+(?:growth|demand|market)|positive\s+outlook|high\s+demand', summary, re.IGNORECASE):
+        result["market_outlook"] = "Positive"
+    elif re.search(r'declining|oversupply|negative\s+outlook|weak\s+market', summary, re.IGNORECASE):
+        result["market_outlook"] = "Cautious"
+    elif re.search(r'stable|steady|modest\s+growth|moderate\s+growth', summary, re.IGNORECASE):
+        result["market_outlook"] = "Stable growth"
+
+    return result
+
+
 def extract_metrics(report: "PropertyReport") -> dict:
     """
-    Build the 6 scorecard values from research data.
-    Tries multiple key variants per field so we degrade gracefully
-    when Claude returns slightly different schemas.
+    Build the 6 scorecard values. Tries structured research data first,
+    then falls back to regex extraction from the narrative summary.
     """
-    suburb   = report.suburb   if isinstance(report.suburb,   dict) else {}
-    schools  = report.schools  if isinstance(report.schools,  dict) else {}
+    suburb    = report.suburb    if isinstance(report.suburb,    dict) else {}
+    schools   = report.schools   if isinstance(report.schools,   dict) else {}
     transport = report.transport if isinstance(report.transport, dict) else {}
-    market   = report.property_market if isinstance(report.property_market, dict) else {}
-    risk     = report.risk_overlays   if isinstance(report.risk_overlays,   dict) else {}
+    market    = report.property_market if isinstance(report.property_market, dict) else {}
+    risk      = report.risk_overlays   if isinstance(report.risk_overlays,   dict) else {}
 
     # Median house price
     raw_p = _pick(suburb,
         "median_house_price", "median_price", "median_house_value",
         "house_median_price", "median_dwelling_price", "median_property_price")
-    median = _fmt_price(raw_p) if raw_p else "N/A"
+    median = _fmt_price(raw_p) if raw_p else None
 
     # Rental yield
     raw_y = _pick(suburb,
         "rental_yield", "gross_rental_yield", "rental_yield_percent",
         "gross_yield", "yield")
-    rental_yield = _fmt_pct(raw_y) if raw_y else "N/A"
+    rental_yield = _fmt_pct(raw_y) if raw_y else None
 
     # School quality
     school_raw = _pick(schools,
         "school_quality_summary", "quality_summary", "overall_quality",
         "school_summary", "quality_rating", "summary")
-    school = _truncate(school_raw) if school_raw else "N/A"
+    school = _truncate(school_raw) if school_raw else None
 
     # Flood risk
     flood_raw = _pick(risk,
         "flood_risk", "flood_risk_level", "flood_risk_rating",
         "flood_overlay", "flood_zone", "flood_category")
-    flood = _truncate(flood_raw) if flood_raw else "N/A"
+    flood = _truncate(flood_raw) if flood_raw else None
 
-    # CBD by train (minutes)
+    # CBD by train
     cbd_mins = None
     nearest = transport.get("nearest_train", {})
     if isinstance(nearest, dict):
@@ -124,21 +180,30 @@ def extract_metrics(report: "PropertyReport") -> dict:
     if not cbd_mins:
         cbd_mins = _pick(transport, "drive_to_cbd_offpeak_mins", "drive_to_cbd_peak_mins",
                          "cbd_drive_mins", "cbd_minutes")
-    cbd = f"{cbd_mins} min" if cbd_mins else "N/A"
+    cbd = f"{cbd_mins} min" if cbd_mins else None
 
     # Market outlook
     outlook_raw = _pick(market,
         "market_outlook", "outlook", "market_direction",
         "price_outlook", "market_trend", "forecast")
-    outlook = _truncate(outlook_raw) if outlook_raw else "N/A"
+    outlook = _truncate(outlook_raw) if outlook_raw else None
+
+    # Fall back to summary text for any missing values
+    if any(v is None for v in [median, rental_yield, flood, cbd, outlook]):
+        fb = _parse_metrics_from_summary(report.summary or "")
+        median       = median       or fb.get("median_price")
+        rental_yield = rental_yield or fb.get("rental_yield")
+        flood        = flood        or fb.get("flood_risk")
+        cbd          = cbd          or fb.get("cbd_train_mins")
+        outlook      = outlook      or fb.get("market_outlook")
 
     return {
-        "median_price":   median,
-        "rental_yield":   rental_yield,
-        "school_quality": school,
-        "flood_risk":     flood,
-        "cbd_train_mins": cbd,
-        "market_outlook": outlook,
+        "median_price":   median       or "N/A",
+        "rental_yield":   rental_yield or "N/A",
+        "school_quality": school       or "N/A",
+        "flood_risk":     flood        or "N/A",
+        "cbd_train_mins": cbd          or "N/A",
+        "market_outlook": outlook      or "N/A",
     }
 
 

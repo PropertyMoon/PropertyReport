@@ -1,11 +1,10 @@
 """
-Email Delivery Module (v2)
-Sends the property report via SendGrid with PDF attachment
+Email Delivery Module
+Sends a concise summary email with key metrics and PDF attachment.
 """
 
 import os
 import re
-import json
 import base64
 from orchestrator import PropertyReport
 
@@ -15,12 +14,12 @@ def send_report_email(
     recipient_email: str,
     recipient_name: str = "Valued Buyer",
     sender_email: str = None,
-    sender_name: str = "PropertyReport Reports",
+    sender_name: str = "PropertyReport",
     pdf_attachment_path: str = None,
 ):
     sender_email = sender_email or os.getenv("SENDER_EMAIL", "reports@propertyreport.com.au")
     sendgrid_key = os.getenv("SENDGRID_API_KEY")
-    subject      = f"Your PropertyReport Report — {report.address}"
+    subject      = f"Your Property Report — {report.address}"
     html_body    = build_email_html(report, recipient_name)
 
     if sendgrid_key:
@@ -34,55 +33,142 @@ def send_report_email(
         )
 
 
-def build_email_html(report: PropertyReport, recipient_name: str) -> str:
-    report_html = ""
-    for line in report.summary.split("\n"):
-        line = line.strip()
-        if not line:
-            report_html += "<br/>"
-        elif line.startswith("## "):
-            report_html += f'<h2 style="color:#1a3c5e;border-bottom:2px solid #c9a84c;padding-bottom:6px;margin:24px 0 10px">{line[3:]}</h2>'
-        elif line.startswith("# "):
-            report_html += f'<h1 style="color:#1a3c5e;">{line[2:]}</h1>'
-        elif line.startswith("### "):
-            report_html += f'<h3 style="color:#2c5f8a;margin:16px 0 6px">{line[4:]}</h3>'
-        elif line.startswith("- ") or line.startswith("• "):
-            report_html += f'<li style="margin-bottom:5px">{line[2:]}</li>'
-        else:
-            clean = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", line)
-            report_html += f'<p style="margin:6px 0;line-height:1.6">{clean}</p>'
+def _extract_executive_summary(summary: str) -> str:
+    """Pull just the Executive Summary section from the full narrative."""
+    lines = summary.split("\n")
+    in_exec = False
+    result = []
 
-    return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+    for line in lines:
+        stripped = line.strip()
+        # Start capturing at Executive Summary heading
+        if re.search(r'executive\s+summary', stripped, re.IGNORECASE) and stripped.startswith("#"):
+            in_exec = True
+            continue
+        # Stop at the next section heading
+        if in_exec and stripped.startswith("#") and not re.search(r'executive\s+summary', stripped, re.IGNORECASE):
+            break
+        if in_exec and stripped:
+            clean = re.sub(r"\*\*(.*?)\*\*", r"\1", stripped)  # strip bold markers
+            clean = clean.lstrip("#- •").strip()
+            if clean:
+                result.append(clean)
+
+    # Fallback: first 3 non-empty non-heading lines
+    if not result:
+        count = 0
+        for line in lines:
+            s = line.strip()
+            if s and not s.startswith("#") and not s.startswith("---"):
+                clean = re.sub(r"\*\*(.*?)\*\*", r"\1", s).lstrip("- •").strip()
+                if clean:
+                    result.append(clean)
+                    count += 1
+                    if count >= 3:
+                        break
+
+    return " ".join(result[:4])  # max ~4 sentences
+
+
+def _metrics_table_html(metrics: dict) -> str:
+    cells = [
+        ("Median Price",  metrics.get("median_price",   "N/A")),
+        ("Rental Yield",  metrics.get("rental_yield",   "N/A")),
+        ("Schools",       metrics.get("school_quality", "N/A")),
+        ("Flood Risk",    metrics.get("flood_risk",     "N/A")),
+        ("Train to CBD",  metrics.get("cbd_train_mins", "N/A")),
+        ("Market",        metrics.get("market_outlook", "N/A")),
+    ]
+    cell_html = ""
+    for label, value in cells:
+        cell_html += f"""
+        <td style="width:16.6%;padding:14px 8px;text-align:center;border-right:1px solid #e2e8f0;vertical-align:top;">
+          <div style="font-size:10px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;color:#94a3b8;margin-bottom:6px;">{label}</div>
+          <div style="font-size:15px;font-weight:700;color:#1e293b;line-height:1.3;">{value}</div>
+        </td>"""
+
+    return f"""
+    <table width="100%" cellpadding="0" cellspacing="0"
+      style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin:20px 0;">
+      <tr style="background:#f8fafc;">{cell_html}</tr>
+    </table>"""
+
+
+def build_email_html(report: PropertyReport, recipient_name: str) -> str:
+    exec_summary = _extract_executive_summary(report.summary or "")
+    metrics      = report.metrics if isinstance(getattr(report, "metrics", None), dict) else {}
+    metrics_html = _metrics_table_html(metrics)
+    today        = __import__("datetime").datetime.now().strftime("%d %B %Y")
+
+    return f"""<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#f0f2f5;font-family:'Segoe UI',Arial,sans-serif;">
+
+<!-- Header -->
 <table width="100%" cellpadding="0" cellspacing="0">
-  <tr><td style="background:#1a3c5e;padding:24px 40px;">
-    <span style="font-family:Georgia,serif;font-size:22px;color:#fff;font-weight:700;">Property<span style="color:#c9a84c;">IQ</span></span>
+  <tr><td style="background:#0f172a;padding:20px 40px;">
+    <span style="font-family:Georgia,serif;font-size:20px;color:#fff;font-weight:700;">
+      Property<span style="color:#10b981;">Report</span>
+    </span>
   </td></tr>
-  <tr><td style="height:4px;background:#c9a84c;"></td></tr>
+  <tr><td style="height:3px;background:#10b981;"></td></tr>
 </table>
-<table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:40px 20px;">
-<table width="640" align="center" cellpadding="0" cellspacing="0"
-  style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);max-width:100%;">
-<tr><td style="padding:36px 40px 0;">
-  <p style="font-size:16px;color:#4a5568;margin:0 0 6px">Hi {recipient_name},</p>
-  <p style="font-size:15px;color:#4a5568;line-height:1.6;margin:0 0 24px">Your PropertyReport report is ready. We've researched the suburb, schools, transport, government infrastructure and risk overlays.</p>
-  <div style="background:#e8f0f8;border-left:4px solid #1a3c5e;padding:14px 18px;border-radius:0 8px 8px 0;margin-bottom:28px;">
-    <span style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#8a9bb0;">Property Address</span><br/>
-    <span style="font-size:17px;font-weight:700;color:#1a3c5e;">{report.address}</span>
-  </div>
-</td></tr>
-<tr><td style="padding:0 40px 32px;">{report_html}</td></tr>
-<tr><td style="background:#f5f7fa;padding:20px 40px;border-top:1px solid #e8ecf0;">
-  <p style="font-size:13px;color:#8a9bb0;margin:0;">📎 <strong>Your full PDF report is attached</strong> to this email.</p>
-</td></tr>
-<tr><td style="padding:18px 40px;border-top:1px solid #f0f2f5;">
-  <p style="font-size:11px;color:#aab4c4;margin:0;line-height:1.5;">For informational purposes only. Not financial advice. Always conduct independent due diligence.</p>
-</td></tr>
+
+<!-- Body -->
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:32px 20px;">
+<table width="620" align="center" cellpadding="0" cellspacing="0"
+  style="background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);max-width:100%;">
+
+  <!-- Greeting -->
+  <tr><td style="padding:32px 36px 0;">
+    <p style="font-size:16px;color:#334155;margin:0 0 4px;">Hi {recipient_name},</p>
+    <p style="font-size:14px;color:#64748b;margin:0 0 20px;line-height:1.5;">
+      Your property research report is ready. Here's a quick summary — the full report is attached as a PDF.
+    </p>
+
+    <!-- Address block -->
+    <div style="background:#f1f5f9;border-left:4px solid #1e293b;padding:12px 16px;border-radius:0 8px 8px 0;margin-bottom:20px;">
+      <div style="font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#94a3b8;margin-bottom:4px;">Property Address</div>
+      <div style="font-size:16px;font-weight:700;color:#1e293b;">{report.address}</div>
+      <div style="font-size:11px;color:#94a3b8;margin-top:2px;">Report generated {today}</div>
+    </div>
+  </td></tr>
+
+  <!-- Key Metrics -->
+  <tr><td style="padding:0 36px;">
+    <div style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#94a3b8;margin-bottom:4px;">Key Metrics at a Glance</div>
+    {metrics_html}
+  </td></tr>
+
+  <!-- Executive Summary -->
+  <tr><td style="padding:4px 36px 28px;">
+    <div style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#94a3b8;margin-bottom:8px;">Executive Summary</div>
+    <p style="font-size:14px;color:#475569;line-height:1.7;margin:0;">{exec_summary}</p>
+  </td></tr>
+
+  <!-- PDF nudge -->
+  <tr><td style="background:#f8fafc;padding:16px 36px;border-top:1px solid #e8ecf0;">
+    <p style="font-size:13px;color:#64748b;margin:0;">
+      📎 <strong>Your full PDF report is attached</strong> — including suburb analysis, schools,
+      transport, government projects, risk overlays and market outlook.
+    </p>
+  </td></tr>
+
+  <!-- Disclaimer -->
+  <tr><td style="padding:14px 36px;">
+    <p style="font-size:11px;color:#aab4c4;margin:0;line-height:1.5;">
+      For informational purposes only. Not financial advice. Always conduct independent due diligence.
+    </p>
+  </td></tr>
+
 </table></td></tr></table>
+
+<!-- Footer -->
 <table width="100%" cellpadding="0" cellspacing="0"><tr>
-  <td style="background:#0f2540;padding:20px;text-align:center;">
-    <p style="font-size:12px;color:rgba(255,255,255,0.4);margin:0;">© PropertyReport · Australia's AI Property Research Platform</p>
+  <td style="background:#0f172a;padding:16px;text-align:center;">
+    <p style="font-size:11px;color:rgba(255,255,255,0.35);margin:0;">© PropertyReport · Australia's AI Property Research Platform</p>
   </td></tr></table>
+
 </body></html>"""
 
 
@@ -107,7 +193,7 @@ def _send_via_sendgrid(api_key, sender_email, sender_name,
         pdf_data = _read_pdf_base64(pdf_path)
         if pdf_data:
             message.attachment = Attachment(FileContent(pdf_data),
-                FileName("PropertyReport_Report.pdf"), FileType("application/pdf"), Disposition("attachment"))
+                FileName("PropertyReport.pdf"), FileType("application/pdf"), Disposition("attachment"))
         response = sg.client.mail.send.post(request_body=message.get())
         if response.status_code in (200, 202):
             print(f"✅ Email sent to {recipient_email} via SendGrid")
@@ -145,7 +231,7 @@ def _send_via_smtp(sender_email, recipient_email, subject, html_body, pdf_path=N
             part = MIMEBase("application", "pdf")
             part.set_payload(f.read())
             encoders.encode_base64(part)
-            part.add_header("Content-Disposition", "attachment", filename="PropertyReport_Report.pdf")
+            part.add_header("Content-Disposition", "attachment", filename="PropertyReport.pdf")
             msg.attach(part)
 
     try:

@@ -42,12 +42,43 @@ class PropertyReport:
 
 # ─── Metric Helpers ───────────────────────────────────────────────────────────
 
+_LABEL_KEYS = ("level", "rating", "summary", "description", "label",
+               "value", "category", "status", "outlook", "trend", "name")
+_EMPTY_TOKENS = ("", "null", "N/A", "n/a", "none", "None")
+
+
+def _scalarize(v) -> str | None:
+    """Reduce v to a clean string, or None if not derivable.
+    Dicts: look inside for a known label-like key (level, rating, summary, …).
+    Lists: take the first scalar element."""
+    if v is None:
+        return None
+    if isinstance(v, bool):
+        return None  # booleans aren't useful as scorecard text
+    if isinstance(v, (str, int, float)):
+        return str(v)
+    if isinstance(v, dict):
+        for lk in _LABEL_KEYS:
+            inner = v.get(lk)
+            if isinstance(inner, (str, int, float)) and not isinstance(inner, bool):
+                return str(inner)
+        return None
+    if isinstance(v, list):
+        for item in v:
+            s = _scalarize(item)
+            if s is not None:
+                return s
+        return None
+    return None
+
+
 def _pick(source: dict, *keys) -> str | None:
-    """Return first non-empty value from source for any of the given keys."""
+    """Return first non-empty scalar string from source for any of the given keys.
+    Skips dicts/lists that don't contain a recognisable label."""
     for k in keys:
-        v = source.get(k)
-        if v is not None and str(v).strip() not in ("", "null", "N/A", "n/a", "none", "None"):
-            return str(v).strip()
+        s = _scalarize(source.get(k))
+        if s is not None and s.strip() not in _EMPTY_TOKENS:
+            return s.strip()
     return None
 
 
@@ -134,6 +165,17 @@ def _parse_metrics_from_summary(summary: str) -> dict:
     elif re.search(r'stable|steady|modest\s+growth|moderate\s+growth', summary, re.IGNORECASE):
         result["market_outlook"] = "Stable growth"
 
+    # School quality — sentiment scan over phrases mentioning schools
+    sm = re.search(
+        r'(excellent|outstanding|well[-\s]regarded|highly[-\s]regarded|high[-\s]performing|'
+        r'strong|reputable|top[-\s]rated|good|sought[-\s]after|limited|poor|underperforming)'
+        r'\s+(?:public\s+|private\s+|local\s+|nearby\s+|catchment\s+)?schools?',
+        summary, re.IGNORECASE
+    )
+    if sm:
+        word = sm.group(1).replace("-", " ").replace("  ", " ").strip().capitalize()
+        result["school_quality"] = word
+
     return result
 
 
@@ -189,10 +231,11 @@ def extract_metrics(report: "PropertyReport") -> dict:
     outlook = _truncate(outlook_raw) if outlook_raw else None
 
     # Fall back to summary text for any missing values
-    if any(v is None for v in [median, rental_yield, flood, cbd, outlook]):
+    if any(v is None for v in [median, rental_yield, school, flood, cbd, outlook]):
         fb = _parse_metrics_from_summary(report.summary or "")
         median       = median       or fb.get("median_price")
         rental_yield = rental_yield or fb.get("rental_yield")
+        school       = school       or fb.get("school_quality")
         flood        = flood        or fb.get("flood_risk")
         cbd          = cbd          or fb.get("cbd_train_mins")
         outlook      = outlook      or fb.get("market_outlook")

@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>How It Works — PropertyReport</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --navy:       #1e293b;
+      --navy-dark:  #0f172a;
+      --gold:       #10b981;
+      --gold-light: #6ee7b7;
+      --cream:      #f8fafc;
+      --white:      #ffffff;
+      --grey-light: #f1f5f9;
+      --grey-mid:   #94a3b8;
+      --grey-text:  #475569;
+      --green:      #059669;
+      --amber:      #d97706;
+      --radius:     12px;
+      --shadow:     0 8px 40px rgba(15,23,42,0.12);
+      --shadow-sm:  0 2px 12px rgba(15,23,42,0.08);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--cream);
+      color: var(--grey-text);
+      min-height: 100vh;
+    }
+
+    /* ── NAV ── */
+    nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 60px;
+      background: var(--navy);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo {
+      font-family: 'Playfair Display', serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--white);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+    }
+    .logo span { color: var(--gold); }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+    }
+    .nav-links a {
+      color: rgba(255,255,255,0.78);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.15s;
+    }
+    .nav-links a:hover { color: var(--gold-light); }
+    .nav-links a.active { color: var(--gold-light); }
+    .nav-tag {
+      background: rgba(201,168,76,0.15);
+      border: 1px solid rgba(201,168,76,0.4);
+      color: var(--gold-light);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 4px 12px;
+      border-radius: 20px;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy) 60%, #1e3a5f 100%);
+      padding: 80px 60px 110px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -80px; right: -80px;
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(16,185,129,0.14) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+    .hero::after {
+      content: '';
+      position: absolute;
+      bottom: -60px; left: -60px;
+      width: 300px; height: 300px;
+      background: radial-gradient(circle, rgba(16,185,129,0.08) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+    .hero-eyebrow {
+      display: inline-block;
+      background: rgba(16,185,129,0.15);
+      border: 1px solid rgba(16,185,129,0.35);
+      color: var(--gold-light);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 6px 16px;
+      border-radius: 20px;
+      margin-bottom: 24px;
+      position: relative;
+    }
+    .hero h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(36px, 4.8vw, 58px);
+      font-weight: 900;
+      color: var(--white);
+      line-height: 1.12;
+      margin: 0 auto 22px;
+      max-width: 880px;
+      position: relative;
+    }
+    .hero h1 em {
+      font-style: normal;
+      color: var(--gold);
+    }
+    .hero p {
+      font-size: 18px;
+      color: rgba(255,255,255,0.74);
+      max-width: 620px;
+      margin: 0 auto;
+      line-height: 1.65;
+      font-weight: 300;
+      position: relative;
+    }
+
+    /* ── SECTION ── */
+    .section { padding: 80px 60px; max-width: 1100px; margin: 0 auto; }
+    .section.tight { padding-top: 40px; }
+    .section-eyebrow {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 12px;
+    }
+    .section h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(28px, 3.5vw, 42px);
+      color: var(--navy);
+      font-weight: 700;
+      margin-bottom: 14px;
+      line-height: 1.2;
+    }
+    .section-sub {
+      font-size: 17px;
+      color: var(--grey-mid);
+      max-width: 640px;
+      line-height: 1.6;
+      margin-bottom: 52px;
+    }
+
+    /* ── STEPS ── */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 24px;
+    }
+    .step {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 32px 28px;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid rgba(15,23,42,0.07);
+      position: relative;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .step:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow);
+    }
+    .step-num {
+      position: absolute;
+      top: -16px;
+      left: 28px;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--navy), var(--gold));
+      color: var(--white);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Playfair Display', serif;
+      font-weight: 700;
+      font-size: 17px;
+      box-shadow: 0 4px 12px rgba(15,23,42,0.18);
+    }
+    .step-icon {
+      font-size: 28px;
+      margin: 8px 0 14px;
+      display: block;
+    }
+    .step h3 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--navy);
+      margin-bottom: 10px;
+    }
+    .step p {
+      font-size: 14.5px;
+      color: var(--grey-text);
+      line-height: 1.65;
+    }
+    .step .meta {
+      margin-top: 14px;
+      font-size: 12px;
+      color: var(--grey-mid);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+
+    /* ── COMPARISON ── */
+    .compare {
+      background: var(--white);
+      padding: 80px 0;
+      border-top: 1px solid rgba(15,23,42,0.06);
+      border-bottom: 1px solid rgba(15,23,42,0.06);
+    }
+    .compare-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      max-width: 980px;
+      margin: 36px auto 0;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid rgba(15,23,42,0.06);
+    }
+    .compare-col {
+      padding: 32px 28px;
+    }
+    .compare-col.manual {
+      background: var(--grey-light);
+      border-right: 1px solid rgba(15,23,42,0.06);
+    }
+    .compare-col.us {
+      background: linear-gradient(160deg, #ecfdf5 0%, #ffffff 100%);
+    }
+    .compare-col h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: var(--navy);
+    }
+    .compare-col .pill {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border-radius: 999px;
+      margin-bottom: 16px;
+    }
+    .compare-col.manual .pill {
+      background: rgba(217,119,6,0.12);
+      color: var(--amber);
+    }
+    .compare-col.us .pill {
+      background: rgba(16,185,129,0.16);
+      color: var(--green);
+    }
+    .compare-col ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .compare-col li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 9px 0;
+      font-size: 14.5px;
+      line-height: 1.55;
+      color: var(--grey-text);
+    }
+    .compare-col li::before {
+      flex-shrink: 0;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      margin-top: 1px;
+    }
+    .compare-col.manual li::before {
+      content: '✕';
+      background: rgba(217,119,6,0.15);
+      color: var(--amber);
+    }
+    .compare-col.us li::before {
+      content: '✓';
+      background: rgba(16,185,129,0.18);
+      color: var(--green);
+    }
+    .compare-time {
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px dashed rgba(15,23,42,0.12);
+      font-size: 13px;
+      color: var(--grey-mid);
+    }
+    .compare-time strong {
+      color: var(--navy);
+      font-family: 'Playfair Display', serif;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    /* ── DATA SOURCES ── */
+    .sources-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+    .source-tile {
+      background: var(--white);
+      border-radius: 10px;
+      padding: 18px 20px;
+      border: 1px solid rgba(15,23,42,0.07);
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .source-tile .icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: rgba(16,185,129,0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .source-tile .label {
+      font-size: 14px;
+      color: var(--navy);
+      font-weight: 500;
+      line-height: 1.35;
+    }
+    .source-tile .label small {
+      display: block;
+      color: var(--grey-mid);
+      font-size: 12px;
+      font-weight: 400;
+      margin-top: 2px;
+    }
+
+    /* ── DISCLOSURE ── */
+    .disclosure {
+      background: linear-gradient(180deg, var(--cream) 0%, var(--white) 100%);
+      padding: 70px 60px 80px;
+    }
+    .disclosure-inner {
+      max-width: 820px;
+      margin: 0 auto;
+      background: var(--white);
+      border: 1px solid rgba(15,23,42,0.08);
+      border-left: 4px solid var(--gold);
+      border-radius: 12px;
+      padding: 36px 38px;
+      box-shadow: var(--shadow-sm);
+    }
+    .disclosure-inner h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 24px;
+      color: var(--navy);
+      margin-bottom: 6px;
+    }
+    .disclosure-inner .lead {
+      font-size: 15px;
+      color: var(--grey-text);
+      margin-bottom: 22px;
+      line-height: 1.65;
+    }
+    .disclosure-list {
+      list-style: none;
+      padding: 0;
+    }
+    .disclosure-list li {
+      padding: 14px 0;
+      border-bottom: 1px solid var(--grey-light);
+      font-size: 14.5px;
+      color: var(--grey-text);
+      line-height: 1.65;
+    }
+    .disclosure-list li:last-child { border-bottom: none; }
+    .disclosure-list strong {
+      color: var(--navy);
+      font-weight: 600;
+      display: block;
+      margin-bottom: 4px;
+      font-size: 15px;
+    }
+
+    /* ── CTA ── */
+    .cta {
+      background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy) 100%);
+      padding: 70px 60px;
+      text-align: center;
+      color: var(--white);
+    }
+    .cta h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(28px, 3.5vw, 38px);
+      color: var(--white);
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
+    .cta p {
+      color: rgba(255,255,255,0.7);
+      max-width: 540px;
+      margin: 0 auto 28px;
+      font-size: 16px;
+      line-height: 1.6;
+    }
+    .btn-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 32px;
+      background: var(--gold);
+      color: var(--navy-dark);
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 6px 24px rgba(16,185,129,0.35);
+    }
+    .btn-cta:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 30px rgba(16,185,129,0.5);
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      background: var(--navy-dark);
+      color: rgba(255,255,255,0.5);
+      text-align: center;
+      padding: 28px;
+      font-size: 13px;
+    }
+    footer strong { color: rgba(255,255,255,0.8); }
+
+    @media (max-width: 768px) {
+      nav { padding: 16px 20px; }
+      .nav-links { gap: 18px; }
+      .nav-links a { font-size: 13px; }
+      .hero { padding: 60px 20px 80px; }
+      .section { padding: 60px 20px; }
+      .compare-grid { grid-template-columns: 1fr; }
+      .compare-col.manual { border-right: none; border-bottom: 1px solid rgba(15,23,42,0.06); }
+      .disclosure { padding: 60px 20px; }
+      .disclosure-inner { padding: 28px 22px; }
+      .cta { padding: 60px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="/" class="logo">Property<span>Report</span></a>
+  <div class="nav-links">
+    <a href="/" >Home</a>
+    <a href="/how-it-works.html" class="active">How It Works</a>
+    <span class="nav-tag">🇦🇺 Australia Only</span>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-eyebrow">How It Works</div>
+  <h1>Days of property research,<br/><em>delivered in minutes.</em></h1>
+  <p>You enter an address. Our AI agents fan out across dozens of Australian data sources, pull the numbers that matter, and compile a polished, data-rich report — straight to your inbox.</p>
+</section>
+
+<!-- STEPS -->
+<div class="section">
+  <div class="section-eyebrow">The process</div>
+  <h2>Three steps. One report.</h2>
+  <p class="section-sub">No spreadsheets, no twenty browser tabs, no calling council. Just an address and an email.</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <span class="step-icon">📍</span>
+      <h3>Enter the property address</h3>
+      <p>Paste in any Australian address. Our Google-powered autocomplete makes sure we research the exact property you have in mind — not a similar one down the street.</p>
+      <div class="meta">~30 seconds</div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <span class="step-icon">🔍</span>
+      <h3>AI researches across the web</h3>
+      <p>Six specialist research agents work in parallel — pulling suburb medians, school catchments, planning overlays, transport links, market trends and risk overlays from authoritative public sources.</p>
+      <div class="meta">~3–5 minutes</div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <span class="step-icon">📄</span>
+      <h3>Polished PDF in your inbox</h3>
+      <p>A senior-analyst-grade PDF with cover page, key metrics, executive summary, suburb profile, market analysis, risk assessment and a final verdict — landing in your email when it's ready.</p>
+      <div class="meta">Total: under 10 minutes</div>
+    </div>
+  </div>
+</div>
+
+<!-- COMPARISON -->
+<section class="compare">
+  <div class="section" style="padding-top: 0; padding-bottom: 0;">
+    <div class="section-eyebrow">Time saved</div>
+    <h2>What you'd otherwise be doing.</h2>
+    <p class="section-sub">A typical buyer spends 6–12 hours per shortlisted property piecing together the same picture. PropertyReport collapses that into a coffee break.</p>
+
+    <div class="compare-grid">
+      <div class="compare-col manual">
+        <span class="pill">Doing it yourself</span>
+        <h3>The manual route</h3>
+        <ul>
+          <li>Cross-checking realestate.com.au and domain.com.au for medians and recent sales</li>
+          <li>Looking up ICSEA scores on myschool.edu.au, then catchment maps separately</li>
+          <li>Hunting through state planning portals for overlays and amendments</li>
+          <li>Reading council minutes for upcoming infrastructure projects</li>
+          <li>Pulling crime stats from the right state authority</li>
+          <li>Checking flood maps on a state-specific tool</li>
+        </ul>
+        <div class="compare-time">Realistic timeframe: <strong>6–12 hours</strong> per property</div>
+      </div>
+
+      <div class="compare-col us">
+        <span class="pill">With PropertyReport</span>
+        <h3>The smart route</h3>
+        <ul>
+          <li>Enter the address once</li>
+          <li>Six AI research agents run in parallel across the same sources</li>
+          <li>Findings synthesised into a structured, easy-to-scan report</li>
+          <li>Every section anchored to concrete numbers, not vibes</li>
+          <li>Branded PDF emailed automatically when complete</li>
+          <li>Re-run for any number of shortlist properties at $20 each</li>
+        </ul>
+        <div class="compare-time">Realistic timeframe: <strong>under 10 minutes</strong></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DATA SOURCES -->
+<div class="section">
+  <div class="section-eyebrow">Where the data comes from</div>
+  <h2>Authoritative Australian sources.</h2>
+  <p class="section-sub">The AI agents pull from the same public sources a diligent buyer would — just much, much faster.</p>
+
+  <div class="sources-grid">
+    <div class="source-tile"><div class="icon">🏠</div><div class="label">Real Estate Listings<small>realestate.com.au · domain.com.au</small></div></div>
+    <div class="source-tile"><div class="icon">🏫</div><div class="label">School Performance<small>myschool.edu.au · findmyschool.vic.gov.au</small></div></div>
+    <div class="source-tile"><div class="icon">🏛️</div><div class="label">State Planning Portals<small>planning.vic.gov.au · planning.nsw.gov.au · etc.</small></div></div>
+    <div class="source-tile"><div class="icon">🚆</div><div class="label">Transport Networks<small>Public Transport Victoria · Transport NSW · etc.</small></div></div>
+    <div class="source-tile"><div class="icon">📊</div><div class="label">Census &amp; Demographics<small>Australian Bureau of Statistics</small></div></div>
+    <div class="source-tile"><div class="icon">🚨</div><div class="label">Crime Statistics<small>BOCSAR · crimestats.vic.gov.au · state authorities</small></div></div>
+    <div class="source-tile"><div class="icon">🌊</div><div class="label">Flood &amp; Hazard Mapping<small>State flood mapping authorities</small></div></div>
+    <div class="source-tile"><div class="icon">🏗️</div><div class="label">Infrastructure Pipelines<small>Federal &amp; state project announcements</small></div></div>
+  </div>
+</div>
+
+<!-- DISCLOSURE -->
+<section class="disclosure">
+  <div class="disclosure-inner">
+    <h2>A few things worth knowing</h2>
+    <p class="lead">We want you to get the most out of every report — which means being upfront about what it is, and what it isn't.</p>
+    <ul class="disclosure-list">
+      <li>
+        <strong>Powered by AI — and AI isn't infallible.</strong>
+        The report is generated by language-model agents reading public web sources. They're fast, thorough and improving constantly, but they can occasionally miss nuance, surface a stale figure, or misread an edge case. Always sanity-check anything that would materially affect your decision.
+      </li>
+      <li>
+        <strong>Research, not investment advice.</strong>
+        PropertyReport is designed to give you a data-rich starting point — comparable to several hours of a researcher's work — so you can make a more informed, calculated decision. It is not financial, legal, tax or investment advice, and it does not account for your personal circumstances.
+      </li>
+      <li>
+        <strong>Engage a licensed professional before you sign.</strong>
+        Use the report to ask sharper questions of your conveyancer, buyer's agent, mortgage broker or financial adviser. Their job is to help you act on the information; ours is to put it in front of you efficiently.
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta">
+  <h2>Ready to research smarter?</h2>
+  <p>Pick a property, drop in the address, and have a full research report sitting in your inbox before your next meeting.</p>
+  <a class="btn-cta" href="/">Generate a Report →</a>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <strong>PropertyReport</strong> · AI Property Research for Australian Buyers<br/>
+  Not financial advice. Always conduct independent due diligence.
+</footer>
+
+</body>
+</html>

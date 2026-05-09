@@ -52,8 +52,23 @@
       display: flex;
       align-items: center;
       gap: 8px;
+      text-decoration: none;
     }
     .logo span { color: var(--gold); }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+    }
+    .nav-links a {
+      color: rgba(255,255,255,0.78);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.15s;
+    }
+    .nav-links a:hover { color: var(--gold-light); }
+    .nav-links a.active { color: var(--gold-light); }
     .nav-tag {
       background: rgba(201,168,76,0.15);
       border: 1px solid rgba(201,168,76,0.4);
@@ -431,6 +446,8 @@
 
     @media (max-width: 768px) {
       nav { padding: 16px 20px; }
+      .nav-links { gap: 14px; }
+      .nav-links a { font-size: 13px; }
       .hero { padding: 60px 20px 80px; }
       .section { padding: 60px 20px; }
       .report-card { padding: 28px 20px; margin: 0 16px; }
@@ -441,8 +458,12 @@
 
 <!-- NAV -->
 <nav>
-  <div class="logo">Property<span>Report</span></div>
-  <div class="nav-tag">🇦🇺 Australia Only</div>
+  <a href="/" class="logo">Property<span>Report</span></a>
+  <div class="nav-links">
+    <a href="/" class="active">Home</a>
+    <a href="/how-it-works.html">How It Works</a>
+    <span class="nav-tag">🇦🇺 Australia Only</span>
+  </div>
 </nav>
 
 <!-- HERO -->

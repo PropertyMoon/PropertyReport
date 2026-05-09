@@ -111,6 +111,28 @@ def _truncate(s: str, n: int = 20) -> str:
     return s if len(s) <= n else s[:n] + "…"
 
 
+def _fmt_last_sale(market: dict) -> str | None:
+    """Pull subject-property last sale into a 'Price (date)' string."""
+    raw = (market.get("subject_property_last_sale")
+           or market.get("last_sale")
+           or market.get("most_recent_sale"))
+    if raw is None:
+        return None
+    if isinstance(raw, str):
+        s = raw.strip()
+        return s if s and s.lower() not in ("null", "none", "n/a", "") else None
+    if isinstance(raw, dict):
+        price = (raw.get("price") or raw.get("sale_price")
+                 or raw.get("amount") or raw.get("value"))
+        date = (raw.get("date") or raw.get("sale_date")
+                or raw.get("year") or raw.get("sold_date"))
+        if price is None:
+            return None
+        p = _fmt_price(str(price))
+        return f"{p} ({date})" if date else p
+    return None
+
+
 def _parse_metrics_from_summary(summary: str) -> dict:
     """Regex fallback: extract key values from the narrative summary text."""
     result = {}
@@ -230,6 +252,9 @@ def extract_metrics(report: "PropertyReport") -> dict:
         "price_outlook", "market_trend", "forecast")
     outlook = _truncate(outlook_raw) if outlook_raw else None
 
+    # Subject-property last sale (info table on cover page)
+    last_sale = _fmt_last_sale(market)
+
     # Fall back to summary text for any missing values
     if any(v is None for v in [median, rental_yield, school, flood, cbd, outlook]):
         fb = _parse_metrics_from_summary(report.summary or "")
@@ -241,12 +266,13 @@ def extract_metrics(report: "PropertyReport") -> dict:
         outlook      = outlook      or fb.get("market_outlook")
 
     return {
-        "median_price":   median       or "N/A",
-        "rental_yield":   rental_yield or "N/A",
-        "school_quality": school       or "N/A",
-        "flood_risk":     flood        or "N/A",
-        "cbd_train_mins": cbd          or "N/A",
-        "market_outlook": outlook      or "N/A",
+        "median_price":    median       or "N/A",
+        "rental_yield":    rental_yield or "N/A",
+        "school_quality":  school       or "N/A",
+        "flood_risk":      flood        or "N/A",
+        "cbd_train_mins":  cbd          or "N/A",
+        "market_outlook":  outlook      or "N/A",
+        "last_sale_price": last_sale    or "Not on record",
     }
 
 
@@ -261,7 +287,7 @@ RESEARCH_TASKS = {
 
     "transport": "Property: {address}\nReturn JSON with: nearest_train (name, distance_km, line, cbd_mins), bus_routes, tram_access, drive_to_cbd_peak_mins, drive_to_cbd_offpeak_mins, walkability_score, cycling_infrastructure.",
 
-    "property_market": "Property: {address}\nReturn JSON with: recent_sales (last 6 months), days_on_market, auction_clearance_rate, price_per_sqm, best_pockets, market_outlook. Use realestate.com.au and domain.com.au.",
+    "property_market": "Property: {address}\nReturn JSON with: subject_property_last_sale (price, date — for THIS exact address from realestate.com.au sold history or domain.com.au), recent_sales (last 6 months for the street/suburb), days_on_market, auction_clearance_rate, price_per_sqm, best_pockets, market_outlook. Use realestate.com.au and domain.com.au. If THIS property has no recorded sale, set subject_property_last_sale to null.",
 
     "risk_overlays": "Property: {address}\nState: {state}\nReturn JSON with: flood_risk, bushfire_bal_rating, heritage_overlay, landscape_overlay, subdivision_potential, noise_concerns, contamination_flags. Use {planning_url} and {flood_url}.",
 }
@@ -356,20 +382,82 @@ def synthesise_report(client: anthropic.Anthropic, address: str, research_data: 
     print("  ✍️  Synthesising final report...")
     time.sleep(60)  # let rate limit window reset after research tasks
 
+    skeleton = (
+        "# PROPERTY INVESTMENT REPORT\n"
+        "## {address}\n\n"
+        "**Report Date:** [Month YYYY]\n"
+        "**Property Type:** [type if known, else 'Residential']\n\n"
+        "## EXECUTIVE SUMMARY\n"
+        "[1–2 paragraph overview anchored to the address — distance to station, suburb context, headline data point]\n\n"
+        "### Key Investment Highlights:\n"
+        "- [bullet]\n- [bullet]\n- [bullet]\n\n"
+        "### Primary Concerns:\n"
+        "- [bullet]\n- [bullet]\n\n"
+        "### Indicative Suitability:\n"
+        "- Owner-occupiers: [LOW / MODERATE / HIGH] — [one-line reason]\n"
+        "- Investors: [LOW / MODERATE / HIGH] — [one-line reason]\n\n"
+        "## SUBURB PROFILE\n\n"
+        "### Location & Demographics\n- [bullets]\n\n"
+        "### Household Characteristics\n- [bullets]\n\n"
+        "### Employment Profile\n[paragraph]\n\n"
+        "### Key Amenities\n- [bullets]\n\n"
+        "### Market Pricing\n- [bullets]\n\n"
+        "## SCHOOLS CATCHMENT\n"
+        "[content — if data missing, write 'DATA UNAVAILABLE:' line and verification recommendation]\n\n"
+        "## INFRASTRUCTURE & DEVELOPMENT\n\n"
+        "### Major Transport Projects\n[content]\n\n"
+        "### Planning Reforms\n[content]\n\n"
+        "### Recent Completions\n[content]\n\n"
+        "## TRANSPORT CONNECTIVITY\n\n"
+        "### Train Services\n- [bullets]\n\n"
+        "### Bus Services\n[content]\n\n"
+        "### Car Travel\n- [bullets]\n\n"
+        "### Cycling Infrastructure\n[content]\n\n"
+        "## MARKET ANALYSIS\n\n"
+        "### Pricing Trends\n[content]\n\n"
+        "### Rental Market\n[content]\n\n"
+        "### Market Conditions\n[content]\n\n"
+        "### Best Pockets\n[content]\n\n"
+        "### 5-Year Growth Outlook\n[content]\n\n"
+        "## RISK ASSESSMENT\n\n"
+        "### Crime & Safety\n[content]\n\n"
+        "### Environmental & Planning Risks\n[content — flood, bushfire/BAL, heritage, contamination. Write 'Data unavailable' for missing fields]\n\n"
+        "### Market Risks\n[content]\n\n"
+        "## VERDICT\n\n"
+        "### Overall Assessment\n"
+        "**Score: X/10**\n"
+        "[paragraph]\n\n"
+        "### Strengths\n1. [item]\n2. [item]\n\n"
+        "### Weaknesses\n1. [item]\n2. [item]\n\n"
+        "### Buyer Suitability\n"
+        "**Owner-Occupiers:**\n- [bullets]\n\n"
+        "**Investors:**\n- [bullets]\n\n"
+        "**Developers/Land Bankers:**\n- [bullets]\n\n"
+        "### Price Guidance\n[content]\n"
+    ).format(address=address)
+
     prompt = (
         f"Address: {address}\n"
         f"Data: {json.dumps(research_data, separators=(',', ':'))}\n\n"
-        "Write a property report with sections: Executive Summary, Suburb Profile, "
-        "Schools, Infrastructure, Transport, Market Analysis, Risk Assessment, Verdict. "
-        "Be specific with numbers."
+        "Write the property report following this EXACT structure. "
+        "Use the markdown headings shown verbatim — do NOT rename, reorder, or skip sections. "
+        "Replace bracketed placeholders with content drawn from Data. "
+        "If a field is genuinely missing from Data, write 'Data unavailable' rather than omitting the heading.\n\n"
+        "FORMATTING RULES:\n"
+        "- Use ## for major sections, ### for subsections, ** ** for inline emphasis\n"
+        "- Bullets must use '- ' prefix\n"
+        "- Lead with concrete numbers (prices, percentages, distances, dates) wherever the Data supports it\n"
+        "- No emojis, no horizontal rules\n\n"
+        "TEMPLATE:\n"
+        f"{skeleton}"
     )
 
     for attempt in range(4):
         try:
             response = client.messages.create(
                 model="claude-sonnet-4-5",
-                max_tokens=3000,
-                system="Senior Australian property analyst. Write clear, concise investment reports.",
+                max_tokens=5000,
+                system="Senior Australian property analyst. Produce reports in the exact structure requested by the user.",
                 messages=[{"role": "user", "content": prompt}]
             )
             return response.content[0].text

@@ -361,9 +361,13 @@ def build_cover_page(report, styles: dict) -> list:
     items.extend(build_scorecard(report, styles))
 
     # ── Info table ──
+    metrics = report.metrics if isinstance(getattr(report, "metrics", None), dict) else {}
+    last_sale = metrics.get("last_sale_price", "Not on record")
+
     data = [
         ["Report Date", today],
         ["Market",      state["label"]],
+        ["Last Sale",   last_sale],
         ["Prepared by", "PropertyReport AI Research Platform"],
     ]
     t = Table(data, colWidths=[42*mm, 138*mm])

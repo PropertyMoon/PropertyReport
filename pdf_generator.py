@@ -97,6 +97,8 @@ from reportlab.platypus import (
 )
 from reportlab.platypus import BaseDocTemplate, Frame, PageTemplate
 from reportlab.pdfgen import canvas as rl_canvas
+from reportlab.graphics.shapes import Drawing, String, Line, Rect
+from reportlab.graphics.charts.barcharts import HorizontalBarChart
 
 
 # ─── Brand Colors ─────────────────────────────────────────────────────────────
@@ -423,7 +425,262 @@ def _emoji_for(heading: str) -> str:
     return "📌"
 
 
-def parse_report_to_flowables(summary: str, styles: dict) -> list:
+# ─── Section Visuals (charts, tables, panels injected after H2 headers) ──────
+
+def _format_price_compact(p) -> str:
+    if p is None:
+        return "—"
+    try:
+        n = float(str(p).replace("$", "").replace(",", "").strip())
+        if n >= 1_000_000:
+            return f"${n/1_000_000:.2f}M".rstrip("0").rstrip(".")
+        if n >= 1_000:
+            return f"${n/1_000:.0f}K"
+        return f"${n:,.0f}"
+    except (ValueError, TypeError):
+        return str(p)[:14]
+
+
+def _format_amenity(e) -> str | None:
+    if not isinstance(e, dict):
+        return None
+    name = (e.get("name") or "").strip()
+    dist = e.get("distance_km")
+    if not name:
+        return None
+    if isinstance(dist, (int, float)):
+        return f"{name}  <font color='#94a3b8'>· {dist:.1f}km</font>"
+    return name
+
+
+def build_amenities_panel(report, styles: dict) -> list:
+    suburb = report.suburb if isinstance(getattr(report, "suburb", None), dict) else {}
+    freeway = _format_amenity(suburb.get("nearest_freeway") or {})
+    gps = [a for a in (_format_amenity(g) for g in (suburb.get("nearby_gps") or [])[:2]) if a]
+    hospitals = [a for a in (_format_amenity(h) for h in (suburb.get("nearby_hospitals") or [])[:3]) if a]
+
+    if not freeway and not gps and not hospitals:
+        return []
+
+    label_style = ParagraphStyle("amenity_lbl", fontSize=7, fontName="Helvetica-Bold",
+                                 textColor=MID_GREY, leading=10, alignment=TA_CENTER)
+    body_style  = ParagraphStyle("amenity_body", fontSize=9, fontName="Helvetica",
+                                 textColor=TEXT_DARK, leading=13, alignment=TA_CENTER)
+
+    cells = [
+        [Paragraph("NEAREST FREEWAY", label_style),
+         Paragraph("NEARBY GPs",      label_style),
+         Paragraph("HOSPITALS",       label_style)],
+        [Paragraph(freeway or "—",       body_style),
+         Paragraph("<br/>".join(gps) or "—",       body_style),
+         Paragraph("<br/>".join(hospitals) or "—", body_style)],
+    ]
+    t = Table(cells, colWidths=[60*mm, 60*mm, 60*mm])
+    t.setStyle(TableStyle([
+        ("BACKGROUND",    (0,0), (-1,0),  LIGHT_GREY),
+        ("BACKGROUND",    (0,1), (-1,1),  WHITE),
+        ("BOX",           (0,0), (-1,-1), 0.5, BORDER_GREY),
+        ("INNERGRID",     (0,0), (-1,-1), 0.5, BORDER_GREY),
+        ("VALIGN",        (0,0), (-1,-1), "MIDDLE"),
+        ("TOPPADDING",    (0,0), (-1,-1), 7),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 7),
+    ]))
+    return [t, Spacer(1, 4*mm)]
+
+
+def build_school_chart(report, styles: dict) -> list:
+    schools = report.schools if isinstance(getattr(report, "schools", None), dict) else {}
+    entries = []
+    for tier, key in (("Pri", "primary_schools"), ("Sec", "secondary_schools")):
+        for s in (schools.get(key) or [])[:4]:
+            if not isinstance(s, dict):
+                continue
+            icsea = s.get("icsea")
+            if isinstance(icsea, bool) or not isinstance(icsea, (int, float)):
+                continue
+            if not (800 <= float(icsea) <= 1300):
+                continue
+            name = (s.get("name") or "").strip()
+            if not name:
+                continue
+            entries.append((f"{name[:28]} ({tier})", int(icsea)))
+
+    if not entries:
+        return []
+
+    entries = entries[:6]
+    names  = [e[0] for e in entries]
+    scores = [e[1] for e in entries]
+
+    bar_h    = 14
+    chart_h  = max(50, len(scores) * bar_h + 18)
+    drawing  = Drawing(160*mm, chart_h + 16)
+
+    chart = HorizontalBarChart()
+    chart.x = 38*mm
+    chart.y = 14
+    chart.width  = 100*mm
+    chart.height = chart_h - 18
+    chart.data   = [scores]
+    chart.categoryAxis.categoryNames    = names
+    chart.categoryAxis.labels.fontSize  = 7
+    chart.categoryAxis.labels.fillColor = TEXT_DARK
+    chart.valueAxis.valueMin  = 850
+    chart.valueAxis.valueMax  = 1200
+    chart.valueAxis.valueStep = 50
+    chart.valueAxis.labels.fontSize = 6
+    chart.valueAxis.labels.fillColor = MID_GREY
+    chart.bars[0].fillColor   = GOLD
+    chart.bars.strokeColor    = None
+    chart.barSpacing = 2
+    drawing.add(chart)
+
+    # National-average reference line at 1000
+    ref_x = chart.x + (1000 - 850) / (1200 - 850) * chart.width
+    drawing.add(Line(ref_x, chart.y, ref_x, chart.y + chart.height,
+                     strokeColor=colors.HexColor("#475569"),
+                     strokeDashArray=[2, 2], strokeWidth=0.7))
+    drawing.add(String(ref_x + 3, chart.y + chart.height + 2,
+                       "Nat. avg (1000)",
+                       fontSize=6, fillColor=colors.HexColor("#475569")))
+
+    caption = ParagraphStyle("cap", fontSize=8, fontName="Helvetica-Oblique",
+                             textColor=MID_GREY, spaceAfter=1*mm)
+    return [
+        Paragraph("ICSEA — Index of Community Socio-Educational Advantage (higher = stronger profile)", caption),
+        drawing,
+        Spacer(1, 3*mm),
+    ]
+
+
+def build_comparables_table(report, styles: dict) -> list:
+    market = report.property_market if isinstance(getattr(report, "property_market", None), dict) else {}
+    raw_sales = market.get("comparable_sales") or market.get("recent_sales") or []
+    sales = [s for s in raw_sales if isinstance(s, dict)][:2]
+    if not sales:
+        return []
+
+    rows = [["Address", "Sold", "Price", "Beds · Baths · Land"]]
+    for s in sales:
+        addr  = (s.get("address") or "").strip()[:40] or "—"
+        date  = str(s.get("sale_date") or s.get("date") or "—")[:14]
+        price = _format_price_compact(s.get("sale_price") or s.get("price"))
+        beds  = s.get("bedrooms");  baths = s.get("bathrooms");  land = s.get("land_sqm")
+        meta  = []
+        if isinstance(beds,  (int, float)) and not isinstance(beds,  bool): meta.append(f"{int(beds)}br")
+        if isinstance(baths, (int, float)) and not isinstance(baths, bool): meta.append(f"{int(baths)}ba")
+        if isinstance(land,  (int, float)) and not isinstance(land,  bool): meta.append(f"{int(land)}m²")
+        rows.append([addr, date, price, " · ".join(meta) or "—"])
+
+    t = Table(rows, colWidths=[72*mm, 28*mm, 26*mm, 54*mm])
+    t.setStyle(TableStyle([
+        ("BACKGROUND",    (0,0), (-1,0),  NAVY),
+        ("TEXTCOLOR",     (0,0), (-1,0),  WHITE),
+        ("FONTNAME",      (0,0), (-1,0),  "Helvetica-Bold"),
+        ("FONTSIZE",      (0,0), (-1,-1), 8.5),
+        ("BACKGROUND",    (0,1), (-1,-1), LIGHT_GREY),
+        ("ALIGN",         (0,0), (0,-1),  "LEFT"),
+        ("ALIGN",         (1,0), (-1,-1), "LEFT"),
+        ("VALIGN",        (0,0), (-1,-1), "MIDDLE"),
+        ("TOPPADDING",    (0,0), (-1,-1), 6),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 6),
+        ("LEFTPADDING",   (0,0), (-1,-1), 8),
+        ("RIGHTPADDING",  (0,0), (-1,-1), 8),
+        ("GRID",          (0,0), (-1,-1), 0.4, BORDER_GREY),
+    ]))
+    caption = ParagraphStyle("cap", fontSize=8, fontName="Helvetica-Oblique",
+                             textColor=MID_GREY, spaceAfter=2*mm)
+    return [
+        Paragraph("Recent comparable sales — same suburb, similar property", caption),
+        t,
+        Spacer(1, 4*mm),
+    ]
+
+
+def build_crime_chart(report, styles: dict) -> list:
+    suburb = report.suburb if isinstance(getattr(report, "suburb", None), dict) else {}
+    pct     = suburb.get("crime_safety_percentile")
+    violent = suburb.get("crime_violent_vs_state_avg_pct")
+    prop    = suburb.get("crime_property_vs_state_avg_pct")
+
+    have_pct = isinstance(pct, (int, float)) and not isinstance(pct, bool) and 0 <= pct <= 100
+    deltas = []
+    for label, val in (("Violent crime", violent), ("Property crime", prop)):
+        if isinstance(val, (int, float)) and not isinstance(val, bool):
+            deltas.append((label, int(val)))
+    if not have_pct and not deltas:
+        return []
+
+    items = []
+
+    if have_pct:
+        pct_val = float(pct)
+        if   pct_val < 30: fill, zone = RED,    "Higher-crime area"
+        elif pct_val < 60: fill, zone = ORANGE, "Average safety"
+        else:              fill, zone = GREEN,  "Safer than most"
+
+        bar_full_w = 140*mm
+        drawing = Drawing(170*mm, 18*mm)
+        drawing.add(String(0, 13*mm,
+                           f"Safety percentile — {zone}",
+                           fontSize=9, fontName="Helvetica-Bold", fillColor=NAVY))
+        drawing.add(Rect(0, 5*mm, bar_full_w, 5*mm,
+                         fillColor=LIGHT_GREY, strokeColor=BORDER_GREY, strokeWidth=0.4))
+        drawing.add(Rect(0, 5*mm, bar_full_w * pct_val / 100, 5*mm,
+                         fillColor=fill, strokeColor=None))
+        for tick in (25, 50, 75):
+            x = bar_full_w * tick / 100
+            drawing.add(Line(x, 4*mm, x, 5*mm, strokeColor=MID_GREY, strokeWidth=0.4))
+            drawing.add(String(x, 1.5*mm, str(tick),
+                               fontSize=6, fillColor=MID_GREY, textAnchor="middle"))
+        drawing.add(String(bar_full_w + 4, 5.5*mm, f"{int(pct_val)}/100",
+                           fontSize=10, fontName="Helvetica-Bold", fillColor=NAVY))
+        items.append(drawing)
+        items.append(Spacer(1, 1*mm))
+
+    if deltas:
+        rows = []
+        for label, val in deltas:
+            sign  = "+" if val > 0 else ""
+            color = "#c0392b" if val > 5 else "#059669" if val < -5 else "#475569"
+            rows.append([
+                Paragraph(label, ParagraphStyle("cd_l", fontSize=9, fontName="Helvetica",
+                                                textColor=TEXT_DARK)),
+                Paragraph(f'<font color="{color}"><b>{sign}{val}%</b> vs state average</font>',
+                          ParagraphStyle("cd_v", fontSize=9, fontName="Helvetica",
+                                         textColor=TEXT_MID)),
+            ])
+        dt = Table(rows, colWidths=[55*mm, 105*mm])
+        dt.setStyle(TableStyle([
+            ("TOPPADDING",    (0,0), (-1,-1), 3),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 3),
+            ("LEFTPADDING",   (0,0), (-1,-1), 0),
+            ("RIGHTPADDING",  (0,0), (-1,-1), 0),
+            ("LINEBELOW",     (0,0), (-1,-2), 0.3, BORDER_GREY),
+            ("VALIGN",        (0,0), (-1,-1), "MIDDLE"),
+        ]))
+        items.append(dt)
+
+    items.append(Spacer(1, 4*mm))
+    return items
+
+
+def _section_visual(heading: str, report, styles: dict) -> list:
+    """Dispatch to the right visual builder for a given H2 heading."""
+    lower = heading.lower()
+    if "suburb profile" in lower:
+        return build_amenities_panel(report, styles)
+    if "school" in lower:
+        return build_school_chart(report, styles)
+    if "market analysis" in lower or "property market" in lower:
+        return build_comparables_table(report, styles)
+    if "risk" in lower:
+        return build_crime_chart(report, styles)
+    return []
+
+
+def parse_report_to_flowables(report, styles: dict) -> list:
+    summary = report.summary if hasattr(report, "summary") else str(report)
     flowables = []
     lines = summary.split("\n")
     current_bullets = []
@@ -456,6 +713,7 @@ def parse_report_to_flowables(summary: str, styles: dict) -> list:
             flush_bullets()
             heading_text = stripped.lstrip("#").strip()
             flowables.extend(section_header(heading_text, _emoji_for(heading_text), styles))
+            flowables.extend(_section_visual(heading_text, report, styles))
 
         elif stripped.startswith("### "):
             flush_bullets()
@@ -497,7 +755,7 @@ def generate_pdf(report, output_path: str = "property_report.pdf") -> str:
 
     story = []
     story.extend(build_cover_page(report, styles))
-    story.extend(parse_report_to_flowables(report.summary, styles))
+    story.extend(parse_report_to_flowables(report, styles))
     doc.build(story)
     print(f"✅ PDF generated: {output_path}")
     return output_path

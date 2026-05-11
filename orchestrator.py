@@ -279,7 +279,19 @@ def extract_metrics(report: "PropertyReport") -> dict:
 # ─── Research Prompts ────────────────────────────────────────────────────────
 
 RESEARCH_TASKS = {
-    "suburb": "Property: {address}\nState: {state}\nReturn JSON with: suburb, postcode, median_house_price, median_unit_price, price_growth_5yr, rental_yield, demographics, crime_rating, key_amenities, liveability_score. Use {crime_url} for crime data.",
+    "suburb": (
+        "Property: {address}\nState: {state}\n"
+        "Return JSON with: suburb, postcode, median_house_price, median_unit_price, "
+        "price_growth_5yr, rental_yield, demographics, crime_rating, key_amenities, "
+        "liveability_score, "
+        "nearest_freeway (object: name, distance_km — closest major freeway/motorway/highway), "
+        "nearby_gps (list of up to 2 objects: name, distance_km — nearest general practitioner clinics), "
+        "nearby_hospitals (list of up to 3 objects: name, distance_km — only if within 10km), "
+        "crime_safety_percentile (integer 0-100 from {crime_url}, where 100 = safest in the state), "
+        "crime_violent_vs_state_avg_pct (signed integer — percentage delta of suburb's violent crime rate vs state average; positive = worse), "
+        "crime_property_vs_state_avg_pct (signed integer — same for property crime). "
+        "Use {crime_url} for crime data."
+    ),
 
     "schools": "Property: {address}\nReturn JSON with: primary_schools (name, distance_km, icsea), secondary_schools (name, distance_km, icsea), private_schools (name, distance_km), in_catchment_zone, school_quality_summary. Use myschool.edu.au.",
 
@@ -287,7 +299,14 @@ RESEARCH_TASKS = {
 
     "transport": "Property: {address}\nReturn JSON with: nearest_train (name, distance_km, line, cbd_mins), bus_routes, tram_access, drive_to_cbd_peak_mins, drive_to_cbd_offpeak_mins, walkability_score, cycling_infrastructure.",
 
-    "property_market": "Property: {address}\nReturn JSON with: subject_property_last_sale (price, date — for THIS exact address from realestate.com.au sold history or domain.com.au), recent_sales (last 6 months for the street/suburb), days_on_market, auction_clearance_rate, price_per_sqm, best_pockets, market_outlook. Use realestate.com.au and domain.com.au. If THIS property has no recorded sale, set subject_property_last_sale to null.",
+    "property_market": (
+        "Property: {address}\n"
+        "Return JSON with: "
+        "subject_property_last_sale (price, date — for THIS exact address from realestate.com.au sold history or domain.com.au; null if no record), "
+        "comparable_sales (list of EXACTLY 2 most recent comparable sales in the same suburb — similar property type, similar size; each object must include: address, sale_price (numeric AUD), sale_date (e.g. 'March 2025'), bedrooms (int), bathrooms (int), land_sqm (int)), "
+        "days_on_market, auction_clearance_rate, price_per_sqm, best_pockets, market_outlook. "
+        "Use realestate.com.au and domain.com.au sold-history pages."
+    ),
 
     "risk_overlays": "Property: {address}\nState: {state}\nReturn JSON with: flood_risk, bushfire_bal_rating, heritage_overlay, landscape_overlay, subdivision_potential, noise_concerns, contamination_flags. Use {planning_url} and {flood_url}.",
 }
@@ -448,6 +467,13 @@ def synthesise_report(client: anthropic.Anthropic, address: str, research_data: 
         "- Bullets must use '- ' prefix\n"
         "- Lead with concrete numbers (prices, percentages, distances, dates) wherever the Data supports it\n"
         "- No emojis, no horizontal rules\n\n"
+        "CONCISENESS RULES (the report MUST be data-dense, not text-heavy):\n"
+        "- Executive Summary intro: 2-3 short sentences MAX before the first '###'\n"
+        "- Each ### subsection: 3-5 short bullets MAX, OR one short paragraph (max 4 lines) — never both\n"
+        "- The PDF renders visuals for: an Amenities panel (freeway / GPs / hospitals) under Suburb Profile, an ICSEA bar chart under Schools, a Comparable Sales table under Market Analysis, and a Crime/Safety chart under Risk Assessment. Do NOT enumerate those items in prose — reference them only in summary form (e.g. 'Schools track above national average overall, see chart').\n"
+        "- When Data is missing for a field, write a single short sentence acknowledging it — no multi-bullet filler\n"
+        "- Skip filler openers ('It is worth noting that...', 'In conclusion...', 'Overall...')\n"
+        "- Never repeat a number that already appears in the Key Metrics scorecard (median price, rental yield, train-to-CBD) unless directly comparing it to something\n\n"
         "TEMPLATE:\n"
         f"{skeleton}"
     )

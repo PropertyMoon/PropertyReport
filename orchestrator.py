@@ -7,6 +7,7 @@ import anthropic
 import json
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 
 # Reuse state detection from pdf_generator
@@ -395,96 +396,174 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
 
 # ─── Synthesis Agent ─────────────────────────────────────────────────────────
 
+# Cached once per process (ephemeral cache TTL = 5 min on Anthropic's side).
+# Keep this constant — any change busts the cache.
+_SYNTHESIS_SYSTEM = """\
+Senior Australian property analyst. Produce reports in the EXACT structure below.
+Replace ALL bracketed placeholders with data. Use exact headings verbatim — do NOT rename, reorder, or skip sections.
+If a field is genuinely missing from Data, write 'Data unavailable' rather than omitting the heading.
+
+FORMATTING RULES:
+- Use ## for major sections, ### for subsections, ** ** for inline emphasis
+- Bullets must use '- ' prefix
+- Lead with concrete numbers (prices, percentages, distances, dates) wherever Data supports it
+- No emojis, no horizontal rules
+
+CONCISENESS RULES (data-dense, not text-heavy):
+- Executive Summary intro: 2-3 short sentences MAX before the first '###'
+- Each ### subsection: 3-5 short bullets MAX, OR one short paragraph (max 4 lines) — never both
+- The PDF renders visuals for: Amenities panel (freeway/GPs/hospitals) under Suburb Profile, ICSEA bar chart under Schools, Comparable Sales table under Market Analysis, Crime/Safety chart under Risk Assessment. Do NOT enumerate those items in prose — one summary sentence referencing the visual is enough.
+- When Data is missing for a field, one short sentence — no multi-bullet filler
+- Skip filler openers ('It is worth noting that...', 'In conclusion...', 'Overall...')
+- Never repeat a number already in the Key Metrics scorecard (median price, rental yield, train-to-CBD) unless directly comparing it
+
+TEMPLATE:
+# PROPERTY INVESTMENT REPORT
+## [ADDRESS]
+
+**Report Date:** [Month YYYY]
+**Property Type:** [type if known, else 'Residential']
+
+## EXECUTIVE SUMMARY
+[1-2 paragraph overview anchored to the address — distance to station, suburb context, headline data point]
+
+### Key Investment Highlights:
+- [bullet]
+- [bullet]
+- [bullet]
+
+### Primary Concerns:
+- [bullet]
+- [bullet]
+
+### Indicative Suitability:
+- Owner-occupiers: [LOW / MODERATE / HIGH] — [one-line reason]
+- Investors: [LOW / MODERATE / HIGH] — [one-line reason]
+
+## SUBURB PROFILE
+
+### Location & Demographics
+- [bullets]
+
+### Household Characteristics
+- [bullets]
+
+### Employment Profile
+[paragraph]
+
+### Key Amenities
+- [bullets]
+
+### Market Pricing
+- [bullets]
+
+## SCHOOLS CATCHMENT
+[content — if data missing, write 'DATA UNAVAILABLE:' line and verification recommendation]
+
+## INFRASTRUCTURE & DEVELOPMENT
+
+### Major Transport Projects
+[content]
+
+### Planning Reforms
+[content]
+
+### Recent Completions
+[content]
+
+## TRANSPORT CONNECTIVITY
+
+### Train Services
+- [bullets]
+
+### Bus Services
+[content]
+
+### Car Travel
+- [bullets]
+
+### Cycling Infrastructure
+[content]
+
+## MARKET ANALYSIS
+
+### Pricing Trends
+[content]
+
+### Rental Market
+[content]
+
+### Market Conditions
+[content]
+
+### Best Pockets
+[content]
+
+### 5-Year Growth Outlook
+[content]
+
+## RISK ASSESSMENT
+
+### Crime & Safety
+[content]
+
+### Environmental & Planning Risks
+[content — flood, bushfire/BAL, heritage, contamination. Write 'Data unavailable' for missing fields]
+
+### Market Risks
+[content]
+
+## VERDICT
+
+### Overall Assessment
+**Score: X/10**
+[paragraph]
+
+### Strengths
+1. [item]
+2. [item]
+
+### Weaknesses
+1. [item]
+2. [item]
+
+### Buyer Suitability
+**Owner-Occupiers:**
+- [bullets]
+
+**Investors:**
+- [bullets]
+
+**Developers/Land Bankers:**
+- [bullets]
+
+### Price Guidance
+[content]
+"""
+
+
 def synthesise_report(client: anthropic.Anthropic, address: str, research_data: dict) -> str:
     """Take all research data and synthesise into a buyer-friendly narrative report."""
 
     print("  ✍️  Synthesising final report...")
-    time.sleep(60)  # let rate limit window reset after research tasks
 
-    skeleton = (
-        "# PROPERTY INVESTMENT REPORT\n"
-        "## {address}\n\n"
-        "**Report Date:** [Month YYYY]\n"
-        "**Property Type:** [type if known, else 'Residential']\n\n"
-        "## EXECUTIVE SUMMARY\n"
-        "[1–2 paragraph overview anchored to the address — distance to station, suburb context, headline data point]\n\n"
-        "### Key Investment Highlights:\n"
-        "- [bullet]\n- [bullet]\n- [bullet]\n\n"
-        "### Primary Concerns:\n"
-        "- [bullet]\n- [bullet]\n\n"
-        "### Indicative Suitability:\n"
-        "- Owner-occupiers: [LOW / MODERATE / HIGH] — [one-line reason]\n"
-        "- Investors: [LOW / MODERATE / HIGH] — [one-line reason]\n\n"
-        "## SUBURB PROFILE\n\n"
-        "### Location & Demographics\n- [bullets]\n\n"
-        "### Household Characteristics\n- [bullets]\n\n"
-        "### Employment Profile\n[paragraph]\n\n"
-        "### Key Amenities\n- [bullets]\n\n"
-        "### Market Pricing\n- [bullets]\n\n"
-        "## SCHOOLS CATCHMENT\n"
-        "[content — if data missing, write 'DATA UNAVAILABLE:' line and verification recommendation]\n\n"
-        "## INFRASTRUCTURE & DEVELOPMENT\n\n"
-        "### Major Transport Projects\n[content]\n\n"
-        "### Planning Reforms\n[content]\n\n"
-        "### Recent Completions\n[content]\n\n"
-        "## TRANSPORT CONNECTIVITY\n\n"
-        "### Train Services\n- [bullets]\n\n"
-        "### Bus Services\n[content]\n\n"
-        "### Car Travel\n- [bullets]\n\n"
-        "### Cycling Infrastructure\n[content]\n\n"
-        "## MARKET ANALYSIS\n\n"
-        "### Pricing Trends\n[content]\n\n"
-        "### Rental Market\n[content]\n\n"
-        "### Market Conditions\n[content]\n\n"
-        "### Best Pockets\n[content]\n\n"
-        "### 5-Year Growth Outlook\n[content]\n\n"
-        "## RISK ASSESSMENT\n\n"
-        "### Crime & Safety\n[content]\n\n"
-        "### Environmental & Planning Risks\n[content — flood, bushfire/BAL, heritage, contamination. Write 'Data unavailable' for missing fields]\n\n"
-        "### Market Risks\n[content]\n\n"
-        "## VERDICT\n\n"
-        "### Overall Assessment\n"
-        "**Score: X/10**\n"
-        "[paragraph]\n\n"
-        "### Strengths\n1. [item]\n2. [item]\n\n"
-        "### Weaknesses\n1. [item]\n2. [item]\n\n"
-        "### Buyer Suitability\n"
-        "**Owner-Occupiers:**\n- [bullets]\n\n"
-        "**Investors:**\n- [bullets]\n\n"
-        "**Developers/Land Bankers:**\n- [bullets]\n\n"
-        "### Price Guidance\n[content]\n"
-    ).format(address=address)
-
-    prompt = (
+    user_prompt = (
         f"Address: {address}\n"
         f"Data: {json.dumps(research_data, separators=(',', ':'))}\n\n"
-        "Write the property report following this EXACT structure. "
-        "Use the markdown headings shown verbatim — do NOT rename, reorder, or skip sections. "
-        "Replace bracketed placeholders with content drawn from Data. "
-        "If a field is genuinely missing from Data, write 'Data unavailable' rather than omitting the heading.\n\n"
-        "FORMATTING RULES:\n"
-        "- Use ## for major sections, ### for subsections, ** ** for inline emphasis\n"
-        "- Bullets must use '- ' prefix\n"
-        "- Lead with concrete numbers (prices, percentages, distances, dates) wherever the Data supports it\n"
-        "- No emojis, no horizontal rules\n\n"
-        "CONCISENESS RULES (the report MUST be data-dense, not text-heavy):\n"
-        "- Executive Summary intro: 2-3 short sentences MAX before the first '###'\n"
-        "- Each ### subsection: 3-5 short bullets MAX, OR one short paragraph (max 4 lines) — never both\n"
-        "- The PDF renders visuals for: an Amenities panel (freeway / GPs / hospitals) under Suburb Profile, an ICSEA bar chart under Schools, a Comparable Sales table under Market Analysis, and a Crime/Safety chart under Risk Assessment. Do NOT enumerate those items in prose — reference them only in summary form (e.g. 'Schools track above national average overall, see chart').\n"
-        "- When Data is missing for a field, write a single short sentence acknowledging it — no multi-bullet filler\n"
-        "- Skip filler openers ('It is worth noting that...', 'In conclusion...', 'Overall...')\n"
-        "- Never repeat a number that already appears in the Key Metrics scorecard (median price, rental yield, train-to-CBD) unless directly comparing it to something\n\n"
-        "TEMPLATE:\n"
-        f"{skeleton}"
+        "Write the property report. Replace [ADDRESS] with the address above."
     )
 
     for attempt in range(4):
         try:
             response = client.messages.create(
-                model="claude-sonnet-4-5",
-                max_tokens=5000,
-                system="Senior Australian property analyst. Produce reports in the exact structure requested by the user.",
-                messages=[{"role": "user", "content": prompt}]
+                model="claude-sonnet-4-6",
+                max_tokens=3500,
+                system=[{
+                    "type": "text",
+                    "text": _SYNTHESIS_SYSTEM,
+                    "cache_control": {"type": "ephemeral"},
+                }],
+                messages=[{"role": "user", "content": user_prompt}],
             )
             return response.content[0].text
         except anthropic.RateLimitError:
@@ -518,18 +597,24 @@ def research_property(address: str, api_key: str = None) -> PropertyReport:
     
     print(f"\n🏠 Starting property research for: {address}")
     print("=" * 60)
-    
-    # Run all research tasks
+
+    # Run all 6 research tasks in parallel
     research_data = {}
-    
-    for task_name in RESEARCH_TASKS.keys():
-        try:
-            research_data[task_name] = run_research_task(client, task_name, address)
-        except Exception as e:
-            print(f"  ❌ Error in {task_name}: {e}")
-            research_data[task_name] = {"error": str(e)}
-    
-    print("\n📝 All research complete. Generating report...")
+
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        futures = {
+            executor.submit(run_research_task, client, task_name, address): task_name
+            for task_name in RESEARCH_TASKS.keys()
+        }
+        for future in as_completed(futures):
+            task_name = futures[future]
+            try:
+                research_data[task_name] = future.result()
+            except Exception as e:
+                print(f"  ❌ Error in {task_name}: {e}")
+                research_data[task_name] = {"error": str(e)}
+
+    print("\n📝 All research complete. Synthesising...")
     print("=" * 60)
     
     # Synthesise full narrative report

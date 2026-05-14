@@ -372,8 +372,8 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
         try:
             response = client.messages.create(
                 model="claude-haiku-4-5-20251001",
-                max_tokens=2000,
-                tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 3}],
+                max_tokens=1200,
+                tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 2}],
                 system="Australian property researcher. Respond with valid JSON only. Use null for missing data.",
                 messages=[{"role": "user", "content": prompt}]
             )
@@ -396,13 +396,10 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
 
 # ─── Synthesis Agent ─────────────────────────────────────────────────────────
 
-# Cached once per process (ephemeral cache TTL = 5 min on Anthropic's side).
-# Keep this constant — any change busts the cache.
-_SYNTHESIS_SYSTEM = """\
-Senior Australian property analyst. Produce reports in the EXACT structure below.
-Replace ALL bracketed placeholders with data. Use exact headings verbatim — do NOT rename, reorder, or skip sections.
-If a field is genuinely missing from Data, write 'Data unavailable' rather than omitting the heading.
+# Two cached system prompts — report is generated in parallel halves then stitched.
+# Keep these constants stable; any change busts the ephemeral cache (5-min TTL).
 
+_SHARED_RULES = """\
 FORMATTING RULES:
 - Use ## for major sections, ### for subsections, ** ** for inline emphasis
 - Bullets must use '- ' prefix
@@ -410,14 +407,19 @@ FORMATTING RULES:
 - No emojis, no horizontal rules
 
 CONCISENESS RULES (data-dense, not text-heavy):
-- Executive Summary intro: 2-3 short sentences MAX before the first '###'
 - Each ### subsection: 3-5 short bullets MAX, OR one short paragraph (max 4 lines) — never both
 - The PDF renders visuals for: Amenities panel (freeway/GPs/hospitals) under Suburb Profile, ICSEA bar chart under Schools, Comparable Sales table under Market Analysis, Crime/Safety chart under Risk Assessment. Do NOT enumerate those items in prose — one summary sentence referencing the visual is enough.
 - When Data is missing for a field, one short sentence — no multi-bullet filler
 - Skip filler openers ('It is worth noting that...', 'In conclusion...', 'Overall...')
 - Never repeat a number already in the Key Metrics scorecard (median price, rental yield, train-to-CBD) unless directly comparing it
+"""
 
-TEMPLATE:
+_SYNTHESIS_SYSTEM_A = """\
+Senior Australian property analyst. Write ONLY the sections below — verbatim headings, in order.
+If a field is missing from Data, write 'Data unavailable' rather than omitting the heading.
+
+""" + _SHARED_RULES + """
+SECTIONS TO WRITE:
 # PROPERTY INVESTMENT REPORT
 ## [ADDRESS]
 
@@ -425,7 +427,7 @@ TEMPLATE:
 **Property Type:** [type if known, else 'Residential']
 
 ## EXECUTIVE SUMMARY
-[1-2 paragraph overview anchored to the address — distance to station, suburb context, headline data point]
+[2-3 short sentences overview — distance to station, suburb context, headline data point]
 
 ### Key Investment Highlights:
 - [bullet]
@@ -484,7 +486,15 @@ TEMPLATE:
 
 ### Cycling Infrastructure
 [content]
+"""
 
+_SYNTHESIS_SYSTEM_B = """\
+Senior Australian property analyst. Write ONLY the sections below — verbatim headings, in order.
+Do NOT restate suburb basics or median price already covered in the first half of the report.
+If a field is missing from Data, write 'Data unavailable' rather than omitting the heading.
+
+""" + _SHARED_RULES + """
+SECTIONS TO WRITE:
 ## MARKET ANALYSIS
 
 ### Pricing Trends
@@ -542,25 +552,21 @@ TEMPLATE:
 """
 
 
-def synthesise_report(client: anthropic.Anthropic, address: str, research_data: dict) -> str:
-    """Take all research data and synthesise into a buyer-friendly narrative report."""
-
-    print("  ✍️  Synthesising final report...")
-
-    user_prompt = (
-        f"Address: {address}\n"
-        f"Data: {json.dumps(research_data, separators=(',', ':'))}\n\n"
-        "Write the property report. Replace [ADDRESS] with the address above."
-    )
-
+def _synth_chunk(
+    client: anthropic.Anthropic,
+    user_prompt: str,
+    system_text: str,
+    max_tok: int,
+    label: str,
+) -> str:
     for attempt in range(4):
         try:
             response = client.messages.create(
                 model="claude-sonnet-4-6",
-                max_tokens=3500,
+                max_tokens=max_tok,
                 system=[{
                     "type": "text",
-                    "text": _SYNTHESIS_SYSTEM,
+                    "text": system_text,
                     "cache_control": {"type": "ephemeral"},
                 }],
                 messages=[{"role": "user", "content": user_prompt}],
@@ -570,8 +576,28 @@ def synthesise_report(client: anthropic.Anthropic, address: str, research_data: 
             if attempt == 3:
                 raise
             wait = 60 * (attempt + 1)
-            print(f"  ⏳ Rate limited on synthesis, retrying in {wait}s...")
+            print(f"  ⏳ Rate limited on {label}, retrying in {wait}s...")
             time.sleep(wait)
+
+
+def synthesise_report(client: anthropic.Anthropic, address: str, research_data: dict) -> str:
+    """Synthesise all research data into a buyer-friendly narrative report."""
+
+    print("  ✍️  Synthesising report (2 parallel chunks)...")
+
+    user_prompt = (
+        f"Address: {address}\n"
+        f"Data: {json.dumps(research_data, separators=(',', ':'))}\n\n"
+        "Write your assigned sections. Replace [ADDRESS] with the address above."
+    )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        f_a = executor.submit(_synth_chunk, client, user_prompt, _SYNTHESIS_SYSTEM_A, 2000, "synthesis-A")
+        f_b = executor.submit(_synth_chunk, client, user_prompt, _SYNTHESIS_SYSTEM_B, 1800, "synthesis-B")
+        part_a = f_a.result()
+        part_b = f_b.result()
+
+    return part_a.rstrip() + "\n\n" + part_b.lstrip()
 
 
 # ─── Main Orchestrator ────────────────────────────────────────────────────────

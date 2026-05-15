@@ -726,7 +726,7 @@ def build_view(report) -> dict:
     if isinstance(gp, dict) and gp.get("name"):
         map_legend.append({"icon": icon("stethoscope"), "color": "rose",
                            "label": gp["name"], "detail": _dist(gp.get("distance_km"))})
-    map_legend = map_legend[:4]
+    map_legend = map_legend[:2]
 
     # Real Google images (returns None if key missing or image is a placeholder).
     # Static-map fetch was dropped from the cover — keeping the helper for
@@ -1150,22 +1150,14 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  overflow: hidden;
 }
 .title-card .addr {
-  font-size: 19px;
+  font-size: 17px;
   font-weight: 700;
   color: white;
-  line-height: 1.15;
-  margin-bottom: 4px;
-}
-.title-card .sub {
-  font-size: 10px;
-  color: rgba(255,255,255,0.65);
-}
-.title-card .date {
-  font-size: 9px;
-  color: rgba(255,255,255,0.55);
-  margin-top: 6px;
+  line-height: 1.2;
+  overflow: hidden;
 }
 .photo-card {
   border: 1px solid var(--grey-200);
@@ -1192,7 +1184,7 @@ body {
   letter-spacing: 0.3px;
 }
 
-.amenities-card { display: flex; flex-direction: column; }
+.amenities-card { display: flex; flex-direction: column; overflow: hidden; }
 .amenities-grid {
   margin-top: 6px;
   display: flex;
@@ -1654,8 +1646,6 @@ body {
   <div class="row header-row">
     <div class="card title-card">
       <div class="addr">{{ view.address }}</div>
-      <div class="sub">AI Property Intelligence Report</div>
-      <div class="date">Report Date: {{ view.report_date }}</div>
     </div>
     <div class="photo-card">
       {% if view.photo_uri %}

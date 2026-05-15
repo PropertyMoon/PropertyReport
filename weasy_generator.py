@@ -584,8 +584,7 @@ def build_view(report) -> dict:
     if not _school_above_avg:
         _qt = (_pick(sch, "school_quality_summary", default="") or "").lower()
         _school_above_avg = any(w in _qt for w in ("above", "strong", "good", "excellent", "high"))
-    schools_icon_name  = "check-circle" if _school_above_avg else "cross-circle"
-    schools_icon_class = "icon-emerald"  if _school_above_avg else "icon-rose"
+    schools_icon_name = "check-circle" if _school_above_avg else "cross-circle"
     train_label = _short(metrics.get("cbd_train_mins") or "—", 12)
     train_station = _short(_pick(tr.get("nearest_train", {}) if isinstance(tr.get("nearest_train"), dict) else {},
                                   "name", default="Nearest Station"), 22)
@@ -778,11 +777,11 @@ def build_view(report) -> dict:
         "metric_icons": {
             "median":  icon("home"),
             "yield":   icon("trending-up"),
-            "schools": icon(schools_icon_name),
+            "schools": icon("cap"),
             "train":   icon("train"),
             "crime":   icon("shield"),
         },
-        "schools_icon_class": schools_icon_class,
+        "schools_rating_icon": icon(schools_icon_name, size=22, fill="#10b981" if _school_above_avg else "#f43f5e"),
         "pipeline":   pipeline,
         "map_legend": map_legend,
         "photo_uri":  photo_uri,
@@ -1385,6 +1384,8 @@ body {
   text-overflow: ellipsis;
   max-width: 100%;
 }
+.schools-rating { display: flex; align-items: center; }
+.schools-rating svg { width: 22px; height: 22px; display: block; }
 .metric-sub {
   font-size: 8.5px;
   color: var(--slate-3);
@@ -1796,9 +1797,9 @@ body {
       <div class="metric-sub">Estimate</div>
     </div>
     <div class="card metric-card">
-      <div class="metric-icon {{ view.schools_icon_class }}">{{ view.metric_icons.schools | safe }}</div>
+      <div class="metric-icon icon-violet">{{ view.metric_icons.schools | safe }}</div>
       <div class="metric-label">Schools</div>
-      <div class="metric-value">{{ view.metrics.schools }}</div>
+      <div class="metric-value schools-rating">{{ view.schools_rating_icon | safe }}</div>
       <div class="metric-sub">Quality</div>
     </div>
     <div class="card metric-card">

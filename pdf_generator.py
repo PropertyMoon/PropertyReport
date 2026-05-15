@@ -152,7 +152,7 @@ class PropertyReportTemplate(BaseDocTemplate):
 
         canv.setFillColor(WHITE)
         canv.setFont("Helvetica", 7.5)
-        canv.drawRightString(w - 15*mm, h - 11*mm, "AI Property Intelligence Report")
+        canv.drawRightString(w - 15*mm, h - 11*mm, "AI-assisted property intelligence")
 
         # Footer
         canv.setFillColor(LIGHT_GREY)

@@ -1729,7 +1729,7 @@ body {
 <div class="title-page">
   <div class="title-brand">Property<span class="accent">Report</span></div>
   <div class="title-headline-wrap">
-    <div class="title-eyebrow">AI Property Intelligence</div>
+    <div class="title-eyebrow">AI-assisted property intelligence</div>
     <div class="title-headline">Know everything<br>before you <em>make an offer.</em></div>
   </div>
   <div class="title-footer">

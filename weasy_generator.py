@@ -52,35 +52,45 @@ except Exception as _e:  # noqa: BLE001
 
 
 # ─── Inline SVG icons (no emoji font dependency) ─────────────────────────────
+#
+# Stored as inner-markup only. icon() wraps with an <svg> tag that carries
+# explicit width/height/xmlns/viewBox/fill — WeasyPrint occasionally renders
+# an inline SVG at zero size when those attributes are missing.
 
 ICONS: dict[str, str] = {
-    "home":         '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 8h-3v9h-5v-6h-2v6H6v-9H3l9-8z"/></svg>',
-    "trending-up":  '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.5 17.5l5-5 4 4 7-7v4h2V6h-7.5v2h4.5l-6 6-4-4-5.5 5.5z"/></svg>',
-    "cap":          '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3zm0 13L5 12v3l7 4 7-4v-3l-7 4z"/></svg>',
-    "train":        '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c-4 0-8 .5-8 4v9.5C4 17.4 5.6 19 7.5 19L6 20.5v.5h12v-.5L16.5 19c1.9 0 3.5-1.6 3.5-3.5V6c0-3.5-4-4-8-4zM7.5 17a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm3.5-7H6V6h5v4zm6.5 7a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM18 10h-5V6h5v4z"/></svg>',
-    "shield":       '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4 5v6c0 5.5 3.4 10.7 8 12 4.6-1.3 8-6.5 8-12V5l-8-3z"/></svg>',
-    "chart-bar":    '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="11" width="3" height="8" rx="1"/><rect x="10" y="5" width="3" height="14" rx="1"/><rect x="16" y="8" width="3" height="11" rx="1"/></svg>',
-    "car":          '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.92 6c-.2-.6-.76-1-1.42-1H6.5c-.66 0-1.22.4-1.42 1L3 12v8c0 .55.45 1 1 1h1a1 1 0 001-1v-1h12v1a1 1 0 001 1h1c.55 0 1-.45 1-1v-8l-2.08-6zM6.5 16a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm11 0a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM5 11l1.5-4.5h11L19 11H5z"/></svg>',
-    "bus":          '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 16c0 .88.39 1.67 1 2.22V20a1 1 0 001 1h1a1 1 0 001-1v-1h8v1a1 1 0 001 1h1a1 1 0 001-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4v10zm3.5 1a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm9 0a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm1.5-6H6V6h12v5z"/></svg>',
-    "highway":      '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 5h2v3h-2V5zm0 5h2v3h-2v-3zm0 5h2v3h-2v-3zM7 5h2v3H7V5zm0 5h2v3H7v-3zm0 5h2v3H7v-3zm8-10h2v3h-2V5zm0 5h2v3h-2v-3zm0 5h2v3h-2v-3z"/></svg>',
-    "airplane":     '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 00-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1L15 22v-1.5L13 19v-5.5L21 16z"/></svg>',
-    "shopping":     '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6h-3V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v2H5c-.55 0-1 .45-1 1v13c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V7c0-.55-.45-1-1-1zM9 4h6v2H9V4z"/></svg>',
-    "stethoscope":  '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 3v6a4 4 0 008 0V3h-2v6a2 2 0 11-4 0V3H5zm-2 0h2v2H3V3zm8 0h2v2h-2V3zm0 11a5 5 0 0010 0v-3h-2v3a3 3 0 11-6 0v-1a6 6 0 01-2 .87V14z"/><circle cx="19" cy="9" r="2"/></svg>',
-    "hospital":     '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-4 11h-2v2h-2v-2H9v-2h2V9h2v3h2v2z"/></svg>',
-    "clipboard":    '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1S9.6 1.84 9.18 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zm-7 0a1 1 0 110 2 1 1 0 010-2z"/></svg>',
-    "building":     '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/></svg>',
-    "construction": '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 4l6 6-2 2-2-2-3 3 2 2-2 2-2-2-3 3 2 2-2 2-6-6 12-12zM18 5l1.4-1.4a2 2 0 012.8 0L23 4l-2 2-3-1z"/></svg>',
-    "bulb":         '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zM12 2C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17a1 1 0 001 1h6a1 1 0 001-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/></svg>',
-    "map-pin":      '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z"/></svg>',
-    "check":        '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2L5.5 12.7a1 1 0 10-1.4 1.4l4.2 4.2a1 1 0 001.4 0L20.6 7.4a1 1 0 10-1.4-1.4L9 16.2z"/></svg>',
-    "circle-dot":   '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3"/></svg>',
-    "circle":       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>',
+    "home":         '<path d="M12 3l9 8h-3v9h-5v-6h-2v6H6v-9H3l9-8z"/>',
+    "trending-up":  '<path d="M3.5 17.5l5-5 4 4 7-7v4h2V6h-7.5v2h4.5l-6 6-4-4-5.5 5.5z"/>',
+    "cap":          '<path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3zm0 13L5 12v3l7 4 7-4v-3l-7 4z"/>',
+    "train":        '<path d="M12 2c-4 0-8 .5-8 4v9.5C4 17.4 5.6 19 7.5 19L6 20.5v.5h12v-.5L16.5 19c1.9 0 3.5-1.6 3.5-3.5V6c0-3.5-4-4-8-4zM7.5 17a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm3.5-7H6V6h5v4zm6.5 7a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM18 10h-5V6h5v4z"/>',
+    "shield":       '<path d="M12 2L4 5v6c0 5.5 3.4 10.7 8 12 4.6-1.3 8-6.5 8-12V5l-8-3z"/>',
+    "chart-bar":    '<rect x="4" y="11" width="3" height="8" rx="1"/><rect x="10" y="5" width="3" height="14" rx="1"/><rect x="16" y="8" width="3" height="11" rx="1"/>',
+    "car":          '<path d="M18.92 6c-.2-.6-.76-1-1.42-1H6.5c-.66 0-1.22.4-1.42 1L3 12v8c0 .55.45 1 1 1h1a1 1 0 001-1v-1h12v1a1 1 0 001 1h1c.55 0 1-.45 1-1v-8l-2.08-6zM6.5 16a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm11 0a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM5 11l1.5-4.5h11L19 11H5z"/>',
+    "bus":          '<path d="M4 16c0 .88.39 1.67 1 2.22V20a1 1 0 001 1h1a1 1 0 001-1v-1h8v1a1 1 0 001 1h1a1 1 0 001-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4v10zm3.5 1a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm9 0a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm1.5-6H6V6h12v5z"/>',
+    "highway":      '<path d="M11 5h2v3h-2V5zm0 5h2v3h-2v-3zm0 5h2v3h-2v-3zM7 5h2v3H7V5zm0 5h2v3H7v-3zm0 5h2v3H7v-3zm8-10h2v3h-2V5zm0 5h2v3h-2v-3zm0 5h2v3h-2v-3z"/>',
+    "shopping":     '<path d="M19 6h-3V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v2H5c-.55 0-1 .45-1 1v13c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V7c0-.55-.45-1-1-1zM9 4h6v2H9V4z"/>',
+    "stethoscope":  '<path d="M5 3v6a4 4 0 008 0V3h-2v6a2 2 0 11-4 0V3H5zm-2 0h2v2H3V3zm8 0h2v2h-2V3zm0 11a5 5 0 0010 0v-3h-2v3a3 3 0 11-6 0v-1a6 6 0 01-2 .87V14z"/><circle cx="19" cy="9" r="2"/>',
+    "hospital":     '<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-4 11h-2v2h-2v-2H9v-2h2V9h2v3h2v2z"/>',
+    "clipboard":    '<path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1S9.6 1.84 9.18 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zm-7 0a1 1 0 110 2 1 1 0 010-2z"/>',
+    "building":     '<path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/>',
+    "construction": '<path d="M14 4l6 6-2 2-2-2-3 3 2 2-2 2-2-2-3 3 2 2-2 2-6-6 12-12zM18 5l1.4-1.4a2 2 0 012.8 0L23 4l-2 2-3-1z"/>',
+    "bulb":         '<path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zM12 2C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17a1 1 0 001 1h6a1 1 0 001-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/>',
+    "map-pin":      '<path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z"/>',
 }
 
 
-def icon(name: str) -> str:
-    """Return the SVG markup for an icon, or empty string if not defined."""
-    return ICONS.get(name, "")
+def icon(name: str, size: int = 24) -> str:
+    """Return inline SVG markup with explicit dimensions + xmlns + viewBox.
+
+    Renderers like WeasyPrint occasionally lay out a missing-attribute SVG
+    at zero pixels — these attributes are belt-and-braces."""
+    path = ICONS.get(name)
+    if not path:
+        return ""
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" '
+        f'width="{size}" height="{size}" viewBox="0 0 24 24" '
+        f'fill="currentColor">{path}</svg>'
+    )
 
 
 # ─── Google Maps image fetchers ───────────────────────────────────────────────
@@ -717,9 +727,11 @@ def build_view(report) -> dict:
                            "label": gp["name"], "detail": _dist(gp.get("distance_km"))})
     map_legend = map_legend[:5]
 
-    # Real Google images (returns None if key missing or image is a placeholder)
+    # Real Google images (returns None if key missing or image is a placeholder).
+    # Static-map fetch was dropped from the cover — keeping the helper for
+    # potential future use but no longer paying the network round-trip.
     photo_uri = fetch_street_view_uri(report.address)
-    map_uri   = fetch_static_map_uri(report.address)
+    map_uri   = None
 
     return {
         "address":    report.address,
@@ -1158,38 +1170,39 @@ body {
   letter-spacing: 0.3px;
 }
 
-.map-card { position: relative; overflow: hidden; }
-.map-grid {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr;
-  gap: 8px;
-  margin-top: 4px;
-  height: 60px;
-}
-.map-image {
-  border-radius: 4px;
+.amenities-card { display: flex; flex-direction: column; }
+.amenities-grid {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   overflow: hidden;
-  background: linear-gradient(160deg, #ecfeff 0%, #f0fdf4 100%);
 }
-.map-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.map-image svg { width: 100%; height: 100%; display: block; }
-.map-legend { display: flex; flex-direction: column; justify-content: center; gap: 1px; }
-.legend-row {
-  display: flex; align-items: center; gap: 5px;
-  font-size: 8px; padding: 1px 0;
+.amenity-row {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 9px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--grey-100);
 }
-.legend-icon {
-  width: 14px; height: 14px; border-radius: 3px;
+.amenity-row:last-child { border-bottom: none; }
+.amenity-icon {
+  width: 20px; height: 20px; border-radius: 4px;
   display: inline-flex; align-items: center; justify-content: center;
-  font-size: 8px; flex-shrink: 0;
+  flex-shrink: 0;
 }
-.legend-text { min-width: 0; overflow: hidden; }
-.legend-text strong {
-  font-weight: 600; color: var(--navy); font-size: 8.5px;
+.amenity-icon svg { width: 12px; height: 12px; display: block; }
+.amenity-text {
+  display: flex; align-items: baseline; justify-content: space-between;
+  flex: 1; min-width: 0; gap: 8px;
+}
+.amenity-text strong {
+  font-weight: 600; color: var(--navy); font-size: 9.5px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  display: inline-block; max-width: 100%;
+  flex: 1; min-width: 0;
 }
-.legend-text .muted { color: var(--slate-3); font-size: 8px; margin-left: 4px; }
+.amenity-text .amenity-distance {
+  color: var(--slate-3); font-size: 8.5px; flex-shrink: 0; white-space: nowrap;
+}
 
 /* ── METRIC ROW ── */
 .metric-row { grid-template-columns: repeat(6, 1fr); }
@@ -1619,30 +1632,18 @@ body {
       <div class="photo-tag">Street View unavailable for this address</div>
       {% endif %}
     </div>
-    <div class="card map-card">
-      <div class="label">Location &amp; Amenity Map</div>
-      <div class="map-grid">
-        <div class="map-image">
-          {% if view.map_uri %}
-          <img src="{{ view.map_uri }}" alt="Map of {{ view.suburb_name or view.address }}">
-          {% else %}
-          <svg viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg">
-            <ellipse cx="100" cy="30" rx="80" ry="22" fill="none" stroke="#cbd5e1" stroke-dasharray="3 3"/>
-            <ellipse cx="100" cy="30" rx="55" ry="15" fill="none" stroke="#cbd5e1" stroke-dasharray="3 3"/>
-            <ellipse cx="100" cy="30" rx="30" ry="8"  fill="none" stroke="#cbd5e1" stroke-dasharray="3 3"/>
-            <circle cx="100" cy="30" r="5" fill="#0f172a"/>
-            <text x="100" y="33" text-anchor="middle" font-size="6" fill="white" font-weight="700">★</text>
-          </svg>
-          {% endif %}
+    <div class="card amenities-card">
+      <div class="label">Nearby Amenities</div>
+      <div class="amenities-grid">
+        {% for item in view.map_legend %}
+        <div class="amenity-row">
+          <span class="amenity-icon icon-{{ item.color }}">{{ item.icon | safe }}</span>
+          <span class="amenity-text">
+            <strong>{{ item.label }}</strong>
+            {% if item.detail %}<span class="amenity-distance">{{ item.detail }}</span>{% endif %}
+          </span>
         </div>
-        <div class="map-legend">
-          {% for item in view.map_legend %}
-          <div class="legend-row">
-            <span class="legend-icon icon-{{ item.color }}">{{ item.icon | safe }}</span>
-            <span class="legend-text"><strong>{{ item.label }}</strong>{% if item.detail %}<span class="muted">{{ item.detail }}</span>{% endif %}</span>
-          </div>
-          {% endfor %}
-        </div>
+        {% endfor %}
       </div>
     </div>
   </div>

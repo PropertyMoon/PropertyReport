@@ -14,10 +14,13 @@ Usage:
 """
 from __future__ import annotations
 
+import base64
 import json
 import os
 import re
 import sys
+import urllib.parse
+import urllib.request
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -29,11 +32,72 @@ except ImportError:
     raise
 
 try:
+    from dotenv import load_dotenv
+    load_dotenv()  # populate GOOGLE_MAPS_API_KEY etc. from .env when run locally
+except ImportError:
+    pass
+
+try:
     from weasyprint import HTML  # type: ignore
     _WEASY_OK = True
 except Exception as _e:  # noqa: BLE001
     _WEASY_OK = False
     _WEASY_ERR = str(_e)
+
+
+# ─── Google Maps image fetchers ───────────────────────────────────────────────
+
+_GMAPS_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "").strip()
+
+
+def _fetch_image_data_uri(url: str, mime: str = "image/jpeg",
+                          min_bytes: int = 5_000) -> str | None:
+    """Download an image and inline it as a data URI. Returns None on failure
+    or if the response looks like Google's grey 'no imagery' placeholder."""
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "PropertyReport/1.0"})
+        with urllib.request.urlopen(req, timeout=12) as resp:
+            data = resp.read()
+        if len(data) < min_bytes:
+            return None
+        return f"data:{mime};base64,{base64.b64encode(data).decode('ascii')}"
+    except Exception as e:  # noqa: BLE001
+        print(f"[!] Image fetch failed: {e}")
+        return None
+
+
+def fetch_street_view_uri(address: str, w: int = 700, h: int = 360) -> str | None:
+    if not _GMAPS_KEY or _GMAPS_KEY.startswith("your-"):
+        return None
+    params = urllib.parse.urlencode({
+        "size":               f"{w}x{h}",
+        "location":           address,
+        "key":                _GMAPS_KEY,
+        "source":             "outdoor",
+        "return_error_codes": "true",
+    })
+    return _fetch_image_data_uri(
+        f"https://maps.googleapis.com/maps/api/streetview?{params}"
+    )
+
+
+def fetch_static_map_uri(address: str, w: int = 600, h: int = 280,
+                         zoom: int = 14) -> str | None:
+    if not _GMAPS_KEY or _GMAPS_KEY.startswith("your-"):
+        return None
+    params = urllib.parse.urlencode({
+        "size":    f"{w}x{h}",
+        "center":  address,
+        "zoom":    zoom,
+        "scale":   2,
+        "maptype": "roadmap",
+        "markers": f"color:0x10b981|size:mid|{address}",
+        "key":     _GMAPS_KEY,
+    })
+    return _fetch_image_data_uri(
+        f"https://maps.googleapis.com/maps/api/staticmap?{params}",
+        mime="image/png",
+    )
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -292,6 +356,43 @@ def build_view(report) -> dict:
         if isinstance(proj, dict) and proj.get("name"):
             pipeline.append({"name": proj["name"], "status": proj.get("status") or proj.get("timeline") or "—"})
 
+    # Map legend (real research data, used alongside the Google Static Map)
+    def _dist(d):
+        if not isinstance(d, (int, float)) or isinstance(d, bool):
+            return ""
+        return f"{d*1000:.0f} m" if d < 1 else f"{d:.1f} km"
+
+    map_legend = []
+    nt = tr.get("nearest_train") or {}
+    if isinstance(nt, dict) and nt.get("name"):
+        map_legend.append({"icon": "🚆", "color": "blue",
+                           "label": nt["name"], "detail": _dist(nt.get("distance_km"))})
+    fwy = s.get("nearest_freeway") or {}
+    if isinstance(fwy, dict) and fwy.get("name"):
+        map_legend.append({"icon": "🛣️", "color": "amber",
+                           "label": fwy["name"], "detail": _dist(fwy.get("distance_km"))})
+    pri = (sch.get("primary_schools") or [{}])[0] or {}
+    if isinstance(pri, dict) and pri.get("name"):
+        map_legend.append({"icon": "🎓", "color": "violet",
+                           "label": pri["name"], "detail": _dist(pri.get("distance_km"))})
+    sec = (sch.get("secondary_schools") or [{}])[0] or {}
+    if isinstance(sec, dict) and sec.get("name"):
+        map_legend.append({"icon": "🏫", "color": "violet",
+                           "label": sec["name"], "detail": _dist(sec.get("distance_km"))})
+    hosp = (s.get("nearby_hospitals") or [{}])[0] or {}
+    if isinstance(hosp, dict) and hosp.get("name"):
+        map_legend.append({"icon": "⚕️", "color": "rose",
+                           "label": hosp["name"], "detail": _dist(hosp.get("distance_km"))})
+    gp = (s.get("nearby_gps") or [{}])[0] or {}
+    if isinstance(gp, dict) and gp.get("name"):
+        map_legend.append({"icon": "🩺", "color": "rose",
+                           "label": gp["name"], "detail": _dist(gp.get("distance_km"))})
+    map_legend = map_legend[:5]
+
+    # Real Google images (returns None if key missing or image is a placeholder)
+    photo_uri = fetch_street_view_uri(report.address)
+    map_uri   = fetch_static_map_uri(report.address)
+
     return {
         "address":    report.address,
         "suburb_name": _pick(s, "suburb", default=""),
@@ -321,7 +422,10 @@ def build_view(report) -> dict:
             "property":   s.get("crime_property_vs_state_avg_pct"),
             "gauge_svg":  _gauge_svg(pct_val),
         },
-        "pipeline": pipeline,
+        "pipeline":   pipeline,
+        "map_legend": map_legend,
+        "photo_uri":  photo_uri,
+        "map_uri":    map_uri,
     }
 
 
@@ -496,6 +600,9 @@ HTML_TEMPLATE = r"""<!doctype html>
 <head>
 <meta charset="utf-8">
 <title>{{ view.address }} — PropertyReport</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 @page { size: A4 landscape; margin: 8mm; }
 
@@ -526,12 +633,13 @@ HTML_TEMPLATE = r"""<!doctype html>
 
 * { box-sizing: border-box; }
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   color: var(--slate);
   background: white;
   margin: 0;
   font-size: 10px;
   line-height: 1.35;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
 .dashboard {
@@ -596,29 +704,55 @@ body {
   overflow: hidden;
   padding: 0;
 }
+.photo-card img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
 .photo-card .photo-tag {
   position: absolute;
   bottom: 6px;
   left: 8px;
-  background: rgba(15,23,42,0.7);
+  background: rgba(15,23,42,0.72);
   color: white;
   font-size: 8px;
   padding: 2px 6px;
   border-radius: 3px;
+  letter-spacing: 0.3px;
 }
 
-.map-card {
-  position: relative;
-  overflow: hidden;
-}
-.map-inner {
-  position: relative;
-  height: 60px;
-  background: linear-gradient(160deg, #ecfeff 0%, #f0fdf4 100%);
-  border-radius: 4px;
+.map-card { position: relative; overflow: hidden; }
+.map-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 8px;
   margin-top: 4px;
+  height: 60px;
 }
-.map-inner svg { width: 100%; height: 100%; display: block; }
+.map-image {
+  border-radius: 4px;
+  overflow: hidden;
+  background: linear-gradient(160deg, #ecfeff 0%, #f0fdf4 100%);
+}
+.map-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.map-image svg { width: 100%; height: 100%; display: block; }
+.map-legend { display: flex; flex-direction: column; justify-content: center; gap: 1px; }
+.legend-row {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 8px; padding: 1px 0;
+}
+.legend-icon {
+  width: 14px; height: 14px; border-radius: 3px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 8px; flex-shrink: 0;
+}
+.legend-text { min-width: 0; overflow: hidden; }
+.legend-text strong {
+  font-weight: 600; color: var(--navy); font-size: 8.5px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: inline-block; max-width: 100%;
+}
+.legend-text .muted { color: var(--slate-3); font-size: 8px; margin-left: 4px; }
 
 /* ── METRIC ROW ── */
 .metric-row { grid-template-columns: repeat(6, 1fr); }
@@ -911,30 +1045,37 @@ body {
       <div class="date">Report Date: {{ view.report_date }}</div>
     </div>
     <div class="photo-card">
-      <div class="photo-tag">Street View placeholder</div>
+      {% if view.photo_uri %}
+      <img src="{{ view.photo_uri }}" alt="Street view of {{ view.address }}">
+      <div class="photo-tag">Google Street View</div>
+      {% else %}
+      <div class="photo-tag">Street View unavailable for this address</div>
+      {% endif %}
     </div>
     <div class="card map-card">
       <div class="label">Location &amp; Amenity Map</div>
-      <div class="map-inner">
-        <svg viewBox="0 0 400 60" xmlns="http://www.w3.org/2000/svg">
-          <ellipse cx="120" cy="32" rx="100" ry="22" fill="none" stroke="#cbd5e1" stroke-dasharray="3 3"/>
-          <ellipse cx="120" cy="32" rx="70" ry="16"  fill="none" stroke="#cbd5e1" stroke-dasharray="3 3"/>
-          <ellipse cx="120" cy="32" rx="40" ry="10"  fill="none" stroke="#cbd5e1" stroke-dasharray="3 3"/>
-          <circle cx="120" cy="32" r="6" fill="#0f172a"/>
-          <text x="120" y="35" text-anchor="middle" font-size="6" fill="white" font-weight="700">★</text>
-          <!-- Amenity dots -->
-          <circle cx="70"  cy="22" r="5" fill="#2563eb"/><text x="70" y="25" text-anchor="middle" font-size="6" fill="white">🚆</text>
-          <circle cx="150" cy="18" r="5" fill="#e11d48"/>
-          <circle cx="180" cy="32" r="5" fill="#7c3aed"/>
-          <circle cx="140" cy="46" r="5" fill="#059669"/>
-          <circle cx="200" cy="40" r="5" fill="#dc2626"/>
-          <!-- Legend -->
-          <text x="240" y="14"  font-size="7" fill="#475569">🚆 Watergardens Station (120m)</text>
-          <text x="240" y="24"  font-size="7" fill="#475569">🛒 Town Centre (450m)</text>
-          <text x="240" y="34"  font-size="7" fill="#475569">🎓 Schools (500m–1.2km)</text>
-          <text x="240" y="44"  font-size="7" fill="#475569">🌳 Parks &amp; Reserves (300m–1km)</text>
-          <text x="240" y="54"  font-size="7" fill="#475569">⚕️ Medical Centre (1km)</text>
-        </svg>
+      <div class="map-grid">
+        <div class="map-image">
+          {% if view.map_uri %}
+          <img src="{{ view.map_uri }}" alt="Map of {{ view.suburb_name or view.address }}">
+          {% else %}
+          <svg viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg">
+            <ellipse cx="100" cy="30" rx="80" ry="22" fill="none" stroke="#cbd5e1" stroke-dasharray="3 3"/>
+            <ellipse cx="100" cy="30" rx="55" ry="15" fill="none" stroke="#cbd5e1" stroke-dasharray="3 3"/>
+            <ellipse cx="100" cy="30" rx="30" ry="8"  fill="none" stroke="#cbd5e1" stroke-dasharray="3 3"/>
+            <circle cx="100" cy="30" r="5" fill="#0f172a"/>
+            <text x="100" y="33" text-anchor="middle" font-size="6" fill="white" font-weight="700">★</text>
+          </svg>
+          {% endif %}
+        </div>
+        <div class="map-legend">
+          {% for item in view.map_legend %}
+          <div class="legend-row">
+            <span class="legend-icon icon-{{ item.color }}">{{ item.icon }}</span>
+            <span class="legend-text"><strong>{{ item.label }}</strong>{% if item.detail %}<span class="muted">{{ item.detail }}</span>{% endif %}</span>
+          </div>
+          {% endfor %}
+        </div>
       </div>
     </div>
   </div>

@@ -38,7 +38,9 @@ class PropertyReport:
     property_market: dict
     risk_overlays: dict
     summary: str
-    metrics: dict = field(default_factory=dict)  # pre-extracted scorecard values
+    property_intel: dict = field(default_factory=dict)  # subject-property zoning, land, dev potential
+    metrics: dict   = field(default_factory=dict)       # pre-extracted scorecard values
+    scores: dict    = field(default_factory=dict)       # weighted factor scores parsed from synthesis
 
 
 # ─── Metric Helpers ───────────────────────────────────────────────────────────
@@ -202,6 +204,54 @@ def _parse_metrics_from_summary(summary: str) -> dict:
     return result
 
 
+def parse_scores_from_summary(summary: str) -> dict:
+    """Pull the Verdict's '### Score Breakdown' values into a dict for charting."""
+    if not summary:
+        return {}
+    # Isolate the Score Breakdown block — up to the next H3 or H2
+    block = re.search(
+        r'###\s*Score\s+Breakdown\b(.*?)(?=\n###|\n##|\Z)',
+        summary, re.IGNORECASE | re.DOTALL
+    )
+    if not block:
+        return {}
+    body = block.group(1)
+
+    scores: dict = {}
+    for label, key in [
+        ("Growth Potential",   "growth_potential"),
+        ("Rental Demand",      "rental_demand"),
+        ("Infrastructure",     "infrastructure"),
+        ("Safety",             "safety"),
+        ("Family Suitability", "family_suitability"),
+    ]:
+        m = re.search(
+            r'-?\s*' + re.escape(label) + r'\s*:?\s*\**\s*(\d+(?:\.\d+)?)',
+            body, re.IGNORECASE
+        )
+        if m:
+            try:
+                val = float(m.group(1))
+                if 0 <= val <= 10:
+                    scores[key] = val
+            except ValueError:
+                pass
+
+    om = re.search(
+        r'Overall\s+Score\s*:?\s*\**\s*(\d+(?:\.\d+)?)',
+        body, re.IGNORECASE
+    )
+    if om:
+        try:
+            val = float(om.group(1))
+            if 0 <= val <= 10:
+                scores["overall"] = val
+        except ValueError:
+            pass
+
+    return scores
+
+
 def extract_metrics(report: "PropertyReport") -> dict:
     """
     Build the 6 scorecard values. Tries structured research data first,
@@ -290,8 +340,11 @@ RESEARCH_TASKS = {
         "nearby_hospitals (list of up to 3 objects: name, distance_km — only if within 10km), "
         "crime_safety_percentile (integer 0-100 from {crime_url}, where 100 = safest in the state), "
         "crime_violent_vs_state_avg_pct (signed integer — percentage delta of suburb's violent crime rate vs state average; positive = worse), "
-        "crime_property_vs_state_avg_pct (signed integer — same for property crime). "
-        "Use {crime_url} for crime data."
+        "crime_property_vs_state_avg_pct (signed integer — same for property crime), "
+        "price_history_5yr (list of up to 6 objects: year (int 2019-2025), median_house_price (numeric AUD) — annual median for the suburb), "
+        "moving_here_demographic (one sentence describing who is moving to the suburb — e.g. 'Young professional families displaced from inner-city; Asian-Australian households drawn by schools'), "
+        "becoming_narrative (one sentence on what this suburb is becoming over the next 5 years — gentrification trajectory, infrastructure-driven change, etc.). "
+        "Use {crime_url} for crime data and CoreLogic/realestate.com.au median history for prices."
     ),
 
     "schools": "Property: {address}\nReturn JSON with: primary_schools (name, distance_km, icsea), secondary_schools (name, distance_km, icsea), private_schools (name, distance_km), in_catchment_zone, school_quality_summary. Use myschool.edu.au.",
@@ -310,6 +363,27 @@ RESEARCH_TASKS = {
     ),
 
     "risk_overlays": "Property: {address}\nState: {state}\nReturn JSON with: flood_risk, bushfire_bal_rating, heritage_overlay, landscape_overlay, subdivision_potential, noise_concerns, contamination_flags. Use {planning_url} and {flood_url}.",
+
+    "property_intel": (
+        "Property: {address}\nState: {state}\n"
+        "Return JSON with property-specific details for THIS exact address "
+        "(use realestate.com.au, domain.com.au, council records, {planning_url}). "
+        "All numeric fields must be numbers (not strings). Use null when unknown — do not invent.\n"
+        "Fields: "
+        "land_sqm (numeric — total land size in square metres), "
+        "dwelling_type (one of: 'House', 'Townhouse', 'Apartment', 'Unit', 'Villa', 'Land'), "
+        "frontage_m (numeric — road frontage in metres), "
+        "bedrooms (int), bathrooms (int), parking (int — total car spaces), "
+        "year_built (int, approximate decade is OK e.g. 1970), "
+        "zoning_code (e.g. 'GRZ1', 'NRZ2', 'R-Code R20', 'R3'), "
+        "zoning_description (one short sentence on what the zone allows), "
+        "corner_block (boolean), "
+        "subdivision_potential (object: rating ('Low'/'Moderate'/'High'), reason (one short sentence)), "
+        "development_feasibility (object: rating, reason — feasibility of multi-dwelling development), "
+        "renovation_potential (object: rating, reason — value-add upside from renovation), "
+        "knockdown_rebuild_viability (object: rating, reason), "
+        "street_position_quality (int 1-10 — where 10 = best street in suburb; consider noise, aspect, prestige)."
+    ),
 }
 
 
@@ -408,15 +482,29 @@ FORMATTING RULES:
 
 CONCISENESS RULES (data-dense, not text-heavy):
 - Each ### subsection: 3-5 short bullets MAX, OR one short paragraph (max 4 lines) — never both
-- The PDF renders visuals for: Amenities panel (freeway/GPs/hospitals) under Suburb Profile, ICSEA bar chart under Schools, Comparable Sales table under Market Analysis, Crime/Safety chart under Risk Assessment. Do NOT enumerate those items in prose — one summary sentence referencing the visual is enough.
-- When Data is missing for a field, one short sentence — no multi-bullet filler
+- The PDF renders visuals automatically — DO NOT enumerate items it will show:
+  · Property Snapshot data table (## PROPERTY SNAPSHOT) — land/zoning/dev potentials
+  · Amenities panel (## SUBURB PROFILE) — freeway, GPs, hospitals
+  · ICSEA bar chart (## SCHOOLS CATCHMENT) — individual school scores
+  · 5-year price history bar chart + Comparable Sales table (## MARKET ANALYSIS)
+  · Crime safety percentile bar + crime delta table (## RISK ASSESSMENT)
+  · Weighted Score Breakdown bar chart (## VERDICT) — per-factor scores
+  Reference each visual once in a summary sentence, then move on. Never list items the chart will show.
 - Skip filler openers ('It is worth noting that...', 'In conclusion...', 'Overall...')
 - Never repeat a number already in the Key Metrics scorecard (median price, rental yield, train-to-CBD) unless directly comparing it
+
+MISSING-DATA WORDING (premium tone, not apologetic):
+- NEVER write 'Data unavailable', 'Information not available', 'Unable to retrieve', or anything that exposes that the AI couldn't find something.
+- When a specific field cannot be confirmed, frame it as a verification item the buyer can quickly resolve. Example phrasing:
+  · 'Verification recommended for: school catchment boundaries (findmyschool.vic.gov.au)'
+  · 'Buyer to confirm: heritage overlay status via VicPlan'
+- At the end of RISK ASSESSMENT, add a tight bulleted '### Verification Checklist' subsection listing 2-4 items the buyer should confirm independently — never more than 4 items, never with 'AI could not find...' framing.
 """
 
 _SYNTHESIS_SYSTEM_A = """\
 Senior Australian property analyst. Write ONLY the sections below — verbatim headings, in order.
-If a field is missing from Data, write 'Data unavailable' rather than omitting the heading.
+Do not omit any heading; if information is genuinely thin for a section, write one short sentence
+following the MISSING-DATA WORDING rules below — never 'Data unavailable'.
 
 """ + _SHARED_RULES + """
 SECTIONS TO WRITE:
@@ -442,10 +530,22 @@ SECTIONS TO WRITE:
 - Owner-occupiers: [LOW / MODERATE / HIGH] — [one-line reason]
 - Investors: [LOW / MODERATE / HIGH] — [one-line reason]
 
+## PROPERTY SNAPSHOT
+[1-2 sentence summary of the subject property's land/zoning profile and what it means for value — the data table below the heading carries the specifics, so DO NOT restate land size, zoning code, or potential ratings line-by-line.]
+
+### Development Outlook
+- [2-3 bullets MAX — only the bullets that have substance. e.g. 'Corner block + GRZ1 zoning supports dual-occupancy subject to council approval' or 'Limited subdivision scope on a 380 sqm lot, but renovation upside is material on this 1960s build']
+
 ## SUBURB PROFILE
 
 ### Location & Demographics
 - [bullets]
+
+### Who's Moving Here
+[1 short paragraph — 2-3 sentences max. Describe the demographic shift in plain language. Draw from Data's moving_here_demographic field plus broader context. Concrete and human, not salesy.]
+
+### What This Suburb Is Becoming
+[1 short paragraph — 2-3 sentences. Draw from Data's becoming_narrative plus infrastructure pipeline. Forward-looking but grounded.]
 
 ### Household Characteristics
 - [bullets]
@@ -454,13 +554,13 @@ SECTIONS TO WRITE:
 [paragraph]
 
 ### Key Amenities
-- [bullets]
+- [bullets — but DO NOT list freeway, GPs, or hospitals; the Amenities panel renders those]
 
 ### Market Pricing
 - [bullets]
 
 ## SCHOOLS CATCHMENT
-[content — if data missing, write 'DATA UNAVAILABLE:' line and verification recommendation]
+[1-2 sentence summary of how nearby schools rate overall and what tier of buyer is served — the ICSEA chart renders the per-school detail.]
 
 ## INFRASTRUCTURE & DEVELOPMENT
 
@@ -491,14 +591,15 @@ SECTIONS TO WRITE:
 _SYNTHESIS_SYSTEM_B = """\
 Senior Australian property analyst. Write ONLY the sections below — verbatim headings, in order.
 Do NOT restate suburb basics or median price already covered in the first half of the report.
-If a field is missing from Data, write 'Data unavailable' rather than omitting the heading.
+Do not omit any heading; if information is genuinely thin for a section, write one short sentence
+following the MISSING-DATA WORDING rules below — never 'Data unavailable'.
 
 """ + _SHARED_RULES + """
 SECTIONS TO WRITE:
 ## MARKET ANALYSIS
 
 ### Pricing Trends
-[content]
+[1-2 sentences summarising the trajectory — the 5-year history bar chart renders the per-year detail, do NOT enumerate annual medians.]
 
 ### Rental Market
 [content]
@@ -515,19 +616,32 @@ SECTIONS TO WRITE:
 ## RISK ASSESSMENT
 
 ### Crime & Safety
-[content]
+[1-2 sentences referencing the visual chart. Do NOT enumerate the violent/property crime percentage deltas — the chart shows them.]
 
 ### Environmental & Planning Risks
-[content — flood, bushfire/BAL, heritage, contamination. Write 'Data unavailable' for missing fields]
+[Cover flood, bushfire/BAL, heritage, contamination. Use the MISSING-DATA WORDING rules — frame unknowns as 'Verification recommended for: …' lines, NEVER 'Data unavailable'.]
 
 ### Market Risks
 [content]
 
+### Verification Checklist
+- [2-4 items that the buyer should independently confirm. Each as a single line, e.g. 'School catchment boundaries (findmyschool.vic.gov.au)'. Never say 'AI could not find' — frame as routine pre-purchase due diligence.]
+
 ## VERDICT
 
+### Score Breakdown
+- Growth Potential: **X.X** — [one short reason]
+- Rental Demand: **X.X** — [one short reason]
+- Infrastructure: **X.X** — [one short reason]
+- Safety: **X.X** — [one short reason]
+- Family Suitability: **X.X** — [one short reason]
+
+**Overall Score: X.X / 10**
+
+[FORMAT IS STRICT: each factor on its own bullet with the EXACT label shown, score wrapped in ** **, and a 0.0-10.0 numeric value (e.g. 7.5). The PDF parses these scores into a visual chart — deviation breaks rendering. Choose Safety so 10 = safest, 0 = worst.]
+
 ### Overall Assessment
-**Score: X/10**
-[paragraph]
+[1 short paragraph synthesising the score breakdown into a clear buy/hold/avoid leaning.]
 
 ### Strengths
 1. [item]
@@ -627,7 +741,7 @@ def research_property(address: str, api_key: str = None) -> PropertyReport:
     # Run all 6 research tasks in parallel
     research_data = {}
 
-    with ThreadPoolExecutor(max_workers=6) as executor:
+    with ThreadPoolExecutor(max_workers=len(RESEARCH_TASKS)) as executor:
         futures = {
             executor.submit(run_research_task, client, task_name, address): task_name
             for task_name in RESEARCH_TASKS.keys()
@@ -656,8 +770,10 @@ def research_property(address: str, api_key: str = None) -> PropertyReport:
         property_market=research_data.get("property_market", {}),
         risk_overlays=research_data.get("risk_overlays", {}),
         summary=summary,
+        property_intel=research_data.get("property_intel", {}),
     )
     report.metrics = extract_metrics(report)
+    report.scores  = parse_scores_from_summary(summary)
     
     print("\n✅ Report complete!")
     return report
@@ -690,8 +806,11 @@ if __name__ == "__main__":
             "transport": report.transport,
             "property_market": report.property_market,
             "risk_overlays": report.risk_overlays,
+            "property_intel": report.property_intel,
         },
-        "summary": report.summary
+        "summary": report.summary,
+        "scores":  report.scores,
+        "metrics": report.metrics,
     }
     
     with open("report_output.json", "w") as f:

@@ -98,7 +98,7 @@ from reportlab.platypus import (
 from reportlab.platypus import BaseDocTemplate, Frame, PageTemplate
 from reportlab.pdfgen import canvas as rl_canvas
 from reportlab.graphics.shapes import Drawing, String, Line, Rect
-from reportlab.graphics.charts.barcharts import HorizontalBarChart
+from reportlab.graphics.charts.barcharts import HorizontalBarChart, VerticalBarChart
 
 
 # ─── Brand Colors ─────────────────────────────────────────────────────────────
@@ -403,6 +403,7 @@ def build_cover_page(report, styles: dict) -> list:
 
 SECTION_MAP = {
     "executive summary": ("📋", ),
+    "property snapshot": ("🏠", ),
     "suburb profile":    ("🏘️", ),
     "liveability":       ("🏘️", ),
     "school":            ("🏫", ),
@@ -665,17 +666,238 @@ def build_crime_chart(report, styles: dict) -> list:
     return items
 
 
+def build_property_snapshot(report, styles: dict) -> list:
+    intel = report.property_intel if isinstance(getattr(report, "property_intel", None), dict) else {}
+    if not intel:
+        return []
+
+    def _num(key, suffix=""):
+        v = intel.get(key)
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            return None
+        n = float(v)
+        return f"{int(n)}{suffix}" if n == int(n) else f"{n:.1f}{suffix}"
+
+    def _str(key):
+        v = intel.get(key)
+        return v.strip() if isinstance(v, str) and v.strip() else None
+
+    def _potential(key):
+        raw = intel.get(key)
+        if isinstance(raw, dict):
+            rating = raw.get("rating") or raw.get("level") or raw.get("score")
+            reason = raw.get("reason") or raw.get("description") or raw.get("note")
+            if rating:
+                return f"<b>{rating}</b> — {reason}" if reason else f"<b>{rating}</b>"
+        elif isinstance(raw, str) and raw.strip():
+            return raw.strip()
+        return None
+
+    land    = _num("land_sqm", " m²")
+    dwell   = _str("dwelling_type")
+    front   = _num("frontage_m", " m")
+    beds    = _num("bedrooms")
+    baths   = _num("bathrooms")
+    parking = _num("parking")
+    year    = _num("year_built")
+    zone    = " — ".join(filter(None, [_str("zoning_code"), _str("zoning_description")]))
+    corner  = "Yes" if intel.get("corner_block") is True else None
+    street  = _num("street_position_quality", " / 10")
+
+    config = " · ".join(filter(None, [
+        f"{beds}br"   if beds    else None,
+        f"{baths}ba"  if baths   else None,
+        f"{parking}c" if parking else None,
+    ])) or None
+
+    rows: list = []
+    def _add(label, value):
+        if value: rows.append([label, value])
+
+    _add("Land Size",      land)
+    _add("Dwelling Type",  dwell)
+    _add("Frontage",       front)
+    _add("Configuration",  config)
+    _add("Year Built",     year)
+    _add("Corner Block",   corner)
+    _add("Zoning",         zone or None)
+    _add("Subdivision Potential",       _potential("subdivision_potential"))
+    _add("Development Feasibility",     _potential("development_feasibility"))
+    _add("Renovation Potential",        _potential("renovation_potential"))
+    _add("Knockdown / Rebuild",         _potential("knockdown_rebuild_viability"))
+    _add("Street Position",             street)
+
+    if not rows:
+        return []
+
+    body_style = ParagraphStyle("psnap_body", fontSize=9, fontName="Helvetica",
+                                textColor=TEXT_MID, leading=13)
+    rendered = [[r[0], Paragraph(r[1], body_style)] for r in rows]
+
+    t = Table(rendered, colWidths=[58*mm, 122*mm])
+    t.setStyle(TableStyle([
+        ("BACKGROUND",    (0,0), (0,-1),  LIGHT_BLUE),
+        ("FONTNAME",      (0,0), (0,-1),  "Helvetica-Bold"),
+        ("FONTSIZE",      (0,0), (-1,-1), 9),
+        ("TEXTCOLOR",     (0,0), (0,-1),  NAVY),
+        ("TOPPADDING",    (0,0), (-1,-1), 6),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 6),
+        ("LEFTPADDING",   (0,0), (-1,-1), 8),
+        ("RIGHTPADDING",  (0,0), (-1,-1), 8),
+        ("GRID",          (0,0), (-1,-1), 0.4, BORDER_GREY),
+        ("VALIGN",        (0,0), (-1,-1), "TOP"),
+    ]))
+    caption = ParagraphStyle("cap", fontSize=8, fontName="Helvetica-Oblique",
+                             textColor=MID_GREY, spaceAfter=2*mm)
+    return [
+        Paragraph("Subject-property data — confirm via Section 32 / contract of sale", caption),
+        t,
+        Spacer(1, 4*mm),
+    ]
+
+
+def build_growth_chart(report, styles: dict) -> list:
+    suburb = report.suburb if isinstance(getattr(report, "suburb", None), dict) else {}
+    history = suburb.get("price_history_5yr") or []
+    points = []
+    for entry in history:
+        if not isinstance(entry, dict):
+            continue
+        yr    = entry.get("year") or entry.get("date")
+        price = entry.get("median_house_price") or entry.get("median_price") or entry.get("price")
+        if yr is None or price is None:
+            continue
+        try:
+            pr = float(str(price).replace("$", "").replace(",", "").strip())
+            yi = int(str(yr)[:4])
+        except (ValueError, TypeError):
+            continue
+        if pr <= 0 or yi < 2000 or yi > 2100:
+            continue
+        points.append((yi, pr))
+    points = sorted(set(points))[-6:]
+    if len(points) < 2:
+        return []
+
+    years  = [str(p[0]) for p in points]
+    prices = [p[1] for p in points]
+    pmin, pmax = min(prices), max(prices)
+    delta = pmax - pmin if pmax > pmin else max(pmax * 0.05, 1.0)
+
+    drawing = Drawing(170*mm, 64*mm)
+    chart = VerticalBarChart()
+    chart.x = 22*mm
+    chart.y = 12*mm
+    chart.width  = 140*mm
+    chart.height = 38*mm
+    chart.data   = [prices]
+    chart.categoryAxis.categoryNames    = years
+    chart.categoryAxis.labels.fontSize  = 8
+    chart.categoryAxis.labels.fillColor = TEXT_DARK
+    chart.valueAxis.valueMin = max(0, pmin - delta * 0.25)
+    chart.valueAxis.valueMax = pmax + delta * 0.15
+    chart.valueAxis.labels.fontSize  = 7
+    chart.valueAxis.labels.fillColor = MID_GREY
+    chart.valueAxis.labelTextFormat = lambda v: (
+        f"${v/1_000_000:.1f}M" if v >= 1_000_000 else f"${v/1000:.0f}K"
+    )
+    chart.bars[0].fillColor = GOLD
+    chart.bars.strokeColor  = None
+    chart.barSpacing = 4
+    drawing.add(chart)
+    drawing.add(String(22*mm, 56*mm, "Median House Price — recent annual history",
+                       fontSize=9, fontName="Helvetica-Bold", fillColor=NAVY))
+
+    pct = ((prices[-1] - prices[0]) / prices[0] * 100) if prices[0] else 0
+    direction_color = "#059669" if pct >= 0 else "#c0392b"
+    sign = "+" if pct >= 0 else ""
+    drawing.add(String(22*mm, 50*mm,
+                       f"{years[0]} → {years[-1]}: {sign}{pct:.1f}% total",
+                       fontSize=7.5, fillColor=colors.HexColor(direction_color)))
+
+    return [drawing, Spacer(1, 3*mm)]
+
+
+def build_score_breakdown(report, styles: dict) -> list:
+    scores = report.scores if isinstance(getattr(report, "scores", None), dict) else {}
+    factors = [
+        ("Growth Potential",   "growth_potential"),
+        ("Rental Demand",      "rental_demand"),
+        ("Infrastructure",     "infrastructure"),
+        ("Safety",             "safety"),
+        ("Family Suitability", "family_suitability"),
+    ]
+    bars = [(label, float(scores[key])) for label, key in factors
+            if isinstance(scores.get(key), (int, float)) and not isinstance(scores.get(key), bool)]
+    overall = scores.get("overall")
+    have_overall = isinstance(overall, (int, float)) and not isinstance(overall, bool)
+    if not bars and not have_overall:
+        return []
+
+    items: list = []
+
+    if have_overall:
+        hero_style = ParagraphStyle("score_hero", fontSize=11, fontName="Helvetica",
+                                    textColor=MID_GREY, alignment=TA_CENTER, leading=14)
+        items.append(Paragraph(
+            f'<font size="36" color="#1e293b"><b>{float(overall):.1f}</b></font>'
+            f'<font size="16" color="#94a3b8"> / 10</font>',
+            ParagraphStyle("score_value", fontSize=36, fontName="Helvetica-Bold",
+                           textColor=NAVY, alignment=TA_CENTER, leading=42)
+        ))
+        items.append(Paragraph("Overall PropertyReport Score — weighted across 5 factors", hero_style))
+        items.append(Spacer(1, 4*mm))
+
+    if bars:
+        bar_max_w = 90 * mm
+        rows = []
+        for label, val in bars:
+            if   val >= 7: fill = GREEN
+            elif val >= 5: fill = ORANGE
+            else:          fill = RED
+            d = Drawing(bar_max_w + 16*mm, 12)
+            d.add(Rect(0, 4, bar_max_w, 6,
+                       fillColor=LIGHT_GREY, strokeColor=BORDER_GREY, strokeWidth=0.3))
+            d.add(Rect(0, 4, bar_max_w * (val / 10.0), 6,
+                       fillColor=fill, strokeColor=None))
+            d.add(String(bar_max_w + 4, 3.5,
+                         f"{val:.1f}",
+                         fontSize=9, fontName="Helvetica-Bold", fillColor=NAVY))
+            rows.append([
+                Paragraph(label, ParagraphStyle("sb_lbl", fontSize=9, fontName="Helvetica",
+                                                textColor=TEXT_DARK)),
+                d,
+            ])
+        t = Table(rows, colWidths=[55*mm, bar_max_w + 18*mm])
+        t.setStyle(TableStyle([
+            ("TOPPADDING",    (0,0), (-1,-1), 4),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 4),
+            ("LEFTPADDING",   (0,0), (-1,-1), 0),
+            ("RIGHTPADDING",  (0,0), (-1,-1), 0),
+            ("LINEBELOW",     (0,0), (-1,-2), 0.3, BORDER_GREY),
+            ("VALIGN",        (0,0), (-1,-1), "MIDDLE"),
+        ]))
+        items.append(t)
+        items.append(Spacer(1, 4*mm))
+
+    return items
+
+
 def _section_visual(heading: str, report, styles: dict) -> list:
     """Dispatch to the right visual builder for a given H2 heading."""
     lower = heading.lower()
+    if "property snapshot" in lower:
+        return build_property_snapshot(report, styles)
     if "suburb profile" in lower:
         return build_amenities_panel(report, styles)
     if "school" in lower:
         return build_school_chart(report, styles)
     if "market analysis" in lower or "property market" in lower:
-        return build_comparables_table(report, styles)
+        return build_growth_chart(report, styles) + build_comparables_table(report, styles)
     if "risk" in lower:
         return build_crime_chart(report, styles)
+    if "verdict" in lower:
+        return build_score_breakdown(report, styles)
     return []
 
 
@@ -771,14 +993,18 @@ if __name__ == "__main__":
     with open("report_output.json") as f:
         data = json.load(f)
 
+    rd = data["research_data"]
     report = PropertyReport(
         address=data["address"],
-        suburb=data["research_data"]["suburb"],
-        schools=data["research_data"]["schools"],
-        government_projects=data["research_data"]["government_projects"],
-        transport=data["research_data"]["transport"],
-        property_market=data["research_data"]["property_market"],
-        risk_overlays=data["research_data"]["risk_overlays"],
-        summary=data["summary"]
+        suburb=rd.get("suburb", {}),
+        schools=rd.get("schools", {}),
+        government_projects=rd.get("government_projects", {}),
+        transport=rd.get("transport", {}),
+        property_market=rd.get("property_market", {}),
+        risk_overlays=rd.get("risk_overlays", {}),
+        summary=data["summary"],
+        property_intel=rd.get("property_intel", {}),
     )
+    report.scores  = data.get("scores",  {})
+    report.metrics = data.get("metrics", {})
     generate_pdf(report, "test_report.pdf")

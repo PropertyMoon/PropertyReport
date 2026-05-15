@@ -1329,14 +1329,11 @@ body {
 .icon-sm svg     { width: 11px; height: 11px; display: block; }
 .legend-icon svg { width: 10px; height: 10px; display: block; }
 .section-icon {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  justify-content: center;
   flex-shrink: 0;
-  width: 20px;
-  height: 20px;
 }
-.section-icon svg { width: 16px; height: 16px; display: block; }
+.section-icon svg { width: 20px; height: 20px; display: block; }
 .icon-emerald { background: var(--emerald-soft); color: var(--emerald); }
 .icon-blue    { background: var(--blue-soft);    color: var(--blue); }
 .icon-violet  { background: var(--violet-soft);  color: var(--violet); }

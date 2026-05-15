@@ -37,6 +37,11 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip \
  && pip install --no-cache-dir -r requirements.txt
 
+# Build-time verification: if WeasyPrint can't load its system libs from
+# this image, fail the build NOW rather than shipping a broken container.
+# This forces us to fix Dockerfile deps instead of falling back at runtime.
+RUN python -c "from weasyprint import HTML; HTML(string='<p>ok</p>').write_pdf('/tmp/_check.pdf'); print('WeasyPrint import + render OK')"
+
 COPY . .
 
 ENV PYTHONUNBUFFERED=1 \

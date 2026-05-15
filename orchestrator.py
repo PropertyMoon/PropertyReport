@@ -389,21 +389,66 @@ RESEARCH_TASKS = {
 
 # ─── JSON Extraction ──────────────────────────────────────────────────────────
 
+def _repair_truncated_json(s: str) -> str:
+    """Best-effort repair of JSON that was truncated mid-output.
+
+    Walks the string tracking brace/bracket nesting + string state, then
+    closes whatever's still open in LIFO order. Also strips dangling
+    commas/colons/property keys that would otherwise re-break parsing."""
+    stack: list[str] = []
+    in_str = False
+    esc = False
+    for ch in s:
+        if esc:
+            esc = False
+            continue
+        if in_str:
+            if ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch == "{":
+            stack.append("}")
+        elif ch == "[":
+            stack.append("]")
+        elif ch == "}" and stack and stack[-1] == "}":
+            stack.pop()
+        elif ch == "]" and stack and stack[-1] == "]":
+            stack.pop()
+
+    out = s
+    if in_str:                  # close an open string literal
+        out += '"'
+
+    out = out.rstrip()
+    # Drop ',"key":' or '{"key":' patterns where the value never arrived.
+    # (Done before the ',:' trim because those chars are part of the match.)
+    out = re.sub(r'([,{])\s*"[^"]*"\s*:\s*$',
+                 lambda m: "" if m.group(1) == "," else "{",
+                 out).rstrip()
+    while out and out[-1] in ",:":
+        out = out[:-1].rstrip()
+
+    return out + "".join(reversed(stack))
+
+
 def _parse_json(text: str, label: str = "") -> dict:
     """
     Robustly extract a JSON object from a model response.
-    Handles: plain JSON, markdown fences, JSON embedded in prose.
-    """
-    # 1. Strip markdown code fences
+    Handles: plain JSON, markdown fences, JSON embedded in prose, and
+    JSON truncated by max_tokens (via _repair_truncated_json)."""
     clean = re.sub(r"```(?:json)?", "", text).replace("```", "").strip()
 
-    # 2. Try parsing the whole cleaned string first
+    # 1. Try the whole cleaned string first
     try:
         return json.loads(clean)
     except json.JSONDecodeError:
         pass
 
-    # 3. Find the outermost {...} block and try that
+    # 2. Find the outermost balanced {...} block
     start = clean.find("{")
     if start != -1:
         depth, end = 0, -1
@@ -420,6 +465,16 @@ def _parse_json(text: str, label: str = "") -> dict:
                 return json.loads(clean[start:end + 1])
             except json.JSONDecodeError:
                 pass
+
+    # 3. Truncated response — try to repair from the opening { onward
+    if start != -1:
+        repaired = _repair_truncated_json(clean[start:])
+        try:
+            parsed = json.loads(repaired)
+            print(f"  ↻  JSON repaired for {label} (response was truncated)")
+            return parsed
+        except json.JSONDecodeError:
+            pass
 
     # 4. Give up — store raw text so summary extraction can still use it
     print(f"  ⚠️  Could not parse JSON for {label}, storing raw text")
@@ -446,13 +501,16 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
         try:
             response = client.messages.create(
                 model="claude-sonnet-4-6",
-                max_tokens=1500,
+                max_tokens=3000,
                 tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 3}],
                 system=(
                     "Australian property researcher. Respond with valid JSON only — no prose, "
                     "no markdown, no explanations outside the JSON. Use null for any field you "
                     "genuinely cannot find from authoritative sources; do not invent values. "
-                    "Numeric fields must be numbers (not strings)."
+                    "Numeric fields must be numbers (not strings). "
+                    "Keep every string value concise — one short sentence or a few words max. "
+                    "Never include a 'sources', 'citations', or 'notes' field unless the prompt "
+                    "explicitly requests it."
                 ),
                 messages=[{"role": "user", "content": prompt}]
             )

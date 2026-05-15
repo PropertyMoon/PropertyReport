@@ -51,6 +51,38 @@ except Exception as _e:  # noqa: BLE001
     _WEASY_ERR = str(_e)
 
 
+# ─── Inline SVG icons (no emoji font dependency) ─────────────────────────────
+
+ICONS: dict[str, str] = {
+    "home":         '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 8h-3v9h-5v-6h-2v6H6v-9H3l9-8z"/></svg>',
+    "trending-up":  '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.5 17.5l5-5 4 4 7-7v4h2V6h-7.5v2h4.5l-6 6-4-4-5.5 5.5z"/></svg>',
+    "cap":          '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3zm0 13L5 12v3l7 4 7-4v-3l-7 4z"/></svg>',
+    "train":        '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c-4 0-8 .5-8 4v9.5C4 17.4 5.6 19 7.5 19L6 20.5v.5h12v-.5L16.5 19c1.9 0 3.5-1.6 3.5-3.5V6c0-3.5-4-4-8-4zM7.5 17a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm3.5-7H6V6h5v4zm6.5 7a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM18 10h-5V6h5v4z"/></svg>',
+    "shield":       '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4 5v6c0 5.5 3.4 10.7 8 12 4.6-1.3 8-6.5 8-12V5l-8-3z"/></svg>',
+    "chart-bar":    '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="11" width="3" height="8" rx="1"/><rect x="10" y="5" width="3" height="14" rx="1"/><rect x="16" y="8" width="3" height="11" rx="1"/></svg>',
+    "car":          '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.92 6c-.2-.6-.76-1-1.42-1H6.5c-.66 0-1.22.4-1.42 1L3 12v8c0 .55.45 1 1 1h1a1 1 0 001-1v-1h12v1a1 1 0 001 1h1c.55 0 1-.45 1-1v-8l-2.08-6zM6.5 16a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm11 0a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM5 11l1.5-4.5h11L19 11H5z"/></svg>',
+    "bus":          '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 16c0 .88.39 1.67 1 2.22V20a1 1 0 001 1h1a1 1 0 001-1v-1h8v1a1 1 0 001 1h1a1 1 0 001-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4v10zm3.5 1a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm9 0a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm1.5-6H6V6h12v5z"/></svg>',
+    "highway":      '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 5h2v3h-2V5zm0 5h2v3h-2v-3zm0 5h2v3h-2v-3zM7 5h2v3H7V5zm0 5h2v3H7v-3zm0 5h2v3H7v-3zm8-10h2v3h-2V5zm0 5h2v3h-2v-3zm0 5h2v3h-2v-3z"/></svg>',
+    "airplane":     '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 00-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1L15 22v-1.5L13 19v-5.5L21 16z"/></svg>',
+    "shopping":     '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6h-3V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v2H5c-.55 0-1 .45-1 1v13c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V7c0-.55-.45-1-1-1zM9 4h6v2H9V4z"/></svg>',
+    "stethoscope":  '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 3v6a4 4 0 008 0V3h-2v6a2 2 0 11-4 0V3H5zm-2 0h2v2H3V3zm8 0h2v2h-2V3zm0 11a5 5 0 0010 0v-3h-2v3a3 3 0 11-6 0v-1a6 6 0 01-2 .87V14z"/><circle cx="19" cy="9" r="2"/></svg>',
+    "hospital":     '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-4 11h-2v2h-2v-2H9v-2h2V9h2v3h2v2z"/></svg>',
+    "clipboard":    '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1S9.6 1.84 9.18 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zm-7 0a1 1 0 110 2 1 1 0 010-2z"/></svg>',
+    "building":     '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/></svg>',
+    "construction": '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 4l6 6-2 2-2-2-3 3 2 2-2 2-2-2-3 3 2 2-2 2-6-6 12-12zM18 5l1.4-1.4a2 2 0 012.8 0L23 4l-2 2-3-1z"/></svg>',
+    "bulb":         '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zM12 2C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17a1 1 0 001 1h6a1 1 0 001-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/></svg>',
+    "map-pin":      '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z"/></svg>',
+    "check":        '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2L5.5 12.7a1 1 0 10-1.4 1.4l4.2 4.2a1 1 0 001.4 0L20.6 7.4a1 1 0 10-1.4-1.4L9 16.2z"/></svg>',
+    "circle-dot":   '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3"/></svg>',
+    "circle":       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>',
+}
+
+
+def icon(name: str) -> str:
+    """Return the SVG markup for an icon, or empty string if not defined."""
+    return ICONS.get(name, "")
+
+
 # ─── Google Maps image fetchers ───────────────────────────────────────────────
 
 _GMAPS_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "").strip()
@@ -364,25 +396,25 @@ def load_report_from_json(path: str) -> StubReport:
 
 # ─── Body sections: parse synthesised markdown into structured sections ──────
 
-_SECTION_ICONS = {
-    "executive summary": "📋",
-    "property snapshot": "🏠",
-    "market analysis":   "📈",
-    "suburb profile":    "🏘",
-    "schools":           "🎓",
-    "infrastructure":    "🏗",
-    "transport":         "🚆",
-    "risk":              "🛡",
-    "verdict":           "💡",
+_SECTION_ICON_KEYS = {
+    "executive summary": "clipboard",
+    "property snapshot": "home",
+    "market analysis":   "trending-up",
+    "suburb profile":    "building",
+    "schools":           "cap",
+    "infrastructure":    "construction",
+    "transport":         "train",
+    "risk":              "shield",
+    "verdict":           "bulb",
 }
 
 
 def _section_icon(title: str) -> str:
     lower = title.lower()
-    for key, icon in _SECTION_ICONS.items():
+    for key, name in _SECTION_ICON_KEYS.items():
         if key in lower:
-            return icon
-    return "📌"
+            return icon(name)
+    return icon("map-pin")
 
 
 def _section_anchor(title: str) -> str:
@@ -597,14 +629,15 @@ def build_view(report) -> dict:
     nt = tr.get("nearest_train") or {}
     if isinstance(nt, dict) and nt.get("name"):
         right = _mins(nt.get("cbd_mins"), "  ·  By Train") or "By Train"
-        transit.append({"icon": "🚆", "label": nt["name"], "detail": "", "right": right})
+        transit.append({"icon": icon("train"), "color": "blue",
+                        "label": nt["name"], "right": right})
 
     cbd_off = _mins(tr.get("drive_to_cbd_offpeak_mins"), "  ·  Off-peak")
     cbd_pk  = _mins(tr.get("drive_to_cbd_peak_mins"),    "  ·  Peak")
     if cbd_off or cbd_pk:
-        transit.append({"icon": "🚗", "label": "Melbourne CBD", "detail": "", "right": cbd_off or cbd_pk})
+        transit.append({"icon": icon("car"), "color": "amber",
+                        "label": "Melbourne CBD", "right": cbd_off or cbd_pk})
 
-    # Bus routes (real data — used to be missing entirely)
     routes = tr.get("bus_routes") or []
     route_labels: list[str] = []
     for r in routes if isinstance(routes, list) else []:
@@ -616,13 +649,15 @@ def build_view(report) -> dict:
             route_labels.append(str(r))
     if route_labels:
         shown = ", ".join(route_labels[:5])
-        transit.append({"icon": "🚌", "label": "Bus Routes", "detail": "",
+        transit.append({"icon": icon("bus"), "color": "violet",
+                        "label": "Bus Routes",
                         "right": shown[:48] + ("…" if len(shown) > 48 else "")})
 
     fwy_km = (s.get("nearest_freeway") or {}).get("distance_km") if isinstance(s.get("nearest_freeway"), dict) else None
     if isinstance(fwy_km, (int, float)) and not isinstance(fwy_km, bool):
         fwy_name = (s.get("nearest_freeway") or {}).get("name") or "Nearest Freeway"
-        transit.append({"icon": "🛣️", "label": fwy_name, "detail": "",
+        transit.append({"icon": icon("highway"), "color": "rose",
+                        "label": fwy_name,
                         "right": f"{fwy_km:.1f} km  ·  By Car"})
 
     # Schools
@@ -658,27 +693,27 @@ def build_view(report) -> dict:
     map_legend = []
     nt = tr.get("nearest_train") or {}
     if isinstance(nt, dict) and nt.get("name"):
-        map_legend.append({"icon": "🚆", "color": "blue",
+        map_legend.append({"icon": icon("train"), "color": "blue",
                            "label": nt["name"], "detail": _dist(nt.get("distance_km"))})
     fwy = s.get("nearest_freeway") or {}
     if isinstance(fwy, dict) and fwy.get("name"):
-        map_legend.append({"icon": "🛣️", "color": "amber",
+        map_legend.append({"icon": icon("highway"), "color": "amber",
                            "label": fwy["name"], "detail": _dist(fwy.get("distance_km"))})
     pri = (sch.get("primary_schools") or [{}])[0] or {}
     if isinstance(pri, dict) and pri.get("name"):
-        map_legend.append({"icon": "🎓", "color": "violet",
+        map_legend.append({"icon": icon("cap"), "color": "violet",
                            "label": pri["name"], "detail": _dist(pri.get("distance_km"))})
     sec = (sch.get("secondary_schools") or [{}])[0] or {}
     if isinstance(sec, dict) and sec.get("name"):
-        map_legend.append({"icon": "🏫", "color": "violet",
+        map_legend.append({"icon": icon("cap"), "color": "violet",
                            "label": sec["name"], "detail": _dist(sec.get("distance_km"))})
     hosp = (s.get("nearby_hospitals") or [{}])[0] or {}
     if isinstance(hosp, dict) and hosp.get("name"):
-        map_legend.append({"icon": "⚕️", "color": "rose",
+        map_legend.append({"icon": icon("hospital"), "color": "rose",
                            "label": hosp["name"], "detail": _dist(hosp.get("distance_km"))})
     gp = (s.get("nearby_gps") or [{}])[0] or {}
     if isinstance(gp, dict) and gp.get("name"):
-        map_legend.append({"icon": "🩺", "color": "rose",
+        map_legend.append({"icon": icon("stethoscope"), "color": "rose",
                            "label": gp["name"], "detail": _dist(gp.get("distance_km"))})
     map_legend = map_legend[:5]
 
@@ -709,11 +744,14 @@ def build_view(report) -> dict:
         "overall_stars": _star_row(overall_score) if overall_score else "",
         "transit":     transit,
         "schools_rows": schools_rows,
-        "crime": {
-            "percentile": pct_val,
-            "violent":    s.get("crime_violent_vs_state_avg_pct"),
-            "property":   s.get("crime_property_vs_state_avg_pct"),
-            "gauge_svg":  _gauge_svg(pct_val),
+        "crime":       _crime_summary(s),
+        "metric_icons": {
+            "median":  icon("home"),
+            "yield":   icon("trending-up"),
+            "schools": icon("cap"),
+            "train":   icon("train"),
+            "crime":   icon("shield"),
+            "market":  icon("chart-bar"),
         },
         "pipeline":   pipeline,
         "map_legend": map_legend,
@@ -729,6 +767,48 @@ def build_view(report) -> dict:
             "financial, legal, or investment advice."
         ),
     }
+
+
+def _crime_summary(suburb: dict) -> dict:
+    """Return a plain-English crime comparison vs the state average.
+    Drops the percentile gauge — users were confused by percentile numbers.
+    Instead returns two phrases like '17% lower' / '8% higher' with colour
+    hints, plus an overall headline ('Lower than VIC average' / 'Around VIC
+    average' / 'Higher than VIC average')."""
+    violent = suburb.get("crime_violent_vs_state_avg_pct")
+    prop    = suburb.get("crime_property_vs_state_avg_pct")
+
+    def _row(label: str, val):
+        if not isinstance(val, (int, float)) or isinstance(val, bool):
+            return {"label": label, "available": False}
+        v = int(val)
+        if v <= -5:
+            color, phrase = "delta-green", f"{abs(v)}% lower"
+        elif v >= 25:
+            color, phrase = "delta-red",   f"{v}% higher"
+        elif v >= 5:
+            color, phrase = "delta-amber", f"{v}% higher"
+        else:
+            color, phrase = "delta-grey",  "around average"
+        return {"label": label, "available": True, "delta": v,
+                "color": color, "phrase": phrase}
+
+    rows = [_row("Violent crime", violent), _row("Property crime", prop)]
+
+    # Headline summarising the two rows
+    avail = [r for r in rows if r["available"]]
+    if not avail:
+        headline = ""
+    else:
+        avg_delta = sum(r["delta"] for r in avail) / len(avail)
+        if avg_delta <= -5:
+            headline = "Lower than VIC average"
+        elif avg_delta >= 5:
+            headline = "Higher than VIC average"
+        else:
+            headline = "Around VIC average"
+
+    return {"headline": headline, "rows": rows}
 
 
 def _overall_label(score: float | None) -> str:
@@ -942,50 +1022,6 @@ def _score_chart_svg(scores: dict) -> str:
     )
 
 
-def _gauge_svg(pct: int | None) -> str:
-    """Semicircular crime gauge — green low, amber mid, red only if very high."""
-    val = pct if pct is not None else 50
-    val = max(0, min(100, int(val)))
-    # Semi-circle from 180° to 360° (left to right via top)
-    import math
-    cx, cy, r = 100, 100, 80
-
-    def arc(start_deg, end_deg, color):
-        s = math.radians(start_deg)
-        e = math.radians(end_deg)
-        x1, y1 = cx + r * math.cos(s), cy + r * math.sin(s)
-        x2, y2 = cx + r * math.cos(e), cy + r * math.sin(e)
-        large = 1 if (end_deg - start_deg) > 180 else 0
-        return (f'<path d="M {x1:.1f} {y1:.1f} A {r} {r} 0 {large} 1 {x2:.1f} {y2:.1f}" '
-                f'stroke="{color}" stroke-width="16" fill="none" stroke-linecap="round"/>')
-
-    # 180°(left) → 360°(right) traversing via top (270°)
-    # Split into 3 bands
-    track = arc(180, 360, "#e5e7eb")
-    # Filled portion based on value (lower percentile = closer to "safer")
-    band_color = "#10b981" if val >= 65 else "#d97706" if val >= 40 else "#dc2626"
-    fill_end = 180 + (val / 100) * 180
-    filled = arc(180, fill_end, band_color)
-
-    # Needle
-    needle_deg = 180 + (val / 100) * 180
-    nx = cx + (r - 10) * math.cos(math.radians(needle_deg))
-    ny = cy + (r - 10) * math.sin(math.radians(needle_deg))
-    needle = (f'<line x1="{cx}" y1="{cy}" x2="{nx:.1f}" y2="{ny:.1f}" '
-              f'stroke="#0f172a" stroke-width="3" stroke-linecap="round"/>'
-              f'<circle cx="{cx}" cy="{cy}" r="6" fill="#0f172a"/>')
-
-    return f'''<svg viewBox="0 30 200 120" xmlns="http://www.w3.org/2000/svg" class="gauge-svg">
-  {track}
-  {filled}
-  {needle}
-  <text x="{cx}" y="{cy - 8}" text-anchor="middle" font-size="32" font-weight="700" fill="#0f172a">{val}</text>
-  <text x="{cx}" y="{cy + 14}" text-anchor="middle" font-size="9" fill="#94a3b8">Crime Percentile</text>
-  <text x="20" y="{cy + 30}" font-size="8" fill="#94a3b8">0</text>
-  <text x="180" y="{cy + 30}" font-size="8" fill="#94a3b8" text-anchor="end">100</text>
-</svg>'''
-
-
 # ─── HTML template ────────────────────────────────────────────────────────────
 
 HTML_TEMPLATE = r"""<!doctype html>
@@ -1173,9 +1209,13 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
   margin-bottom: 4px;
 }
+.metric-icon svg { width: 16px; height: 16px; display: block; }
+.icon-sm svg     { width: 11px; height: 11px; display: block; }
+.legend-icon svg { width: 10px; height: 10px; display: block; }
+.section-icon svg { width: 16px; height: 16px; display: block; }
+.section-icon { color: rgba(255,255,255,0.95); }
 .icon-emerald { background: var(--emerald-soft); color: var(--emerald); }
 .icon-blue    { background: var(--blue-soft);    color: var(--blue); }
 .icon-violet  { background: var(--violet-soft);  color: var(--violet); }
@@ -1343,21 +1383,45 @@ body {
 }
 .verify-note a { color: var(--blue); text-decoration: none; }
 
-.crime-card .crime-flex {
-  display: flex; gap: 10px; align-items: center;
+.crime-headline {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--navy);
 }
-.gauge-svg { width: 110px; height: 90px; }
-.crime-stats { flex: 1; display: flex; flex-direction: column; gap: 6px; }
-.crime-stat {
-  display: flex; align-items: center; gap: 8px; font-size: 9px;
+.crime-rows { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.crime-row {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 9px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--grey-100);
 }
-.crime-stat .delta {
-  font-size: 14px; font-weight: 700; min-width: 38px;
-}
+.crime-row:last-child { border-bottom: none; }
+.crime-row .crime-label { color: var(--slate-2); }
+.crime-delta { font-size: 10.5px; font-weight: 700; }
 .delta-green { color: var(--emerald); }
-.delta-grey  { color: var(--slate-2); }
+.delta-grey  { color: var(--slate-2); font-weight: 500; }
 .delta-amber { color: var(--amber); }
 .delta-red   { color: var(--rose); }
+
+.body-crime {
+  margin: 8px 0 14px 0;
+  padding: 10px 14px;
+  background: var(--grey-50);
+  border: 1px solid var(--grey-200);
+  border-radius: 6px;
+}
+.body-crime-headline {
+  font-size: 11pt; font-weight: 700; color: var(--navy);
+  margin-bottom: 4px;
+}
+.body-crime-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 0;
+  font-size: 10pt;
+  border-bottom: 1px solid var(--grey-200);
+}
+.body-crime-row:last-child { border-bottom: none; }
 
 .pipeline-row {
   display: flex; align-items: center; justify-content: space-between;
@@ -1574,7 +1638,7 @@ body {
         <div class="map-legend">
           {% for item in view.map_legend %}
           <div class="legend-row">
-            <span class="legend-icon icon-{{ item.color }}">{{ item.icon }}</span>
+            <span class="legend-icon icon-{{ item.color }}">{{ item.icon | safe }}</span>
             <span class="legend-text"><strong>{{ item.label }}</strong>{% if item.detail %}<span class="muted">{{ item.detail }}</span>{% endif %}</span>
           </div>
           {% endfor %}
@@ -1586,37 +1650,37 @@ body {
   <!-- METRICS ROW -->
   <div class="row metric-row">
     <div class="card metric-card">
-      <div class="metric-icon icon-emerald">🏠</div>
+      <div class="metric-icon icon-emerald">{{ view.metric_icons.median | safe }}</div>
       <div class="metric-label">Median House Price</div>
       <div class="metric-value">{{ view.metrics.median }}</div>
       <div class="metric-sub">{{ view.suburb_name or "Suburb median" }}</div>
     </div>
     <div class="card metric-card">
-      <div class="metric-icon icon-blue">📈</div>
+      <div class="metric-icon icon-blue">{{ view.metric_icons.yield | safe }}</div>
       <div class="metric-label">Rental Yield</div>
       <div class="metric-value">{{ view.metrics.rental_yield }}</div>
       <div class="metric-sub">Estimate</div>
     </div>
     <div class="card metric-card">
-      <div class="metric-icon icon-violet">🎓</div>
+      <div class="metric-icon icon-violet">{{ view.metric_icons.schools | safe }}</div>
       <div class="metric-label">Schools</div>
       <div class="metric-value">{{ view.metrics.schools }}</div>
       <div class="metric-sub">Quality</div>
     </div>
     <div class="card metric-card">
-      <div class="metric-icon icon-teal">🚆</div>
+      <div class="metric-icon icon-teal">{{ view.metric_icons.train | safe }}</div>
       <div class="metric-label">Train to CBD</div>
       <div class="metric-value">{{ view.metrics.train_label }}</div>
       <div class="metric-sub">{{ view.metrics.train_station }}</div>
     </div>
     <div class="card metric-card">
-      <div class="metric-icon icon-amber">🛡️</div>
-      <div class="metric-label">Crime Risk</div>
-      <div class="metric-value">{{ view.metrics.crime_percentile }}</div>
-      <div class="metric-sub">Percentile</div>
+      <div class="metric-icon icon-amber">{{ view.metric_icons.crime | safe }}</div>
+      <div class="metric-label">Crime vs VIC Avg</div>
+      <div class="metric-value">{{ view.crime.headline or "—" }}</div>
+      <div class="metric-sub">Lower is safer</div>
     </div>
     <div class="card metric-card">
-      <div class="metric-icon icon-rose">📊</div>
+      <div class="metric-icon icon-rose">{{ view.metric_icons.market | safe }}</div>
       <div class="metric-label">Market Outlook</div>
       <div class="metric-value">{{ view.metrics.market_outlook }}</div>
       <div class="metric-sub">3–5 Year Outlook</div>
@@ -1671,7 +1735,7 @@ body {
         {% for t in view.transit %}
         <div class="item">
           <div class="left">
-            <span class="icon-sm icon-blue">{{ t.icon }}</span>
+            <span class="icon-sm icon-{{ t.color or 'blue' }}">{{ t.icon | safe }}</span>
             <span>{{ t.label }}</span>
           </div>
           <div class="right">{{ t.right }}</div>
@@ -1696,18 +1760,18 @@ body {
     </div>
     <div class="card crime-card">
       <div class="label">Crime Snapshot (vs VIC Average)</div>
-      <div class="crime-flex">
-        {{ view.crime.gauge_svg | safe }}
-        <div class="crime-stats">
-          <div class="crime-stat">
-            <span class="delta {% if (view.crime.violent or 0) < -5 %}delta-green{% elif (view.crime.violent or 0) > 25 %}delta-red{% elif (view.crime.violent or 0) > 8 %}delta-amber{% else %}delta-grey{% endif %}">{% if view.crime.violent is not none %}{{ "%+d"|format(view.crime.violent) }}%{% else %}—{% endif %}</span>
-            <span>Violent Crime</span>
-          </div>
-          <div class="crime-stat">
-            <span class="delta {% if (view.crime.property or 0) < -5 %}delta-green{% elif (view.crime.property or 0) > 25 %}delta-red{% elif (view.crime.property or 0) > 8 %}delta-amber{% else %}delta-grey{% endif %}">{% if view.crime.property is not none %}{{ "%+d"|format(view.crime.property) }}%{% else %}—{% endif %}</span>
-            <span>Property Crime</span>
-          </div>
+      {% if view.crime.headline %}<div class="crime-headline">{{ view.crime.headline }}</div>{% endif %}
+      <div class="crime-rows">
+        {% for r in view.crime.rows %}
+        <div class="crime-row">
+          <span class="crime-label">{{ r.label }}</span>
+          {% if r.available %}
+          <span class="crime-delta {{ r.color }}">{{ r.phrase }}</span>
+          {% else %}
+          <span class="crime-delta delta-grey">data not available</span>
+          {% endif %}
         </div>
+        {% endfor %}
       </div>
     </div>
     <div class="card">
@@ -1761,11 +1825,21 @@ body {
 <div class="body-pages">
   {% for sec in view.body_sections %}
   <section class="body-section">
-    <h2 class="section-title"><span class="section-icon">{{ sec.icon }}</span>{{ sec.title }}</h2>
+    <h2 class="section-title"><span class="section-icon">{{ sec.icon | safe }}</span>{{ sec.title }}</h2>
     {% if sec.anchor == 'property-snapshot' and view.property_snapshot_html %}{{ view.property_snapshot_html | safe }}{% endif %}
     {% if sec.anchor == 'market-analysis' and view.history %}<div class="body-chart">{{ view.history | safe }}</div>{% endif %}
     {% if sec.anchor == 'schools-catchment' and view.school_chart_svg %}<div class="body-chart">{{ view.school_chart_svg | safe }}</div>{% endif %}
-    {% if sec.anchor == 'risk-assessment' and view.crime.gauge_svg %}<div class="body-chart body-chart-narrow">{{ view.crime.gauge_svg | safe }}</div>{% endif %}
+    {% if sec.anchor == 'risk-assessment' and view.crime.rows %}
+    <div class="body-crime">
+      {% if view.crime.headline %}<div class="body-crime-headline">{{ view.crime.headline }}</div>{% endif %}
+      {% for r in view.crime.rows %}
+      <div class="body-crime-row">
+        <span>{{ r.label }}</span>
+        {% if r.available %}<span class="crime-delta {{ r.color }}">{{ r.phrase }}</span>{% else %}<span class="crime-delta delta-grey">data not available</span>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
     {% if sec.anchor == 'verdict' and view.score_chart_svg %}<div class="body-chart">{{ view.score_chart_svg | safe }}</div>{% endif %}
     {{ sec.body_html | safe }}
   </section>

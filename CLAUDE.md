@@ -62,6 +62,7 @@ No test suite exists. Manual testing via the dev endpoint or CLI is the primary 
 | `STRIPE_SECRET_KEY` | `sk_test_...` enables test mode; controls `IS_TEST_MODE` flag |
 | `STRIPE_WEBHOOK_SECRET` | `whsec_...` from `stripe listen` output |
 | `SENDGRID_API_KEY` + `SENDER_EMAIL` | Required for email delivery |
+| `GOOGLE_MAPS_API_KEY` | Google Maps Platform key — needs **Street View Static API**, **Maps Static API** (backend PDF/cover images), and **Places API** (frontend autocomplete). Key is served to the frontend via `GET /config`; restrict it to your domain in Google Cloud Console. |
 | `ENV` | Set to `production` to disable `/dev/generate` and enforce all required vars |
 | `REPORT_PRICE_CENTS` | Default `2000` (AUD $20.00) |
 | `JOB_DB_PATH` | SQLite file path, default `jobs.db` |

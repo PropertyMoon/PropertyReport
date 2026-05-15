@@ -410,6 +410,12 @@ async def dev_generate(
     }
 
 
+@app.get("/config")
+def get_config():
+    """Public config for the frontend — safe to expose (key is domain-restricted in Google Cloud)."""
+    return {"google_maps_api_key": os.getenv("GOOGLE_MAPS_API_KEY", "")}
+
+
 # ─── Serve Frontend (must be last — API routes take priority) ─────────────────
 
 _frontend_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "frontend")

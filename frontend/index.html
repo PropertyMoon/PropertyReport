@@ -6,7 +6,17 @@
   <title>PropertyReport — AI Property Research Reports</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCR3RuGxTZeIPS23acNlL_qE2h4MZBJ4MA&libraries=places&callback=initGooglePlacesAutocomplete" async defer></script>
+  <script>
+    fetch('/config')
+      .then(r => r.json())
+      .then(cfg => {
+        if (!cfg.google_maps_api_key) return;
+        const s = document.createElement('script');
+        s.src = `https://maps.googleapis.com/maps/api/js?key=${cfg.google_maps_api_key}&libraries=places&callback=initGooglePlacesAutocomplete`;
+        s.async = true; s.defer = true;
+        document.head.appendChild(s);
+      });
+  </script>
   <style>
     :root {
       --navy:       #1e293b;

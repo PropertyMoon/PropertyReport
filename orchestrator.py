@@ -445,10 +445,15 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
     for attempt in range(4):
         try:
             response = client.messages.create(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=1200,
-                tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 2}],
-                system="Australian property researcher. Respond with valid JSON only. Use null for missing data.",
+                model="claude-sonnet-4-6",
+                max_tokens=1500,
+                tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 3}],
+                system=(
+                    "Australian property researcher. Respond with valid JSON only — no prose, "
+                    "no markdown, no explanations outside the JSON. Use null for any field you "
+                    "genuinely cannot find from authoritative sources; do not invent values. "
+                    "Numeric fields must be numbers (not strings)."
+                ),
                 messages=[{"role": "user", "content": prompt}]
             )
             break

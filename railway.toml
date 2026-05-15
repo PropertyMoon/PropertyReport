@@ -1,5 +1,9 @@
 [build]
-builder = "nixpacks"
+# Phase 2B: Switched from nixpacks to Dockerfile because nixpacks's
+# aptPkgs was not making WeasyPrint's transitive system libs (libglib /
+# libgobject / libharfbuzz) visible to the runtime loader. The Dockerfile
+# in the repo root pulls them in via apt and the renders succeed.
+builder = "dockerfile"
 
 [deploy]
 startCommand = "uvicorn api:app --host 0.0.0.0 --port $PORT --workers 2"

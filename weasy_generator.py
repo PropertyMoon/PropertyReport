@@ -1067,6 +1067,7 @@ HTML_TEMPLATE = r"""<!doctype html>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
+@page title { size: A4 portrait;  margin: 0; }
 @page cover { size: A4 landscape; margin: 8mm; }
 @page body  {
   size: A4 portrait;
@@ -1074,8 +1075,9 @@ HTML_TEMPLATE = r"""<!doctype html>
   @bottom-left  { content: "PropertyReport"; font-size: 7.5pt; color: #94a3b8; font-family: 'Inter', sans-serif; letter-spacing: 0.6px; }
   @bottom-right { content: "Page " counter(page); font-size: 7.5pt; color: #94a3b8; font-family: 'Inter', sans-serif; }
 }
-.cover-page { page: cover; }
-.body-pages { page: body; page-break-before: always; }
+.title-page { page: title; page-break-after: always; }
+.cover-page { page: cover; page-break-before: always; }
+.body-pages { page: body;  page-break-before: always; }
 
 :root {
   --navy: #0f172a;
@@ -1111,6 +1113,89 @@ body {
   font-size: 10px;
   line-height: 1.35;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+/* ── TITLE PAGE (full-bleed portrait, sits before the landscape cover) ── */
+.title-page {
+  width: 210mm;
+  height: 297mm;
+  padding: 28mm;
+  box-sizing: border-box;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #1e3a5f 100%);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+}
+.title-page::before {
+  content: '';
+  position: absolute;
+  top: -90mm; right: -90mm;
+  width: 200mm; height: 200mm;
+  background: radial-gradient(circle, rgba(16,185,129,0.18) 0%, transparent 65%);
+}
+.title-page::after {
+  content: '';
+  position: absolute;
+  bottom: -100mm; left: -100mm;
+  width: 180mm; height: 180mm;
+  background: radial-gradient(circle, rgba(16,185,129,0.10) 0%, transparent 65%);
+}
+.title-page > * { position: relative; z-index: 1; }
+.title-brand {
+  font-family: 'Inter', sans-serif;
+  font-size: 18pt;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: white;
+}
+.title-brand .accent { color: var(--emerald); }
+.title-headline-wrap { align-self: flex-start; max-width: 90%; }
+.title-eyebrow {
+  display: inline-block;
+  font-size: 9pt;
+  font-weight: 600;
+  letter-spacing: 2.4px;
+  text-transform: uppercase;
+  color: #6ee7b7;
+  margin-bottom: 26px;
+  padding: 5px 14px;
+  background: rgba(16,185,129,0.13);
+  border: 1px solid rgba(16,185,129,0.32);
+  border-radius: 999px;
+}
+.title-headline {
+  font-family: 'Inter', sans-serif;
+  font-size: 48pt;
+  font-weight: 800;
+  color: white;
+  line-height: 1.05;
+  letter-spacing: -1.5px;
+  margin: 0;
+}
+.title-headline em {
+  font-style: normal;
+  color: var(--emerald);
+}
+.title-footer {
+  padding-top: 16px;
+  border-top: 1px solid rgba(255,255,255,0.12);
+}
+.title-accent-bar {
+  width: 60px;
+  height: 3px;
+  background: var(--emerald);
+  margin-bottom: 16px;
+}
+.title-address {
+  font-family: 'Inter', sans-serif;
+  font-size: 16pt;
+  font-weight: 600;
+  color: white;
+  letter-spacing: -0.3px;
+  line-height: 1.25;
 }
 
 .dashboard {
@@ -1639,6 +1724,18 @@ body {
 </style>
 </head>
 <body>
+
+<div class="title-page">
+  <div class="title-brand">Property<span class="accent">Report</span></div>
+  <div class="title-headline-wrap">
+    <div class="title-eyebrow">AI Property Intelligence</div>
+    <div class="title-headline">Know everything<br>before you <em>make an offer.</em></div>
+  </div>
+  <div class="title-footer">
+    <div class="title-accent-bar"></div>
+    <div class="title-address">{{ view.address }}</div>
+  </div>
+</div>
 
 <div class="dashboard cover-page">
 

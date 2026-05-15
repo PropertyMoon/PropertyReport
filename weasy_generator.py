@@ -32,6 +32,12 @@ except ImportError:
     raise
 
 try:
+    import markdown  # type: ignore
+    _MD_OK = True
+except ImportError:
+    _MD_OK = False
+
+try:
     from dotenv import load_dotenv
     load_dotenv()  # populate GOOGLE_MAPS_API_KEY etc. from .env when run locally
 except ImportError:
@@ -224,6 +230,116 @@ def sample_report() -> StubReport:
             "family_suitability": 8.0,
             "overall": 6.5,
         },
+        property_intel={
+            "land_sqm": 612,
+            "dwelling_type": "House",
+            "frontage_m": 17.4,
+            "bedrooms": 4, "bathrooms": 2, "parking": 2,
+            "year_built": 1995,
+            "zoning_code": "GRZ1",
+            "zoning_description": "General Residential — neighbourhood-scale dwellings, up to 2 storeys",
+            "corner_block": False,
+            "subdivision_potential":      {"rating": "Moderate", "reason": "612 m² lot supports a battle-axe subdivision subject to council approval"},
+            "development_feasibility":    {"rating": "Moderate", "reason": "Two-dwelling development achievable on this lot size"},
+            "renovation_potential":       {"rating": "High",     "reason": "1990s build benefits from kitchen / bathroom updates"},
+            "knockdown_rebuild_viability":{"rating": "High",     "reason": "Land value supports rebuild economics in this pocket"},
+            "street_position_quality": 7,
+        },
+        summary=(
+            "# PROPERTY INVESTMENT REPORT\n"
+            "## 35 Pindari Ave, Taylors Lakes VIC 3038\n\n"
+            "**Report Date:** May 2026\n"
+            "**Property Type:** Residential\n\n"
+            "## EXECUTIVE SUMMARY\n"
+            "35 Pindari Ave sits 120 m from Watergardens Station on the Sunbury Line, 34 minutes to the CBD by train.\n"
+            "The suburb median is $960K with stable growth, and the dominant family demographic anchors long-term value.\n\n"
+            "### Key Highlights\n"
+            "- Walk to a major train station — strongest single value driver on the address\n"
+            "- Established family suburb with 86% owner-occupancy and quality school options\n"
+            "- 5-year history shows steady appreciation without speculative spikes\n\n"
+            "### Primary Concerns\n"
+            "- Below-median safety percentile — property crime is the main category to weigh\n"
+            "- Modest rental yield limits cash-flow appeal for pure-investor buyers\n\n"
+            "### Indicative Suitability\n"
+            "- Owner-occupiers: **HIGH** — transit, schools, family character\n"
+            "- Investors: **MODERATE** — long-hold capital growth thesis, not yield\n\n"
+            "## PROPERTY SNAPSHOT\n"
+            "The subject property is on a 612 m² GRZ1 lot with strong infill potential and renovation upside on a 1990s build. "
+            "Development options sit at the moderate end given lot dimensions; renovation is the most direct value-add path.\n\n"
+            "### Development Outlook\n"
+            "- Battle-axe subdivision possible subject to Brimbank council approval and stormwater feasibility\n"
+            "- Two-dwelling development achievable but tight on frontage — front/rear split most likely configuration\n"
+            "- Renovation pathway is the most efficient ROI given the 1990s build vintage and finishes\n\n"
+            "## MARKET ANALYSIS\n"
+            "Taylors Lakes has tracked a steady upward path over five years; the price-history bar chart on the cover shows the trajectory and the comparable sales table benchmarks the address.\n\n"
+            "### Pricing & Rental\n"
+            "- Suburb median sits around $960K with consistent year-on-year gains, no major spikes or corrections\n"
+            "- Gross house yield in the high 2% range; unit yield meaningfully stronger if a smaller-dwelling investment is preferred\n"
+            "- Vacancy is tight thanks to station proximity and owner-occupier dominance\n\n"
+            "### 5-Year Outlook\n"
+            "- Continued moderate growth supported by western-corridor infrastructure spend\n"
+            "- Watergardens activity centre densification a long-term tailwind, not a short-term catalyst\n\n"
+            "## SUBURB PROFILE\n"
+            "Taylors Lakes is a mature, low-density suburb in Melbourne's north-west — 23 km from the CBD, 15,000 residents, predominantly couples-with-children households on professional incomes.\n\n"
+            "### Who's Moving Here\n"
+            "Professional families and older couples are the dominant inbound cohort, drawn by relative value versus inner-ring alternatives, the school catchment, and the Sunbury Line commute. Indian-Australian households are the fastest-growing cultural segment in the suburb.\n\n"
+            "### What This Suburb Is Becoming\n"
+            "Taylors Lakes is consolidating rather than transforming — it is absorbing population pressure from Melbourne's western growth corridor as households trade lot size for accessibility. The Robertsons Road infill and Melton Highway upgrades signal measured densification.\n\n"
+            "### Household & Amenities\n"
+            "- Predominant household type: couples with children; primary occupation class: professional\n"
+            "- Median household income comfortably above outer-suburban average\n"
+            "- Watergardens Town Centre anchors retail, with the Taylors Lakes shared-use path improving active transport\n\n"
+            "## SCHOOLS CATCHMENT\n"
+            "Local primary and secondary catchment schools both sit at or above the state average ICSEA band — the cover ICSEA chart shows the individual scores. The professional-family demographic correlates with stable school performance.\n\n"
+            "## INFRASTRUCTURE & DEVELOPMENT\n"
+            "- Sunshine Avenue intersection upgrades (part of a $117M state program) currently in progress\n"
+            "- Brimbank Planning Scheme Amendment GC51 enables the Robertsons Road / McCubbin Drive infill (~175 lots)\n"
+            "- Taylors Lakes shared-user path Stage 1 complete, Stage 2 underway\n\n"
+            "## TRANSPORT CONNECTIVITY\n\n"
+            "### Public Transport\n"
+            "- Watergardens Station 120 m from the property; 34-minute CBD train commute on the Sunbury Line\n"
+            "- Five bus routes through the Watergardens interchange connect Keilor, St Albans, Caroline Springs\n\n"
+            "### Car Travel\n"
+            "- CBD drive 20 min off-peak / ~48 min peak via Calder Freeway and the Western Ring Road\n"
+            "- M80 Ring Road accessible within 8 minutes by car\n\n"
+            "## RISK ASSESSMENT\n\n"
+            "### Crime & Safety\n"
+            "Taylors Lakes sits at the 32nd safety percentile in Victoria; violent crime tracks 17% below the state average. The cover crime gauge renders the percentile and category deltas.\n\n"
+            "### Environmental & Planning\n"
+            "- Melbourne Airport Environs Overlay applies to this precinct — confirm specific noise-contour schedule via VicPlan\n"
+            "- Verification recommended for: flood overlay status (vicfloodmap.com.au / Brimbank Council property report)\n"
+            "- Verification recommended for: heritage overlay applicability (planning.vic.gov.au)\n\n"
+            "### Market Risks\n"
+            "- Outer-suburban markets are more sensitive to interest-rate moves than inner-ring comparables\n"
+            "- New Robertsons Road infill supply could moderate land-value gains short term\n\n"
+            "### Verification Checklist\n"
+            "- Flood overlay status (vicfloodmap.com.au or Brimbank Section 32)\n"
+            "- Airport Environs noise contour for this address (VicPlan)\n"
+            "- School catchment confirmation (findmyschool.vic.gov.au)\n"
+            "- Lot dimensions and subdivision rules (Brimbank Council direct)\n\n"
+            "## VERDICT\n\n"
+            "### Score Breakdown\n"
+            "- Growth Potential: **7.0** — steady western corridor demand\n"
+            "- Rental Demand: **6.0** — tight vacancy offsets modest yield\n"
+            "- Infrastructure: **8.0** — exceptional rail access and active road investment\n"
+            "- Safety: **4.0** — property crime moderately above state median\n"
+            "- Family Suitability: **8.0** — schools, owner-occupancy, family character\n\n"
+            "**Overall Score: 6.5 / 10**\n\n"
+            "### Overall Assessment\n"
+            "Good long-term prospect for owner-occupiers; selective buy for long-hold investors.\n\n"
+            "### Strengths\n"
+            "1. Watergardens Station at 120 m — top-tier transit position for outer western Melbourne\n"
+            "2. High owner-occupancy and dominant family demographic underpin stable values\n\n"
+            "### Weaknesses\n"
+            "1. Safety percentile in the lower third — property crime is the main category\n"
+            "2. Modest rental yield limits cash-flow appeal for pure-investor strategies\n\n"
+            "### Buyer Suitability\n"
+            "**Owner-Occupiers:** Strong fit for professional families prioritising train commute and school catchment.\n"
+            "**Investors:** Long-hold capital growth thesis only; not a yield play.\n"
+            "**Developers:** Battle-axe or front/rear two-dwelling worth modelling against actual lot dimensions.\n\n"
+            "### Price Guidance\n"
+            "Align expectations with the $1.4M–$1.5M median for comparable houses; the subject lot's land size and 120 m station distance support a premium within that band.\n"
+        ),
     )
 
 
@@ -244,6 +360,155 @@ def load_report_from_json(path: str) -> StubReport:
         metrics=data.get("metrics", {}),
         scores=data.get("scores", {}),
     )
+
+
+# ─── Body sections: parse synthesised markdown into structured sections ──────
+
+_SECTION_ICONS = {
+    "executive summary": "📋",
+    "property snapshot": "🏠",
+    "market analysis":   "📈",
+    "suburb profile":    "🏘",
+    "schools":           "🎓",
+    "infrastructure":    "🏗",
+    "transport":         "🚆",
+    "risk":              "🛡",
+    "verdict":           "💡",
+}
+
+
+def _section_icon(title: str) -> str:
+    lower = title.lower()
+    for key, icon in _SECTION_ICONS.items():
+        if key in lower:
+            return icon
+    return "📌"
+
+
+def _section_anchor(title: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-") or "section"
+
+
+def _md_to_html(md_text: str) -> str:
+    if not md_text.strip():
+        return ""
+    if _MD_OK:
+        return markdown.markdown(md_text, extensions=["extra", "sane_lists"])
+    # Hand-rolled fallback so the spike still renders something without the dep.
+    lines, html, in_ul = md_text.split("\n"), [], False
+    for raw in lines:
+        line = raw.strip()
+        if line.startswith("### "):
+            if in_ul: html.append("</ul>"); in_ul = False
+            html.append(f"<h3>{line[4:]}</h3>")
+        elif line.startswith("- "):
+            if not in_ul: html.append("<ul>"); in_ul = True
+            inner = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", line[2:])
+            html.append(f"<li>{inner}</li>")
+        elif line:
+            if in_ul: html.append("</ul>"); in_ul = False
+            inner = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", line)
+            html.append(f"<p>{inner}</p>")
+        else:
+            if in_ul: html.append("</ul>"); in_ul = False
+    if in_ul: html.append("</ul>")
+    return "\n".join(html)
+
+
+def parse_body_sections(report) -> list[dict]:
+    """Slice the synthesised markdown into per-H2 sections for the template.
+
+    Skips the H1 title and the H2 address line, plus the Report Date / Property
+    Type metadata since those already appear on the cover dashboard."""
+    summary = report.summary or ""
+    if not summary.strip():
+        return []
+
+    parts = re.split(r"^##\s+(.+?)\s*$", summary, flags=re.MULTILINE)
+    addr_norm = re.sub(r"\s+", " ", (report.address or "").strip()).lower()
+
+    sections: list[dict] = []
+    for i in range(1, len(parts), 2):
+        title = parts[i].strip()
+        body  = parts[i + 1] if (i + 1) < len(parts) else ""
+
+        # Skip the address H2 — the cover title card already shows it
+        title_norm = re.sub(r"\s+", " ", title).lower()
+        if title_norm == addr_norm or (addr_norm and addr_norm in title_norm):
+            continue
+
+        # Strip leading "Report Date: ..." / "Property Type: ..." lines from
+        # the body since those metadata lines belong to the cover, not here
+        body = re.sub(
+            r"^\s*\*\*(Report Date|Property Type)\*\*:.*?$\n?",
+            "", body, flags=re.MULTILINE | re.IGNORECASE,
+        )
+
+        sections.append({
+            "title":  title.title() if title.isupper() else title,
+            "icon":   _section_icon(title),
+            "anchor": _section_anchor(title),
+            "body_html": _md_to_html(body),
+        })
+    return sections
+
+
+def render_property_snapshot_html(report) -> str:
+    """Render the subject-property data table for the Property Snapshot section."""
+    intel = report.property_intel if isinstance(report.property_intel, dict) else {}
+    if not intel:
+        return ""
+
+    def _num(key, suffix=""):
+        v = intel.get(key)
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            return None
+        n = float(v)
+        return f"{int(n)}{suffix}" if n == int(n) else f"{n:.1f}{suffix}"
+
+    def _str(key):
+        v = intel.get(key)
+        return v.strip() if isinstance(v, str) and v.strip() else None
+
+    def _potential(key):
+        raw = intel.get(key)
+        if isinstance(raw, dict):
+            rating = raw.get("rating") or raw.get("level") or raw.get("score")
+            reason = raw.get("reason") or raw.get("description")
+            if rating:
+                return f"<strong>{rating}</strong>" + (f" — {reason}" if reason else "")
+        elif isinstance(raw, str) and raw.strip():
+            return raw.strip()
+        return None
+
+    rows: list[tuple[str, str]] = []
+    def _add(label, value):
+        if value:
+            rows.append((label, value))
+
+    _add("Land Size",     _num("land_sqm", " m²"))
+    _add("Dwelling Type", _str("dwelling_type"))
+    _add("Frontage",      _num("frontage_m", " m"))
+    config = " · ".join(filter(None, [
+        f"{_num('bedrooms')}br"    if _num("bedrooms")  else None,
+        f"{_num('bathrooms')}ba"   if _num("bathrooms") else None,
+        f"{_num('parking')}c"      if _num("parking")   else None,
+    ]))
+    _add("Configuration", config or None)
+    _add("Year Built",    _num("year_built"))
+    _add("Corner Block",  "Yes" if intel.get("corner_block") is True else None)
+    _add("Zoning",        " — ".join(filter(None, [_str("zoning_code"), _str("zoning_description")])) or None)
+    _add("Subdivision Potential",       _potential("subdivision_potential"))
+    _add("Development Feasibility",     _potential("development_feasibility"))
+    _add("Renovation Potential",        _potential("renovation_potential"))
+    _add("Knockdown / Rebuild",         _potential("knockdown_rebuild_viability"))
+    _add("Street Position",             _num("street_position_quality", " / 10"))
+
+    if not rows:
+        return ""
+
+    body = "".join(f"<tr><th>{label}</th><td>{value}</td></tr>" for label, value in rows)
+    return f'<table class="snapshot-table">{body}</table>'
 
 
 # ─── View-model: shape report → simple dict the template can read cleanly ────
@@ -426,6 +691,13 @@ def build_view(report) -> dict:
         "map_legend": map_legend,
         "photo_uri":  photo_uri,
         "map_uri":    map_uri,
+        "body_sections":      parse_body_sections(report),
+        "property_snapshot_html": render_property_snapshot_html(report),
+        "disclaimer": (
+            "This report was generated by artificial intelligence using publicly available "
+            "Australian data sources. It is a research aid only and does not constitute "
+            "financial, legal, or investment advice."
+        ),
     }
 
 
@@ -604,7 +876,15 @@ HTML_TEMPLATE = r"""<!doctype html>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-@page { size: A4 landscape; margin: 8mm; }
+@page cover { size: A4 landscape; margin: 8mm; }
+@page body  {
+  size: A4 portrait;
+  margin: 14mm 14mm 16mm 14mm;
+  @bottom-left  { content: "PropertyReport"; font-size: 7.5pt; color: #94a3b8; font-family: 'Inter', sans-serif; letter-spacing: 0.6px; }
+  @bottom-right { content: "Page " counter(page); font-size: 7.5pt; color: #94a3b8; font-family: 'Inter', sans-serif; }
+}
+.cover-page { page: cover; }
+.body-pages { page: body; page-break-before: always; }
 
 :root {
   --navy: #0f172a;
@@ -1031,11 +1311,93 @@ body {
 .next-steps ul { list-style: none; margin: 0; padding: 0; }
 .next-steps li { padding: 2px 0; color: var(--slate-2); }
 .next-steps li::before { content: "✓"; color: var(--emerald); font-weight: 700; margin-right: 6px; }
+
+/* ── BODY PAGES (portrait, prose-heavy) ── */
+.body-pages { font-size: 10.5px; line-height: 1.55; color: var(--slate); }
+.body-section { margin-bottom: 16px; }
+.body-section + .body-section { padding-top: 4px; }
+.body-section h2.section-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 14.5pt;
+  font-weight: 700;
+  color: white;
+  background: linear-gradient(135deg, var(--navy) 0%, var(--slate) 100%);
+  padding: 8px 14px;
+  border-radius: 6px;
+  margin: 0 0 10px 0;
+  letter-spacing: 0.2px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.body-section h2 .section-icon {
+  font-size: 14pt;
+}
+.body-section h3 {
+  font-size: 10.5pt;
+  font-weight: 600;
+  color: var(--navy);
+  margin: 12px 0 4px;
+  letter-spacing: 0.1px;
+}
+.body-section p {
+  margin: 0 0 7px 0;
+  color: var(--slate-2);
+}
+.body-section ul, .body-section ol {
+  margin: 4px 0 8px 0;
+  padding-left: 18px;
+}
+.body-section li {
+  margin: 2px 0;
+  color: var(--slate-2);
+}
+.body-section li::marker { color: var(--emerald); }
+.body-section strong { color: var(--navy); font-weight: 600; }
+
+/* Property Snapshot data table */
+.snapshot-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0 14px 0;
+  font-size: 10pt;
+  border: 1px solid var(--grey-200);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.snapshot-table th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--navy);
+  background: #ecfdf5;
+  padding: 7px 12px;
+  width: 38%;
+  border-bottom: 1px solid var(--grey-200);
+  border-right: 1px solid var(--grey-200);
+}
+.snapshot-table td {
+  padding: 7px 12px;
+  color: var(--slate-2);
+  border-bottom: 1px solid var(--grey-100);
+}
+.snapshot-table tr:last-child th,
+.snapshot-table tr:last-child td { border-bottom: none; }
+.snapshot-table strong { color: var(--navy); }
+
+.body-disclaimer {
+  margin-top: 24px;
+  padding-top: 10px;
+  border-top: 1px solid var(--grey-200);
+  font-size: 8.5pt;
+  font-style: italic;
+  color: var(--slate-3);
+  line-height: 1.5;
+}
 </style>
 </head>
 <body>
 
-<div class="dashboard">
+<div class="dashboard cover-page">
 
   <!-- HEADER ROW -->
   <div class="row header-row">
@@ -1252,7 +1614,21 @@ body {
     </div>
   </div>
 
+</div>{# end cover-page #}
+
+{% if view.body_sections %}
+<div class="body-pages">
+  {% for sec in view.body_sections %}
+  <section class="body-section">
+    <h2 class="section-title"><span class="section-icon">{{ sec.icon }}</span>{{ sec.title }}</h2>
+    {% if sec.anchor == 'property-snapshot' and view.property_snapshot_html %}{{ view.property_snapshot_html | safe }}{% endif %}
+    {{ sec.body_html | safe }}
+  </section>
+  {% endfor %}
+  <div class="body-disclaimer">{{ view.disclaimer }}</div>
 </div>
+{% endif %}
+
 </body>
 </html>
 """

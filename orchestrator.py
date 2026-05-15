@@ -647,7 +647,7 @@ Do not write anything else after the sentinel.
 """
 
 
-_SYNTHESIS_MODEL = "claude-opus-4-7"
+_SYNTHESIS_MODEL = "claude-sonnet-4-6"
 
 
 def _synth_chunk(
@@ -688,7 +688,7 @@ def _trim_at_sentinel(text: str, sentinel: str) -> str:
 def synthesise_report(client: anthropic.Anthropic, address: str, research_data: dict) -> str:
     """Synthesise all research data into a buyer-friendly narrative report."""
 
-    print("  ✍️  Synthesising report (2 parallel chunks on Opus)...")
+    print("  ✍️  Synthesising report (2 parallel chunks on Sonnet 4.6)...")
 
     user_prompt = (
         f"Address: {address}\n"

@@ -16,6 +16,10 @@ stripe>=8.0.0
 
 # PDF generation
 reportlab>=4.1.0
+# Phase 2B: HTML→PDF for the new dashboard layout. Linux/Mac need
+# cairo/pango/gdk-pixbuf system libs (added in nixpacks.toml).
+weasyprint>=62.0
+jinja2>=3.1
 
 # Email
 sendgrid>=6.9.0

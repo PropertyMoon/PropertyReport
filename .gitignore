@@ -25,6 +25,7 @@ pip-log.txt
 # ─── Generated files ─────────────────────────────
 report_output.json
 *.pdf
+cover_spike.html
 /tmp/
 
 # ─── Database ─────────────────────────────────────

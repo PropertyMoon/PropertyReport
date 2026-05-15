@@ -75,6 +75,8 @@ ICONS: dict[str, str] = {
     "construction": '<path d="M14 4l6 6-2 2-2-2-3 3 2 2-2 2-2-2-3 3 2 2-2 2-6-6 12-12zM18 5l1.4-1.4a2 2 0 012.8 0L23 4l-2 2-3-1z"/>',
     "bulb":         '<path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zM12 2C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17a1 1 0 001 1h6a1 1 0 001-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/>',
     "map-pin":      '<path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z"/>',
+    "check-circle": '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>',
+    "cross-circle": '<path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/>',
 }
 
 
@@ -571,6 +573,19 @@ def build_view(report) -> dict:
     median = _short(metrics.get("median_price") or _fmt_price(_pick(s, "median_house_price", "median_price")), 14)
     rental = _short(metrics.get("rental_yield") or _pick(s, "rental_yield", default="—"), 12)
     schools_quality = _short(metrics.get("school_quality") or _pick(sch, "school_quality_summary", default="—"), 14)
+
+    # School above-average: true if any catchment school has ICSEA > 1000 (national avg),
+    # or the quality summary text signals above-average performance.
+    _all_schools = (sch.get("primary_schools") or []) + (sch.get("secondary_schools") or [])
+    _school_above_avg = any(
+        isinstance(sc_e, dict) and isinstance(sc_e.get("icsea"), (int, float)) and sc_e["icsea"] > 1000
+        for sc_e in _all_schools
+    )
+    if not _school_above_avg:
+        _qt = (_pick(sch, "school_quality_summary", default="") or "").lower()
+        _school_above_avg = any(w in _qt for w in ("above", "strong", "good", "excellent", "high"))
+    schools_icon_name  = "check-circle" if _school_above_avg else "cross-circle"
+    schools_icon_class = "icon-emerald"  if _school_above_avg else "icon-rose"
     train_label = _short(metrics.get("cbd_train_mins") or "—", 12)
     train_station = _short(_pick(tr.get("nearest_train", {}) if isinstance(tr.get("nearest_train"), dict) else {},
                                   "name", default="Nearest Station"), 22)
@@ -763,11 +778,11 @@ def build_view(report) -> dict:
         "metric_icons": {
             "median":  icon("home"),
             "yield":   icon("trending-up"),
-            "schools": icon("cap"),
+            "schools": icon(schools_icon_name),
             "train":   icon("train"),
             "crime":   icon("shield"),
-            "market":  icon("chart-bar"),
         },
+        "schools_icon_class": schools_icon_class,
         "pipeline":   pipeline,
         "map_legend": map_legend,
         "photo_uri":  photo_uri,
@@ -1306,7 +1321,7 @@ body {
 }
 
 /* ── METRIC ROW ── */
-.metric-row { grid-template-columns: repeat(6, 1fr); }
+.metric-row { grid-template-columns: repeat(5, 1fr); }
 .metric-card {
   display: flex;
   flex-direction: column;
@@ -1781,7 +1796,7 @@ body {
       <div class="metric-sub">Estimate</div>
     </div>
     <div class="card metric-card">
-      <div class="metric-icon icon-violet">{{ view.metric_icons.schools | safe }}</div>
+      <div class="metric-icon {{ view.schools_icon_class }}">{{ view.metric_icons.schools | safe }}</div>
       <div class="metric-label">Schools</div>
       <div class="metric-value">{{ view.metrics.schools }}</div>
       <div class="metric-sub">Quality</div>
@@ -1797,12 +1812,6 @@ body {
       <div class="metric-label">Crime vs State Avg</div>
       <div class="metric-value">{{ view.crime.short_headline or "—" }}</div>
       <div class="metric-sub">Lower is safer</div>
-    </div>
-    <div class="card metric-card">
-      <div class="metric-icon icon-rose">{{ view.metric_icons.market | safe }}</div>
-      <div class="metric-label">Market Outlook</div>
-      <div class="metric-value">{{ view.metrics.market_outlook }}</div>
-      <div class="metric-sub">3–5 Year Outlook</div>
     </div>
   </div>
 

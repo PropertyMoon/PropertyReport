@@ -1,11 +1,8 @@
-[build]
-# Phase 2B: Switched from NIXPACKS to DOCKERFILE because nixpacks's
-# aptPkgs was not making WeasyPrint's transitive system libs (libglib /
-# libgobject / libharfbuzz) visible to the runtime loader. The Dockerfile
-# in the repo root pulls them in via apt and the renders succeed.
-# NOTE: Railway is case-sensitive on this value — must be UPPERCASE.
-builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile"
+# No [build] block on purpose — let Railway auto-detect the build method
+# from the repo. With a Dockerfile at the root and nixpacks.toml removed,
+# Railway falls back to "Dockerfile" automatically and respects the apt
+# install inside it (which was the goal — WeasyPrint needs libglib /
+# libpango / libcairo / libharfbuzz / libgdk-pixbuf at runtime).
 
 [deploy]
 startCommand = "uvicorn api:app --host 0.0.0.0 --port $PORT --workers 2"

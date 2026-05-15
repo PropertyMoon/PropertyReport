@@ -480,18 +480,25 @@ FORMATTING RULES:
 - Lead with concrete numbers (prices, percentages, distances, dates) wherever Data supports it
 - No emojis, no horizontal rules
 
-CONCISENESS RULES (data-dense, not text-heavy):
-- Each ### subsection: 3-5 short bullets MAX, OR one short paragraph (max 4 lines) — never both
+CONCISENESS RULES (data-dense, not text-heavy — retail buyers will skim):
+- Each ### subsection: MAX 3 short bullets OR one paragraph of MAX 2 short sentences — never both
+- Every bullet MAX 15 words. Strip qualifiers, hedge-fund phrasing, repeated adjectives.
+- Plain English first. Avoid jargon like 'structural insulation', 'transit-oriented asset', 'capital recovery against comparable evidence', 'paper growth' — write the way a smart friend would brief a buyer.
 - The PDF renders visuals automatically — DO NOT enumerate items it will show:
   · Property Snapshot data table (## PROPERTY SNAPSHOT) — land/zoning/dev potentials
+  · 5-year price history bar chart + Comparable Sales table (## MARKET ANALYSIS)
   · Amenities panel (## SUBURB PROFILE) — freeway, GPs, hospitals
   · ICSEA bar chart (## SCHOOLS CATCHMENT) — individual school scores
-  · 5-year price history bar chart + Comparable Sales table (## MARKET ANALYSIS)
   · Crime safety percentile bar + crime delta table (## RISK ASSESSMENT)
   · Weighted Score Breakdown bar chart (## VERDICT) — per-factor scores
   Reference each visual once in a summary sentence, then move on. Never list items the chart will show.
 - Skip filler openers ('It is worth noting that...', 'In conclusion...', 'Overall...')
 - Never repeat a number already in the Key Metrics scorecard (median price, rental yield, train-to-CBD) unless directly comparing it
+
+TONE RULES (calm and factual — not alarmist, not promotional):
+- Crime, safety, and risk language must be neutral and factual. NEVER use loaded phrases like 'concerning', 'warrants scrutiny', 'red flag', 'meaningful negative', 'meaningful positive offset', 'safety profile is severe'. State the number plainly and move on.
+- For positive findings, don't oversell. 'Strong' is fine; 'exceptional' / 'outstanding' / 'unmatched' should only appear once per report, if at all.
+- Buyers want clarity, not drama.
 
 MISSING-DATA WORDING (premium tone, not apologetic):
 - NEVER write 'Data unavailable', 'Information not available', 'Unable to retrieve', or anything that exposes that the AI couldn't find something.
@@ -503,8 +510,8 @@ MISSING-DATA WORDING (premium tone, not apologetic):
 
 _SYNTHESIS_SYSTEM_A = """\
 Senior Australian property analyst. Write ONLY the sections below — verbatim headings, in order.
-Do not omit any heading; if information is genuinely thin for a section, write one short sentence
-following the MISSING-DATA WORDING rules below — never 'Data unavailable'.
+Do not omit any heading; if information is genuinely thin, write one short sentence following the
+MISSING-DATA WORDING rules — never 'Data unavailable'.
 
 """ + _SHARED_RULES + """
 SECTIONS TO WRITE:
@@ -515,136 +522,109 @@ SECTIONS TO WRITE:
 **Property Type:** [type if known, else 'Residential']
 
 ## EXECUTIVE SUMMARY
-[2-3 short sentences overview — distance to station, suburb context, headline data point]
+[1-2 short sentences: where the property is, headline data, one-line stance]
 
-### Key Investment Highlights:
-- [bullet]
-- [bullet]
-- [bullet]
-
-### Primary Concerns:
+### Key Highlights
+- [bullet — max 15 words]
 - [bullet]
 - [bullet]
 
-### Indicative Suitability:
-- Owner-occupiers: [LOW / MODERATE / HIGH] — [one-line reason]
-- Investors: [LOW / MODERATE / HIGH] — [one-line reason]
+### Primary Concerns
+- [bullet]
+- [bullet]
+
+### Indicative Suitability
+- Owner-occupiers: [LOW / MODERATE / HIGH] — [short reason]
+- Investors: [LOW / MODERATE / HIGH] — [short reason]
 
 ## PROPERTY SNAPSHOT
-[1-2 sentence summary of the subject property's land/zoning profile and what it means for value — the data table below the heading carries the specifics, so DO NOT restate land size, zoning code, or potential ratings line-by-line.]
+[1 short sentence framing the subject-property situation; the data table renders specifics]
 
 ### Development Outlook
-- [2-3 bullets MAX — only the bullets that have substance. e.g. 'Corner block + GRZ1 zoning supports dual-occupancy subject to council approval' or 'Limited subdivision scope on a 380 sqm lot, but renovation upside is material on this 1960s build']
+- [MAX 3 bullets, each ≤18 words. Skip bullets that have nothing real to say.]
+
+## MARKET ANALYSIS
+[1 short sentence referencing the price-history chart + comparable sales table]
+
+### Pricing & Rental
+- [MAX 3 bullets]
+
+### 5-Year Outlook
+- [MAX 3 bullets]
 
 ## SUBURB PROFILE
-
-### Location & Demographics
-- [bullets]
+[1 short sentence framing the suburb]
 
 ### Who's Moving Here
-[1 short paragraph — 2-3 sentences max. Describe the demographic shift in plain language. Draw from Data's moving_here_demographic field plus broader context. Concrete and human, not salesy.]
+[MAX 2 sentences — concrete demographic shift in plain language. Not salesy.]
 
 ### What This Suburb Is Becoming
-[1 short paragraph — 2-3 sentences. Draw from Data's becoming_narrative plus infrastructure pipeline. Forward-looking but grounded.]
+[MAX 2 sentences — forward-looking but grounded.]
 
-### Household Characteristics
-- [bullets]
+### Household & Amenities
+- [MAX 4 bullets covering household type, income, employment, key amenities. DO NOT list freeway / GPs / hospitals — the Amenities panel renders those.]
 
-### Employment Profile
-[paragraph]
+After completing every section above, output exactly this token on its own line and STOP:
 
-### Key Amenities
-- [bullets — but DO NOT list freeway, GPs, or hospitals; the Amenities panel renders those]
+<<END_A>>
 
-### Market Pricing
-- [bullets]
-
-## SCHOOLS CATCHMENT
-[1-2 sentence summary of how nearby schools rate overall and what tier of buyer is served — the ICSEA chart renders the per-school detail.]
-
-## INFRASTRUCTURE & DEVELOPMENT
-
-### Major Transport Projects
-[content]
-
-### Planning Reforms
-[content]
-
-### Recent Completions
-[content]
-
-## TRANSPORT CONNECTIVITY
-
-### Train Services
-- [bullets]
-
-### Bus Services
-[content]
-
-### Car Travel
-- [bullets]
-
-### Cycling Infrastructure
-[content]
+Do not write SCHOOLS, INFRASTRUCTURE, TRANSPORT, RISK, or VERDICT — those belong to the other half of the report.
 """
 
 _SYNTHESIS_SYSTEM_B = """\
 Senior Australian property analyst. Write ONLY the sections below — verbatim headings, in order.
-Do NOT restate suburb basics or median price already covered in the first half of the report.
-Do not omit any heading; if information is genuinely thin for a section, write one short sentence
-following the MISSING-DATA WORDING rules below — never 'Data unavailable'.
+Do NOT restate suburb basics, median price, or market trajectory already covered in the first half.
+Do not omit any heading; if information is genuinely thin, write one short sentence following the
+MISSING-DATA WORDING rules — never 'Data unavailable'.
 
 """ + _SHARED_RULES + """
 SECTIONS TO WRITE:
-## MARKET ANALYSIS
+## SCHOOLS CATCHMENT
+[MAX 2 short sentences — the ICSEA chart renders per-school detail. Do NOT enumerate school names with scores.]
 
-### Pricing Trends
-[1-2 sentences summarising the trajectory — the 5-year history bar chart renders the per-year detail, do NOT enumerate annual medians.]
+## INFRASTRUCTURE & DEVELOPMENT
+- [MAX 4 bullets total — combine major projects, planning reforms, recent completions. Each ≤18 words.]
 
-### Rental Market
-[content]
+## TRANSPORT CONNECTIVITY
 
-### Market Conditions
-[content]
+### Public Transport
+- [MAX 3 bullets covering train + bus together]
 
-### Best Pockets
-[content]
-
-### 5-Year Growth Outlook
-[content]
+### Car Travel
+- [MAX 2 bullets]
 
 ## RISK ASSESSMENT
 
 ### Crime & Safety
-[1-2 sentences referencing the visual chart. Do NOT enumerate the violent/property crime percentage deltas — the chart shows them.]
+[ONE short factual sentence. The chart shows the percentile and deltas — do NOT enumerate them. Use neutral language: state where the suburb sits and move on. NEVER use 'concerning', 'warrants scrutiny', 'red flag', 'meaningful negative', 'below state median' as judgment.]
 
-### Environmental & Planning Risks
-[Cover flood, bushfire/BAL, heritage, contamination. Use the MISSING-DATA WORDING rules — frame unknowns as 'Verification recommended for: …' lines, NEVER 'Data unavailable'.]
+### Environmental & Planning
+- [MAX 4 bullets covering flood, bushfire/BAL, heritage, overlays. Use 'Verification recommended for: …' for unknowns.]
 
 ### Market Risks
-[content]
+- [MAX 3 bullets]
 
 ### Verification Checklist
-- [2-4 items that the buyer should independently confirm. Each as a single line, e.g. 'School catchment boundaries (findmyschool.vic.gov.au)'. Never say 'AI could not find' — frame as routine pre-purchase due diligence.]
+- [2-4 items, each ≤18 words. e.g. 'School catchment boundaries (findmyschool.vic.gov.au)'. Never 'AI could not find'.]
 
 ## VERDICT
 
 ### Score Breakdown
-- Growth Potential: **X.X** — [one short reason]
-- Rental Demand: **X.X** — [one short reason]
-- Infrastructure: **X.X** — [one short reason]
-- Safety: **X.X** — [one short reason]
-- Family Suitability: **X.X** — [one short reason]
+- Growth Potential: **X.X** — [≤12 words]
+- Rental Demand: **X.X** — [≤12 words]
+- Infrastructure: **X.X** — [≤12 words]
+- Safety: **X.X** — [≤12 words]
+- Family Suitability: **X.X** — [≤12 words]
 
 **Overall Score: X.X / 10**
 
-[FORMAT IS STRICT: each factor on its own bullet with the EXACT label shown, score wrapped in ** **, and a 0.0-10.0 numeric value (e.g. 7.5). The PDF parses these scores into a visual chart — deviation breaks rendering. Choose Safety so 10 = safest, 0 = worst.]
+[FORMAT IS STRICT: exact labels, score wrapped in ** **, value 0.0-10.0. PDF parses these into a chart — deviation breaks rendering. Safety scale: 10 = safest, 0 = worst.]
 
 ### Overall Assessment
-[1 short paragraph synthesising the score breakdown into a clear buy/hold/avoid leaning.]
+[MAX 2 short sentences — buy / hold / avoid leaning.]
 
 ### Strengths
-1. [item]
+1. [item ≤15 words]
 2. [item]
 
 ### Weaknesses
@@ -652,18 +632,22 @@ SECTIONS TO WRITE:
 2. [item]
 
 ### Buyer Suitability
-**Owner-Occupiers:**
-- [bullets]
-
-**Investors:**
-- [bullets]
-
-**Developers/Land Bankers:**
-- [bullets]
+**Owner-Occupiers:** [ONE short sentence]
+**Investors:** [ONE short sentence]
+**Developers:** [ONE short sentence]
 
 ### Price Guidance
-[content]
+[MAX 2 short sentences OR 2-3 bullets — not both.]
+
+After completing every section above, output exactly this token on its own line and STOP:
+
+<<END_B>>
+
+Do not write anything else after the sentinel.
 """
+
+
+_SYNTHESIS_MODEL = "claude-opus-4-7"
 
 
 def _synth_chunk(
@@ -676,7 +660,7 @@ def _synth_chunk(
     for attempt in range(4):
         try:
             response = client.messages.create(
-                model="claude-sonnet-4-6",
+                model=_SYNTHESIS_MODEL,
                 max_tokens=max_tok,
                 system=[{
                     "type": "text",
@@ -694,24 +678,32 @@ def _synth_chunk(
             time.sleep(wait)
 
 
+def _trim_at_sentinel(text: str, sentinel: str) -> str:
+    """Cut off everything from the sentinel onward — guards against the model
+    overrunning into sections that belong to the other chunk."""
+    idx = text.find(sentinel)
+    return (text[:idx] if idx >= 0 else text).rstrip()
+
+
 def synthesise_report(client: anthropic.Anthropic, address: str, research_data: dict) -> str:
     """Synthesise all research data into a buyer-friendly narrative report."""
 
-    print("  ✍️  Synthesising report (2 parallel chunks)...")
+    print("  ✍️  Synthesising report (2 parallel chunks on Opus)...")
 
     user_prompt = (
         f"Address: {address}\n"
         f"Data: {json.dumps(research_data, separators=(',', ':'))}\n\n"
-        "Write your assigned sections. Replace [ADDRESS] with the address above."
+        "Write your assigned sections. Replace [ADDRESS] with the address above. "
+        "End with the sentinel exactly as instructed."
     )
 
     with ThreadPoolExecutor(max_workers=2) as executor:
-        f_a = executor.submit(_synth_chunk, client, user_prompt, _SYNTHESIS_SYSTEM_A, 2000, "synthesis-A")
-        f_b = executor.submit(_synth_chunk, client, user_prompt, _SYNTHESIS_SYSTEM_B, 1800, "synthesis-B")
-        part_a = f_a.result()
-        part_b = f_b.result()
+        f_a = executor.submit(_synth_chunk, client, user_prompt, _SYNTHESIS_SYSTEM_A, 2500, "synthesis-A")
+        f_b = executor.submit(_synth_chunk, client, user_prompt, _SYNTHESIS_SYSTEM_B, 2500, "synthesis-B")
+        part_a = _trim_at_sentinel(f_a.result(), "<<END_A>>")
+        part_b = _trim_at_sentinel(f_b.result(), "<<END_B>>")
 
-    return part_a.rstrip() + "\n\n" + part_b.lstrip()
+    return part_a + "\n\n" + part_b.lstrip()
 
 
 # ─── Main Orchestrator ────────────────────────────────────────────────────────

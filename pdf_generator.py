@@ -616,9 +616,9 @@ def build_crime_chart(report, styles: dict) -> list:
 
     if have_pct:
         pct_val = float(pct)
-        if   pct_val < 30: fill, zone = RED,    "Higher-crime area"
-        elif pct_val < 60: fill, zone = ORANGE, "Average safety"
-        else:              fill, zone = GREEN,  "Safer than most"
+        if   pct_val < 40: fill, zone = ORANGE, "Below state median"
+        elif pct_val < 65: fill, zone = ORANGE, "Around state median"
+        else:              fill, zone = GREEN,  "Above state median"
 
         bar_full_w = 140*mm
         drawing = Drawing(170*mm, 18*mm)
@@ -643,7 +643,8 @@ def build_crime_chart(report, styles: dict) -> list:
         rows = []
         for label, val in deltas:
             sign  = "+" if val > 0 else ""
-            color = "#c0392b" if val > 5 else "#059669" if val < -5 else "#475569"
+            # Calmer thresholds: only flag deep red when crime is materially above state avg
+            color = "#c0392b" if val > 25 else "#d97706" if val > 8 else "#059669" if val < -8 else "#475569"
             rows.append([
                 Paragraph(label, ParagraphStyle("cd_l", fontSize=9, fontName="Helvetica",
                                                 textColor=TEXT_DARK)),

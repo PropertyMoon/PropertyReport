@@ -563,17 +563,18 @@ def build_view(report) -> dict:
     sch = report.schools if isinstance(report.schools, dict) else {}
     gov = report.government_projects if isinstance(report.government_projects, dict) else {}
 
-    # Metric tiles
+    # Metric tiles. WeasyPrint can't multi-line-clamp, so trim aggressively
+    # in Python and let CSS use single-line ellipsis to guarantee no overflow.
     metrics = report.metrics or {}
-    median = metrics.get("median_price") or _fmt_price(_pick(s, "median_house_price", "median_price"))
-    rental = metrics.get("rental_yield") or _pick(s, "rental_yield", default="—")
-    schools_quality = metrics.get("school_quality") or _pick(sch, "school_quality_summary", default="—")
-    train_label = metrics.get("cbd_train_mins") or "—"
-    train_station = _pick(tr.get("nearest_train", {}) if isinstance(tr.get("nearest_train"), dict) else {},
-                          "name", default="Nearest Station")
+    median = _short(metrics.get("median_price") or _fmt_price(_pick(s, "median_house_price", "median_price")), 14)
+    rental = _short(metrics.get("rental_yield") or _pick(s, "rental_yield", default="—"), 12)
+    schools_quality = _short(metrics.get("school_quality") or _pick(sch, "school_quality_summary", default="—"), 14)
+    train_label = _short(metrics.get("cbd_train_mins") or "—", 12)
+    train_station = _short(_pick(tr.get("nearest_train", {}) if isinstance(tr.get("nearest_train"), dict) else {},
+                                  "name", default="Nearest Station"), 22)
     pct = s.get("crime_safety_percentile")
     pct_val = int(pct) if isinstance(pct, (int, float)) and not isinstance(pct, bool) else None
-    market_outlook = metrics.get("market_outlook") or _pick(mk, "market_outlook", default="—")
+    market_outlook = _short(metrics.get("market_outlook") or _pick(mk, "market_outlook", default="—"), 14)
 
     # 5-year price growth points
     raw_hist = s.get("price_history_5yr") or []
@@ -725,7 +726,7 @@ def build_view(report) -> dict:
     if isinstance(gp, dict) and gp.get("name"):
         map_legend.append({"icon": icon("stethoscope"), "color": "rose",
                            "label": gp["name"], "detail": _dist(gp.get("distance_km"))})
-    map_legend = map_legend[:5]
+    map_legend = map_legend[:4]
 
     # Real Google images (returns None if key missing or image is a placeholder).
     # Static-map fetch was dropped from the cover — keeping the helper for
@@ -783,10 +784,8 @@ def build_view(report) -> dict:
 
 def _crime_summary(suburb: dict) -> dict:
     """Return a plain-English crime comparison vs the state average.
-    Drops the percentile gauge — users were confused by percentile numbers.
-    Instead returns two phrases like '17% lower' / '8% higher' with colour
-    hints, plus an overall headline ('Lower than VIC average' / 'Around VIC
-    average' / 'Higher than VIC average')."""
+    State-agnostic — uses 'state average' instead of VIC/NSW/etc so the
+    same wording works for any address."""
     violent = suburb.get("crime_violent_vs_state_avg_pct")
     prop    = suburb.get("crime_property_vs_state_avg_pct")
 
@@ -807,20 +806,43 @@ def _crime_summary(suburb: dict) -> dict:
 
     rows = [_row("Violent crime", violent), _row("Property crime", prop)]
 
-    # Headline summarising the two rows
     avail = [r for r in rows if r["available"]]
     if not avail:
         headline = ""
+        short_headline = ""
     else:
         avg_delta = sum(r["delta"] for r in avail) / len(avail)
         if avg_delta <= -5:
-            headline = "Lower than VIC average"
+            headline       = "Lower than state average"
+            short_headline = "Below state avg"
         elif avg_delta >= 5:
-            headline = "Higher than VIC average"
+            headline       = "Higher than state average"
+            short_headline = "Above state avg"
         else:
-            headline = "Around VIC average"
+            headline       = "Around state average"
+            short_headline = "Around state avg"
 
-    return {"headline": headline, "rows": rows}
+    return {"headline": headline, "short_headline": short_headline, "rows": rows}
+
+
+def _short(s, n: int = 16) -> str:
+    """Trim a string to ~n chars on a word boundary with ellipsis.
+
+    WeasyPrint doesn't support -webkit-line-clamp, so we can't rely on the
+    browser to cap multi-line metric values. Trim in Python instead, then
+    let CSS use white-space: nowrap to guarantee single-line tiles."""
+    if s is None:
+        return "—"
+    s = str(s).strip()
+    if not s or s == "—":
+        return s or "—"
+    if len(s) <= n:
+        return s
+    # Try to cut on the last whitespace before n
+    cut = s[:n].rstrip()
+    if " " in cut and len(cut) > n // 2:
+        cut = cut.rsplit(" ", 1)[0]
+    return cut + "…"
 
 
 def _overall_label(score: float | None) -> str:
@@ -1093,7 +1115,7 @@ body {
 
 .dashboard {
   display: grid;
-  grid-template-rows: 90px 95px 180px 140px 84px;
+  grid-template-rows: 100px 90px 180px 140px 84px;
   gap: 8px;
 }
 
@@ -1229,6 +1251,11 @@ body {
 .legend-icon svg { width: 10px; height: 10px; display: block; }
 .section-icon svg { width: 16px; height: 16px; display: block; }
 .section-icon { color: rgba(255,255,255,0.95); }
+/* Force white fill on body section header icons (same currentColor caveat). */
+.section-icon svg,
+.section-icon svg path,
+.section-icon svg rect,
+.section-icon svg circle { fill: white; }
 .icon-emerald { background: var(--emerald-soft); color: var(--emerald); }
 .icon-blue    { background: var(--blue-soft);    color: var(--blue); }
 .icon-violet  { background: var(--violet-soft);  color: var(--violet); }
@@ -1236,6 +1263,16 @@ body {
 .icon-amber   { background: var(--amber-soft);   color: var(--amber); }
 .icon-rose    { background: var(--rose-soft);    color: var(--rose); }
 .icon-orange  { background: var(--orange-soft);  color: var(--orange); }
+
+/* WeasyPrint doesn't reliably inherit `color` into SVG `currentColor`.
+   Target the SVG children directly so the fill is unambiguous. */
+.icon-emerald svg, .icon-emerald svg path, .icon-emerald svg rect, .icon-emerald svg circle { fill: var(--emerald); }
+.icon-blue    svg, .icon-blue    svg path, .icon-blue    svg rect, .icon-blue    svg circle { fill: var(--blue); }
+.icon-violet  svg, .icon-violet  svg path, .icon-violet  svg rect, .icon-violet  svg circle { fill: var(--violet); }
+.icon-teal    svg, .icon-teal    svg path, .icon-teal    svg rect, .icon-teal    svg circle { fill: var(--teal); }
+.icon-amber   svg, .icon-amber   svg path, .icon-amber   svg rect, .icon-amber   svg circle { fill: var(--amber); }
+.icon-rose    svg, .icon-rose    svg path, .icon-rose    svg rect, .icon-rose    svg circle { fill: var(--rose); }
+.icon-orange  svg, .icon-orange  svg path, .icon-orange  svg rect, .icon-orange  svg circle { fill: var(--orange); }
 
 .metric-label {
   font-size: 8px;
@@ -1248,15 +1285,11 @@ body {
   font-size: 16px;
   font-weight: 700;
   color: var(--navy);
-  line-height: 1.15;
+  line-height: 1.2;
   margin-top: 1px;
-  /* allow two-line wrap, hide third */
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  word-break: break-word;
   max-width: 100%;
 }
 .metric-sub {
@@ -1676,8 +1709,8 @@ body {
     </div>
     <div class="card metric-card">
       <div class="metric-icon icon-amber">{{ view.metric_icons.crime | safe }}</div>
-      <div class="metric-label">Crime vs VIC Avg</div>
-      <div class="metric-value">{{ view.crime.headline or "—" }}</div>
+      <div class="metric-label">Crime vs State Avg</div>
+      <div class="metric-value">{{ view.crime.short_headline or "—" }}</div>
       <div class="metric-sub">Lower is safer</div>
     </div>
     <div class="card metric-card">
@@ -1760,7 +1793,7 @@ body {
       </div>
     </div>
     <div class="card crime-card">
-      <div class="label">Crime Snapshot (vs VIC Average)</div>
+      <div class="label">Crime Snapshot (vs State Average)</div>
       {% if view.crime.headline %}<div class="crime-headline">{{ view.crime.headline }}</div>{% endif %}
       <div class="crime-rows">
         {% for r in view.crime.rows %}

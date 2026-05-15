@@ -78,18 +78,20 @@ ICONS: dict[str, str] = {
 }
 
 
-def icon(name: str, size: int = 24) -> str:
+def icon(name: str, size: int = 24, fill: str = "currentColor") -> str:
     """Return inline SVG markup with explicit dimensions + xmlns + viewBox.
 
     Renderers like WeasyPrint occasionally lay out a missing-attribute SVG
-    at zero pixels — these attributes are belt-and-braces."""
+    at zero pixels — these attributes are belt-and-braces.
+    Pass fill='white' for section headers to bypass WeasyPrint's unreliable
+    currentColor/CSS-fill inheritance on SVG elements."""
     path = ICONS.get(name)
     if not path:
         return ""
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" '
         f'width="{size}" height="{size}" viewBox="0 0 24 24" '
-        f'fill="currentColor">{path}</svg>'
+        f'fill="{fill}">{path}</svg>'
     )
 
 
@@ -423,8 +425,8 @@ def _section_icon(title: str) -> str:
     lower = title.lower()
     for key, name in _SECTION_ICON_KEYS.items():
         if key in lower:
-            return icon(name)
-    return icon("map-pin")
+            return icon(name, fill="white")
+    return icon("map-pin", fill="white")
 
 
 def _section_anchor(title: str) -> str:
@@ -1326,13 +1328,15 @@ body {
 .metric-icon svg { width: 16px; height: 16px; display: block; }
 .icon-sm svg     { width: 11px; height: 11px; display: block; }
 .legend-icon svg { width: 10px; height: 10px; display: block; }
+.section-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
 .section-icon svg { width: 16px; height: 16px; display: block; }
-.section-icon { color: rgba(255,255,255,0.95); }
-/* Force white fill on body section header icons (same currentColor caveat). */
-.section-icon svg,
-.section-icon svg path,
-.section-icon svg rect,
-.section-icon svg circle { fill: white; }
 .icon-emerald { background: var(--emerald-soft); color: var(--emerald); }
 .icon-blue    { background: var(--blue-soft);    color: var(--blue); }
 .icon-violet  { background: var(--violet-soft);  color: var(--violet); }
@@ -1647,9 +1651,6 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-}
-.body-section h2 .section-icon {
-  font-size: 14pt;
 }
 .body-section h3 {
   font-size: 10.5pt;

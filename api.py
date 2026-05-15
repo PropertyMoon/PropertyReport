@@ -46,6 +46,31 @@ from orchestrator import research_property, PropertyReport
 from pdf_generator import generate_pdf
 from email_sender import send_report_email
 
+# Phase 2B renderer — try import at module load so we know up-front if
+# WeasyPrint is available. Falls back to ReportLab generate_pdf on any failure.
+try:
+    from weasy_generator import render_dashboard_pdf as _render_weasy_pdf  # type: ignore
+    _WEASY_RENDERER = True
+    log.info("WeasyPrint renderer available")
+except Exception as _weasy_import_err:  # noqa: BLE001
+    _WEASY_RENDERER = False
+    _render_weasy_pdf = None
+    log.warning("WeasyPrint renderer unavailable (will fall back to ReportLab): %s",
+                _weasy_import_err)
+
+
+def _render_pdf(report: PropertyReport, pdf_path: str) -> str:
+    """Render PDF via WeasyPrint when available, fall back to ReportLab.
+    Returns the renderer name actually used ('weasyprint' or 'reportlab')."""
+    if _WEASY_RENDERER and _render_weasy_pdf is not None:
+        try:
+            _render_weasy_pdf(report, pdf_path)
+            return "weasyprint"
+        except Exception as e:  # noqa: BLE001
+            log.warning("WeasyPrint render failed (%s), falling back to ReportLab", e)
+    generate_pdf(report, pdf_path)
+    return "reportlab"
+
 
 # ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -213,7 +238,8 @@ async def generate_and_deliver_report(
         report: PropertyReport = await loop.run_in_executor(None, research_property, address)
 
         update("generating_pdf", "Generating branded PDF report...")
-        await loop.run_in_executor(None, generate_pdf, report, pdf_path)
+        renderer = await loop.run_in_executor(None, _render_pdf, report, pdf_path)
+        log.info("[%s] PDF rendered via %s", job_id, renderer)
 
         update("emailing", f"Sending report to {buyer_email}...")
         await loop.run_in_executor(

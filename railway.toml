@@ -5,7 +5,10 @@
 # libpango / libcairo / libharfbuzz / libgdk-pixbuf at runtime).
 
 [deploy]
-startCommand = "uvicorn api:app --host 0.0.0.0 --port $PORT --workers 2"
+# No startCommand on purpose. Railway runs deploy.startCommand overrides in
+# exec form for Dockerfile-built images, which means $PORT is passed as the
+# literal string "$PORT" and uvicorn fails to bind. The Dockerfile's shell-
+# form CMD already expands $PORT correctly, so let it own the start command.
 healthcheckPath = "/health"
 healthcheckTimeout = 30
 restartPolicyType = "on_failure"

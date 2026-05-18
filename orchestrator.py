@@ -387,7 +387,9 @@ RESEARCH_TASKS = {
         "Read the price from the snippet text.\n\n"
         "STEP 4 — If step 3 found nothing, search:\n"
         "\"{address} sold price 2025 OR 2024 OR 2023\"\n\n"
-        "Only return null for subject_property_last_sale if ALL FOUR steps find no dollar amount.\n\n"
+        "Only return null for subject_property_last_sale if ALL FOUR steps find no dollar amount.\n"
+        "IMPORTANT: If you find a sale older than 2022, do NOT return it — keep searching for a more recent one. "
+        "Only fall back to a pre-2022 sale if every step returns nothing more recent.\n\n"
         "STEP 5 — Search for 2 recent comparable sales in the same suburb.\n"
         "STEP 6 — Search for suburb-level market data (days on market, clearance rate, outlook).\n\n"
         "Return JSON with: "
@@ -821,6 +823,34 @@ def synthesise_report(client: anthropic.Anthropic, address: str, research_data: 
     return part_a + "\n\n" + part_b.lstrip()
 
 
+# ─── Address Normalisation ───────────────────────────────────────────────────
+
+_ABBREV = {
+    r'\bDr\b':   'Drive',
+    r'\bSt\b':   'Street',
+    r'\bRd\b':   'Road',
+    r'\bAve\b':  'Avenue',
+    r'\bCres\b': 'Crescent',
+    r'\bPl\b':   'Place',
+    r'\bCt\b':   'Court',
+    r'\bCl\b':   'Close',
+    r'\bBlvd\b': 'Boulevard',
+    r'\bHwy\b':  'Highway',
+    r'\bPde\b':  'Parade',
+    r'\bTce\b':  'Terrace',
+    r'\bLn\b':   'Lane',
+    r'\bGr\b':   'Grove',
+    r'\bCct\b':  'Circuit',
+}
+
+def _normalise_address(address: str) -> str:
+    """Expand common Australian street-type abbreviations so searches match full-word URLs."""
+    result = address
+    for pattern, replacement in _ABBREV.items():
+        result = re.sub(pattern, replacement, result)
+    return result
+
+
 # ─── Main Orchestrator ────────────────────────────────────────────────────────
 
 def research_property(address: str, api_key: str = None) -> PropertyReport:
@@ -836,6 +866,8 @@ def research_property(address: str, api_key: str = None) -> PropertyReport:
         PropertyReport dataclass with all research data and final report
     """
     
+    address = _normalise_address(address)
+
     # Initialise client
     if api_key:
         client = anthropic.Anthropic(api_key=api_key)

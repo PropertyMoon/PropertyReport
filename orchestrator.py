@@ -526,7 +526,7 @@ def _parse_json(text: str, label: str = "") -> dict:
 
 # Tasks that need more web searches to reliably find specific data
 _TASK_MAX_SEARCHES = {
-    "property_market":     5,  # must search subject address + 2 comps + market data
+    "property_market":     8,  # 5 last-sale fallback queries + comps + market data
     "government_projects": 5,  # must search council + state + planning portal
 }
 _DEFAULT_MAX_SEARCHES = 3

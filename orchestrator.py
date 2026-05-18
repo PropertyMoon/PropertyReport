@@ -114,8 +114,17 @@ def _truncate(s: str, n: int = 20) -> str:
     return s if len(s) <= n else s[:n] + "…"
 
 
+def _sale_year(date_val) -> int | None:
+    """Extract a 4-digit year from a date string or int, or return None."""
+    if date_val is None:
+        return None
+    m = re.search(r'\b(20\d\d|19\d\d)\b', str(date_val))
+    return int(m.group(1)) if m else None
+
+
 def _fmt_last_sale(market: dict) -> str | None:
-    """Pull subject-property last sale into a 'Price (date)' string."""
+    """Pull subject-property last sale into a 'Price (date)' string.
+    Silently discards any sale older than 2022 — stale prices mislead buyers."""
     raw = (market.get("subject_property_last_sale")
            or market.get("last_sale")
            or market.get("most_recent_sale"))
@@ -123,13 +132,23 @@ def _fmt_last_sale(market: dict) -> str | None:
         return None
     if isinstance(raw, str):
         s = raw.strip()
-        return s if s and s.lower() not in ("null", "none", "n/a", "") else None
+        if not s or s.lower() in ("null", "none", "n/a", ""):
+            return None
+        yr = _sale_year(s)
+        if yr is not None and yr < 2022:
+            print(f"  ℹ️  [last_sale] Discarding pre-2022 sale ({yr}) — returning None")
+            return None
+        return s
     if isinstance(raw, dict):
         price = (raw.get("price") or raw.get("sale_price")
                  or raw.get("amount") or raw.get("value"))
         date = (raw.get("date") or raw.get("sale_date")
                 or raw.get("year") or raw.get("sold_date"))
         if price is None:
+            return None
+        yr = _sale_year(date)
+        if yr is not None and yr < 2022:
+            print(f"  ℹ️  [last_sale] Discarding pre-2022 sale ({yr}) — returning None")
             return None
         p = _fmt_price(str(price))
         return f"{p} ({date})" if date else p
@@ -372,19 +391,22 @@ RESEARCH_TASKS = {
         "Property: {address}\n"
         "CRITICAL: You MUST find the last sold price for this specific property.\n"
         "Execute steps IN ORDER — do not run them in parallel — stop as soon as you find a dollar amount.\n\n"
-        "STEP 1 — Search RateMyAgent (price is in server-rendered page HTML as plain text):\n"
-        "(a) Search: \"{address} site:ratemyagent.com.au\"\n"
-        "(b) From the search results, find and fetch the ratemyagent.com.au page URL for this property.\n"
-        "(c) On the page look for the phrase 'Last sold for $' — the dollar amount after it is the price. "
-        "Also look for a date nearby (e.g. '24 Feb 2025').\n\n"
-        "STEP 2 — Search the selling agent's website:\n"
-        "Search: \"{address} sold site:ngu.com.au OR site:raywhite.com OR site:ljhooker.com.au OR site:harcourts.com.au\"\n"
-        "Agent websites often show 'SOLD $X' on the listing page after settlement.\n\n"
-        "STEP 3 — Search: \"{address} sold realestate.com.au\" and read price from the Google snippet.\n\n"
-        "STEP 4 — Search: \"{address} sold domain.com.au\" and read price from the snippet.\n\n"
-        "ABSOLUTE RULE: If a sale is found but the date is before 2022, treat it as if nothing was found and "
-        "return null. DO NOT return any sale older than 2022 under any circumstances — not even as a fallback. "
-        "A wrong recent price is worse than null.\n\n"
+        "STEP 1 — Fetch the RateMyAgent page DIRECTLY using a constructed URL (do not search — fetch the URL):\n"
+        "RateMyAgent uses a predictable URL pattern: "
+        "https://www.ratemyagent.com.au/property/[number]-[street-name]-[suburb]-[state]-[postcode]\n"
+        "For this property construct the URL by:\n"
+        "  - lowercasing everything\n"
+        "  - replacing spaces and commas with hyphens\n"
+        "  - removing any trailing 'Australia' or country name\n"
+        "Example: '23 Waterside Drive, Springfield Lakes QLD 4300' → "
+        "https://www.ratemyagent.com.au/property/23-waterside-drive-springfield-lakes-qld-4300\n"
+        "Fetch that URL. On the page look for the text 'Last sold for $' — "
+        "the dollar amount right after it is the price. Also look for a date like '24 Feb 2025'.\n\n"
+        "STEP 2 — If step 1 returns no price, search: \"{address} sold realestate.com.au\" "
+        "and read the price from the Google snippet text.\n\n"
+        "STEP 3 — If step 2 returns nothing, search: \"{address} sold domain.com.au\"\n\n"
+        "STEP 4 — If step 3 returns nothing, search: \"{address} sold price 2025 OR 2024 OR 2023\"\n\n"
+        "ABSOLUTE RULE: If a sale found has a date before 2022, return null — never return a pre-2022 price.\n\n"
         "STEP 5 — Search for 2 recent comparable sales in the same suburb.\n"
         "STEP 6 — Search for suburb-level market data (days on market, clearance rate, outlook).\n\n"
         "Return JSON with: "

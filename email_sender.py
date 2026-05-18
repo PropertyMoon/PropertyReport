@@ -3,6 +3,7 @@ Email Delivery Module
 Sends a concise summary email with key metrics and PDF attachment.
 """
 
+import html
 import os
 import re
 import base64
@@ -83,8 +84,8 @@ def _metrics_table_html(metrics: dict) -> str:
     for label, value in cells:
         cell_html += f"""
         <td style="width:16.6%;padding:14px 8px;text-align:center;border-right:1px solid #e2e8f0;vertical-align:top;">
-          <div style="font-size:10px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;color:#94a3b8;margin-bottom:6px;">{label}</div>
-          <div style="font-size:15px;font-weight:700;color:#1e293b;line-height:1.3;">{value}</div>
+          <div style="font-size:10px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;color:#94a3b8;margin-bottom:6px;">{html.escape(label)}</div>
+          <div style="font-size:15px;font-weight:700;color:#1e293b;line-height:1.3;">{html.escape(str(value))}</div>
         </td>"""
 
     return f"""
@@ -95,10 +96,13 @@ def _metrics_table_html(metrics: dict) -> str:
 
 
 def build_email_html(report: PropertyReport, recipient_name: str) -> str:
-    exec_summary = _extract_executive_summary(report.summary or "")
-    metrics      = report.metrics if isinstance(getattr(report, "metrics", None), dict) else {}
-    metrics_html = _metrics_table_html(metrics)
-    today        = __import__("datetime").datetime.now().strftime("%d %B %Y")
+    exec_summary    = _extract_executive_summary(report.summary or "")
+    metrics         = report.metrics if isinstance(getattr(report, "metrics", None), dict) else {}
+    metrics_html    = _metrics_table_html(metrics)
+    today           = __import__("datetime").datetime.now().strftime("%d %B %Y")
+    safe_name       = html.escape(recipient_name)
+    safe_address    = html.escape(report.address or "")
+    safe_summary    = html.escape(exec_summary)
 
     return f"""<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -121,7 +125,7 @@ def build_email_html(report: PropertyReport, recipient_name: str) -> str:
 
   <!-- Greeting -->
   <tr><td style="padding:32px 36px 0;">
-    <p style="font-size:16px;color:#334155;margin:0 0 4px;">Hi {recipient_name},</p>
+    <p style="font-size:16px;color:#334155;margin:0 0 4px;">Hi {safe_name},</p>
     <p style="font-size:14px;color:#64748b;margin:0 0 20px;line-height:1.5;">
       Your property research report is ready. Here's a quick summary — the full report is attached as a PDF.
     </p>
@@ -129,7 +133,7 @@ def build_email_html(report: PropertyReport, recipient_name: str) -> str:
     <!-- Address block -->
     <div style="background:#f1f5f9;border-left:4px solid #1e293b;padding:12px 16px;border-radius:0 8px 8px 0;margin-bottom:20px;">
       <div style="font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#94a3b8;margin-bottom:4px;">Property Address</div>
-      <div style="font-size:16px;font-weight:700;color:#1e293b;">{report.address}</div>
+      <div style="font-size:16px;font-weight:700;color:#1e293b;">{safe_address}</div>
       <div style="font-size:11px;color:#94a3b8;margin-top:2px;">Report generated {today}</div>
     </div>
   </td></tr>
@@ -143,7 +147,7 @@ def build_email_html(report: PropertyReport, recipient_name: str) -> str:
   <!-- Executive Summary -->
   <tr><td style="padding:4px 36px 28px;">
     <div style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#94a3b8;margin-bottom:8px;">Executive Summary</div>
-    <p style="font-size:14px;color:#475569;line-height:1.7;margin:0;">{exec_summary}</p>
+    <p style="font-size:14px;color:#475569;line-height:1.7;margin:0;">{safe_summary}</p>
   </td></tr>
 
   <!-- PDF nudge -->

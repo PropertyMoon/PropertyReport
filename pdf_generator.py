@@ -6,6 +6,7 @@ Converts a PropertyReport into a professional branded PDF
 import os
 import re
 import tempfile
+import uuid
 import urllib.request
 import urllib.parse
 from datetime import datetime
@@ -299,11 +300,15 @@ def fetch_street_view(address: str, width: int = 560, height: int = 260) -> str 
             "source":             "outdoor",
         })
         url  = f"https://maps.googleapis.com/maps/api/streetview?{params}"
-        path = os.path.join(tempfile.gettempdir(), f"sv_{abs(hash(address))}.jpg")
-        urllib.request.urlretrieve(url, path)
+        # Use a unique name to avoid races between concurrent jobs
+        path = os.path.join(tempfile.gettempdir(), f"sv_{uuid.uuid4().hex}.jpg")
+        req  = urllib.request.Request(url, headers={"User-Agent": "PropertyReport/1.0"})
+        with urllib.request.urlopen(req, timeout=10) as resp, open(path, "wb") as f:
+            f.write(resp.read())
         # Google returns a grey placeholder for unknown addresses with status 200;
         # check file size — real images are >5 KB
         if os.path.getsize(path) < 5_000:
+            os.remove(path)
             return None
         return path
     except Exception as e:

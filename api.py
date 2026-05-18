@@ -28,12 +28,15 @@ try:
 except ImportError:
     pass
 
+import re
 import stripe
 from fastapi import FastAPI, HTTPException, Request, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, field_validator
+from starlette.middleware.base import BaseHTTPMiddleware
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 logging.basicConfig(
     level=logging.INFO,
@@ -81,6 +84,10 @@ FRONTEND_URL           = os.getenv("FRONTEND_URL", "http://localhost:8000")
 IS_TEST_MODE           = stripe.api_key.startswith("sk_test_")
 ENV                    = os.getenv("ENV", "development")
 DB_PATH                = os.getenv("JOB_DB_PATH", "jobs.db")
+_DEV_TOKEN             = os.getenv("DEV_ENDPOINT_TOKEN", "")
+
+# Address validation: printable ASCII, typical address characters only
+_ADDRESS_RE = re.compile(r"^[\w\s,.\-'/]+$")
 
 # ─── Rate Limiter (in-memory, per-IP) ────────────────────────────────────────
 
@@ -184,23 +191,68 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-CORS_ORIGINS = ["*"] if ENV != "production" else [FRONTEND_URL]
+# Never combine wildcard with credentials — pick specific origins for dev
+if ENV == "production":
+    CORS_ORIGINS = [FRONTEND_URL] if FRONTEND_URL else []
+    CORS_CREDS   = True
+else:
+    CORS_ORIGINS = ["http://localhost:8000", "http://localhost:3000", "http://127.0.0.1:8000"]
+    CORS_CREDS   = False
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
-    allow_credentials=True,
+    allow_credentials=CORS_CREDS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
+class _SecurityHeaders(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"]  = "nosniff"
+        response.headers["X-Frame-Options"]          = "DENY"
+        response.headers["Referrer-Policy"]          = "strict-origin-when-cross-origin"
+        response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
+        response.headers["Content-Security-Policy"]  = (
+            "default-src 'self'; "
+            "script-src 'self' https://maps.googleapis.com 'unsafe-inline'; "
+            "img-src 'self' data: https://maps.googleapis.com https://maps.gstatic.com; "
+            "style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; "
+            "font-src https://fonts.gstatic.com; "
+            "connect-src 'self'; "
+            "frame-ancestors 'none';"
+        )
+        return response
+
+app.add_middleware(_SecurityHeaders)
+# Honour X-Forwarded-For set by Railway's trusted proxy so request.client.host is real
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+
+
 # ─── Models ───────────────────────────────────────────────────────────────────
 
 class CheckoutRequest(BaseModel):
-    address: str
-    buyer_name: str
+    address:    str = Field(min_length=10, max_length=200)
+    buyer_name: str = Field(min_length=2,  max_length=100)
     buyer_email: EmailStr
+
+    @field_validator("address")
+    @classmethod
+    def address_chars(cls, v: str) -> str:
+        v = v.strip()
+        if not _ADDRESS_RE.match(v):
+            raise ValueError("Address contains invalid characters")
+        return v
+
+    @field_validator("buyer_name")
+    @classmethod
+    def name_chars(cls, v: str) -> str:
+        v = v.strip()
+        if not re.match(r"^[\w\s\-'.]+$", v):
+            raise ValueError("Name contains invalid characters")
+        return v
 
 class CheckoutResponse(BaseModel):
     checkout_url: str
@@ -257,7 +309,7 @@ async def generate_and_deliver_report(
         log.info("[%s] Complete", job_id)
 
     except Exception as e:
-        job_update(job_id, "failed", f"Error: {str(e)}")
+        job_update(job_id, "failed", "Report generation failed. Please try again or contact support.")
         log.exception("[%s] Failed: %s", job_id, e)
 
     finally:
@@ -273,20 +325,13 @@ async def generate_and_deliver_report(
 
 @app.get("/health")
 def health():
-    return {
-        "status":    "ok",
-        "service":   "PropertyReport API",
-        "version":   "1.0.0",
-        "stripe":    "test" if IS_TEST_MODE else "live",
-        "env":       ENV,
-        "price_aud": REPORT_PRICE_AUD_CENTS / 100,
-    }
+    return {"status": "ok"}
 
 
 @app.post("/create-checkout", response_model=CheckoutResponse)
 async def create_checkout(req: CheckoutRequest, request: Request):
-    client_ip = (request.headers.get("x-forwarded-for") or
-                 (request.client.host if request.client else "unknown")).split(",")[0].strip()
+    # ProxyHeadersMiddleware already resolved the real IP into request.client.host
+    client_ip = request.client.host if request.client else "unknown"
     if not _check_rate_limit(client_ip):
         log.warning("Rate limit hit for IP %s", client_ip)
         raise HTTPException(429, f"Too many requests. Max {_RATE_LIMIT} per {_RATE_WINDOW // 60} minutes.")
@@ -340,11 +385,10 @@ async def stripe_webhook(request: Request, background_tasks: BackgroundTasks):
     payload    = await request.body()
     sig_header = request.headers.get("stripe-signature", "")
 
-    event = json.loads(payload)
-
+    # CRIT: verify signature BEFORE touching the payload
     if STRIPE_WEBHOOK_SECRET:
         try:
-            stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
+            event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
         except stripe.SignatureVerificationError:
             log.warning("Webhook signature verification failed")
             raise HTTPException(400, "Invalid webhook signature")
@@ -352,6 +396,7 @@ async def stripe_webhook(request: Request, background_tasks: BackgroundTasks):
         raise HTTPException(400, "Webhook secret not configured")
     else:
         log.warning("Dev mode: skipping webhook signature verification")
+        event = json.loads(payload)
 
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
@@ -368,7 +413,13 @@ async def stripe_webhook(request: Request, background_tasks: BackgroundTasks):
 
         log.info("Payment confirmed [%s] — %s → %s", job_id, address, buyer_email)
 
-        if not job_get(job_id):
+        # MED-7: idempotency — skip if job already in a terminal or active state
+        existing = job_get(job_id)
+        if existing and existing.get("status") in ("complete", "researching", "generating_pdf", "emailing"):
+            log.info("Duplicate webhook for job %s (status: %s) — ignoring", job_id, existing["status"])
+            return JSONResponse({"status": "duplicate"})
+
+        if not existing:
             job_create(job_id, address)
 
         background_tasks.add_task(
@@ -388,6 +439,7 @@ async def get_report_status(job_id: str):
 
 @app.post("/dev/generate")
 async def dev_generate(
+    request: Request,
     address: str,
     buyer_email: str,
     buyer_name: str = "Test Buyer",
@@ -395,6 +447,8 @@ async def dev_generate(
 ):
     if ENV == "production":
         raise HTTPException(403, "Dev endpoint disabled in production")
+    if _DEV_TOKEN and request.headers.get("X-Dev-Token") != _DEV_TOKEN:
+        raise HTTPException(403, "Invalid or missing X-Dev-Token header")
 
     job_id = str(uuid.uuid4())
     job_create(job_id, address, "Starting (dev mode — no payment required)...")

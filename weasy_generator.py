@@ -26,7 +26,7 @@ from datetime import datetime
 from typing import Any
 
 try:
-    from jinja2 import Template
+    from jinja2 import Environment, Template
 except ImportError:
     print("Run: pip install jinja2", file=sys.stderr)
     raise
@@ -2018,9 +2018,11 @@ body {
 
 # ─── Public renderers ─────────────────────────────────────────────────────────
 
+_JINJA_ENV = Environment(autoescape=True)
+
 def render_dashboard_html(report) -> str:
     view = build_view(report)
-    return Template(HTML_TEMPLATE).render(view=view)
+    return _JINJA_ENV.from_string(HTML_TEMPLATE).render(view=view)
 
 
 def render_dashboard_pdf(report, output_path: str) -> None:

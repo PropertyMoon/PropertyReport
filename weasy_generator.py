@@ -152,6 +152,24 @@ def fetch_static_map_uri(address: str, w: int = 600, h: int = 280,
     )
 
 
+# ─── State helpers ────────────────────────────────────────────────────────────
+
+_CBD_NAMES = {
+    "VIC": "Melbourne CBD",
+    "NSW": "Sydney CBD",
+    "QLD": "Brisbane CBD",
+    "SA":  "Adelaide CBD",
+    "WA":  "Perth CBD",
+    "TAS": "Hobart CBD",
+    "ACT": "Canberra City",
+    "NT":  "Darwin CBD",
+}
+
+def _cbd_name(address: str) -> str:
+    m = re.search(r'\b(VIC|NSW|QLD|SA|WA|TAS|ACT|NT)\b', address or "", re.IGNORECASE)
+    return _CBD_NAMES.get(m.group(1).upper(), "CBD") if m else "CBD"
+
+
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def _fmt_price(v: Any) -> str:
@@ -621,13 +639,18 @@ def build_view(report) -> dict:
 
     # Last sale (subject property)
     last_sale_obj = mk.get("subject_property_last_sale") or {}
-    if isinstance(last_sale_obj, dict):
+    if isinstance(last_sale_obj, dict) and last_sale_obj.get("price"):
         last_sale = {
             "price": _fmt_price(last_sale_obj.get("price")),
-            "date":  str(last_sale_obj.get("date") or "—"),
+            "date":  str(last_sale_obj.get("date") or ""),
         }
     else:
-        last_sale = {"price": "—", "date": "—"}
+        # Fall back to the pre-formatted string from extract_metrics
+        ls_str = (metrics.get("last_sale_price") or "")
+        if ls_str and ls_str not in ("Not on record", "N/A", "—", ""):
+            last_sale = {"price": ls_str, "date": ""}
+        else:
+            last_sale = {"price": "Not on record", "date": ""}
 
     # Scorecard rows
     factor_labels = [
@@ -663,7 +686,7 @@ def build_view(report) -> dict:
     cbd_pk  = _mins(tr.get("drive_to_cbd_peak_mins"),    "  ·  Peak")
     if cbd_off or cbd_pk:
         transit.append({"icon": icon("car"), "color": "amber",
-                        "label": "Melbourne CBD", "right": cbd_off or cbd_pk})
+                        "label": _cbd_name(report.address), "right": cbd_off or cbd_pk})
 
     routes = tr.get("bus_routes") or []
     route_labels: list[str] = []
@@ -1836,7 +1859,7 @@ body {
       </table>
       <div class="last-sale-box">
         <div><span class="star">★</span><strong>Last Sale (Subject Property)</strong></div>
-        <div><span class="price">{{ view.last_sale.price }}</span> &nbsp;<span style="color: var(--slate-3)">{{ view.last_sale.date }}</span></div>
+        <div><span class="price">{{ view.last_sale.price }}</span>{% if view.last_sale.date %} &nbsp;<span style="color: var(--slate-3)">{{ view.last_sale.date }}</span>{% endif %}</div>
       </div>
     </div>
     <div class="card">

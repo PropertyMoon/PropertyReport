@@ -370,18 +370,25 @@ RESEARCH_TASKS = {
 
     "property_market": (
         "Property: {address}\n"
-        "SEARCH STEPS — follow this order: "
-        "(1) FIRST search realestate.com.au/[address-slug]/sold and domain.com.au/[address-slug] "
-        "to find when THIS exact property last sold and the sale price. This is mandatory — do not skip. "
-        "(2) Search for 2 recent comparable sales nearby. "
-        "(3) Search for suburb market data (days on market, clearance rates, outlook).\n"
+        "SEARCH STEPS — follow this order:\n"
+        "(1) MANDATORY FIRST SEARCH: Search Google for exactly this query: "
+        '"{address} sold realestate.com.au" '
+        "— this returns the sold listing page directly. "
+        "Click through to the result to read the sold price and date. "
+        "If that returns nothing, also try: "
+        '"{address} sold domain.com.au" '
+        "and "
+        '"{address} sold price 2024 OR 2025 OR 2023" '
+        "— do NOT skip this step or return null without trying all three queries.\n"
+        "(2) Search for 2 recent comparable sales in the same suburb.\n"
+        "(3) Search for suburb-level market data (days on market, clearance rate, outlook).\n"
         "Return JSON with: "
-        "subject_property_last_sale (object with price (numeric AUD) and date (string e.g. 'March 2022') — "
-        "REQUIRED: search realestate.com.au and domain.com.au sold history for THIS address before setting to null; "
-        "return null ONLY if both platforms return zero results for this address), "
-        "comparable_sales (list of EXACTLY 2 most recent comparable sales in the same suburb — similar property type, similar size; each object must include: address, sale_price (numeric AUD), sale_date (e.g. 'March 2025'), bedrooms (int), bathrooms (int), land_sqm (int)), "
-        "days_on_market, auction_clearance_rate, price_per_sqm, best_pockets, market_outlook. "
-        "Use realestate.com.au and domain.com.au sold-history pages."
+        "subject_property_last_sale (object: price (numeric AUD — no $ sign, just the number), "
+        "date (string e.g. 'February 2025') — "
+        "REQUIRED: only return null if all three search queries above return zero sold results for this address), "
+        "comparable_sales (list of EXACTLY 2 most recent comparable sales in the same suburb — "
+        "similar type and size; each: address, sale_price (numeric AUD), sale_date, bedrooms (int), bathrooms (int), land_sqm (int)), "
+        "days_on_market, auction_clearance_rate, price_per_sqm, best_pockets, market_outlook."
     ),
 
     "risk_overlays": "Property: {address}\nState: {state}\nReturn JSON with: flood_risk, bushfire_bal_rating, heritage_overlay, landscape_overlay, subdivision_potential, noise_concerns, contamination_flags. Use {planning_url} and {flood_url}.",

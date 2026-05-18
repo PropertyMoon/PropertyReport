@@ -577,7 +577,10 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
     for block in response.content:
         if block.type == "text":
             full_text += block.text
-    
+
+    if task_name == "property_market":
+        print(f"  📊 [DEBUG] property_market raw model output:\n{full_text[:2000]}")
+
     return _parse_json(full_text, task_name)
 
 

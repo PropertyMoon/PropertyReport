@@ -11,6 +11,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from urllib.request import Request, urlopen
 from urllib.error import URLError
+from urllib.parse import quote
 
 # Reuse state detection from pdf_generator
 _STATE_SOURCES = {
@@ -922,6 +923,95 @@ def _ratemyagent_last_sale(address: str) -> dict | None:
         return None
 
 
+_SCRAPE_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/json,*/*",
+    "Accept-Language": "en-AU,en;q=0.9",
+}
+
+
+def _propertyvalue_last_sale(address: str) -> dict | None:
+    """Two-step scrape of propertyvalue.com.au:
+    1. Search to discover the property URL (which contains a unique numeric ID).
+    2. Fetch that URL and extract the most recent post-2022 sold price.
+    """
+    slug = address.lower()
+    slug = re.sub(r',?\s*australia\s*$', '', slug).strip()
+    slug = re.sub(r'[^a-z0-9]+', '-', slug).strip('-')
+
+    # Step 1 — find the unique property URL via search/autocomplete
+    search_candidates = [
+        f"https://www.propertyvalue.com.au/autocomplete?q={quote(address)}",
+        f"https://www.propertyvalue.com.au/search?q={quote(address)}",
+        f"https://www.propertyvalue.com.au/?q={quote(address)}",
+    ]
+
+    property_url = None
+    for search_url in search_candidates:
+        try:
+            print(f"  🌐 propertyvalue search: {search_url}")
+            req = Request(search_url, headers=_SCRAPE_HEADERS)
+            with urlopen(req, timeout=10) as resp:
+                content = resp.read().decode("utf-8", errors="ignore")
+            m = re.search(rf'/property/{re.escape(slug)}/(\d+)', content)
+            if m:
+                property_url = f"https://www.propertyvalue.com.au/property/{slug}/{m.group(1)}"
+                print(f"  ✅ propertyvalue URL found: {property_url}")
+                break
+        except Exception as e:
+            print(f"  ℹ️  propertyvalue search failed ({search_url}): {e}")
+
+    if not property_url:
+        print("  ℹ️  propertyvalue.com.au: property URL not found via search")
+        return None
+
+    # Step 2 — fetch the property page and extract the most recent sold price
+    try:
+        req = Request(property_url, headers=_SCRAPE_HEADERS)
+        with urlopen(req, timeout=10) as resp:
+            html = resp.read().decode("utf-8", errors="ignore")
+
+        # Pattern: "Last sold for $1,470,000 on 24 Feb 2025"
+        sales = []
+        for m in re.finditer(
+            r'[Ll]ast\s+sold\s+for\s*\$?([\d,]+)'
+            r'(?:\s+on\s+([\d]{1,2}\s+\w+\s+\d{4}|\w+\s+\d{4}))?',
+            html
+        ):
+            price = int(m.group(1).replace(",", ""))
+            date  = m.group(2) if m.group(2) else None
+            sales.append({"price": price, "date": date, "year": _sale_year(date)})
+
+        # Fallback: any large dollar amount near a year
+        if not sales:
+            for m in re.finditer(r'\$([\d,]{6,10})', html):
+                price = int(m.group(1).replace(",", ""))
+                if 100_000 <= price <= 20_000_000:
+                    sales.append({"price": price, "date": None, "year": None})
+
+        if not sales:
+            print("  ℹ️  propertyvalue.com.au: no price found on page")
+            return None
+
+        # Prefer most recent post-2022 sale
+        recent = [s for s in sales if s.get("year") and s["year"] >= 2022]
+        best = max(recent, key=lambda s: s["year"]) if recent else None
+
+        if best:
+            print(f"  ✅ propertyvalue.com.au: ${best['price']:,} on {best['date']}")
+            return {"price": best["price"], "date": best["date"]}
+
+        print("  ℹ️  propertyvalue.com.au: no post-2022 sale on page")
+        return None
+
+    except Exception as e:
+        print(f"  ℹ️  propertyvalue.com.au page fetch failed: {e}")
+        return None
+
+
 # ─── Main Orchestrator ────────────────────────────────────────────────────────
 
 def research_property(address: str, api_key: str = None) -> PropertyReport:
@@ -990,16 +1080,18 @@ def research_property(address: str, api_key: str = None) -> PropertyReport:
     report.metrics = extract_metrics(report)
     report.scores  = parse_scores_from_summary(summary)
 
-    # Override last_sale_price with a direct RateMyAgent fetch if the AI search missed it
+    # Override last_sale_price with direct scraping if the AI search missed it
     if report.metrics.get("last_sale_price") in (None, "Not on record"):
-        rma = _ratemyagent_last_sale(address)
-        if rma and rma.get("price"):
-            yr = _sale_year(rma.get("date", ""))
-            if yr is None or yr >= 2022:
-                price_str = _fmt_price(str(rma["price"]))
-                report.metrics["last_sale_price"] = (
-                    f"{price_str} ({rma['date']})" if rma.get("date") else price_str
-                )
+        for scrape_fn in (_ratemyagent_last_sale, _propertyvalue_last_sale):
+            result = scrape_fn(address)
+            if result and result.get("price"):
+                yr = _sale_year(result.get("date", ""))
+                if yr is None or yr >= 2022:
+                    price_str = _fmt_price(str(result["price"]))
+                    report.metrics["last_sale_price"] = (
+                        f"{price_str} ({result['date']})" if result.get("date") else price_str
+                    )
+                    break
 
     print("\n✅ Report complete!")
     return report

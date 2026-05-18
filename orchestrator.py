@@ -371,7 +371,8 @@ RESEARCH_TASKS = {
     "property_market": (
         "Property: {address}\n"
         "SEARCH STEPS — follow ALL steps before returning null for last sale:\n"
-        "(1) Search: \"{address} sold realestate.com.au\" — read the sold price and date from the result.\n"
+        "(1) Search: \"{address} sold realestate.com.au\" — on the listing page look for a dollar amount "
+        "(e.g. '$1,470,000') appearing near the text 'Sold on [date]'; that is the sold price and date.\n"
         "(2) If step 1 fails, search: \"{address} sold domain.com.au\"\n"
         "(3) If step 2 fails, search: \"{address} sold price 2024 OR 2025 OR 2023\"\n"
         "(4) If step 3 fails, search: \"{address} sold\" site:pricefinder.com.au OR site:onthehouse.com.au OR site:homesales.com.au\n"

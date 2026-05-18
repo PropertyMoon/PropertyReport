@@ -349,14 +349,36 @@ RESEARCH_TASKS = {
 
     "schools": "Property: {address}\nReturn JSON with: primary_schools (name, distance_km, icsea), secondary_schools (name, distance_km, icsea), private_schools (name, distance_km), in_catchment_zone, school_quality_summary. Use myschool.edu.au.",
 
-    "government_projects": "Property: {address}\nState: {state}\nReturn JSON with: transport_projects, federal_investment, council_developments, zoning_changes, impact_on_value (positive/negative), project_timelines. Use {planning_url} for planning data.",
+    "government_projects": (
+        "Property: {address}\nState: {state}\n"
+        "SEARCH STEPS (use all searches): "
+        "(1) Search '[suburb] infrastructure projects {state}' and '[suburb] council development plan'. "
+        "(2) Search '[LGA or council name] capital works budget' or '[suburb] state government investment'. "
+        "(3) Check {planning_url} for any zoning or development overlays near this address.\n"
+        "Return JSON with: "
+        "infrastructure_projects (list of up to 5 objects — REQUIRED, never return empty list; "
+        "every suburb has road upgrades, park works, school builds, rail projects, or community facilities nearby; "
+        "each object: name (string), type (one of: Road/Rail/Community/School/Park/Council/Federal), "
+        "status (e.g. 'Under Construction', 'Funded – 2026', 'Planned – 2027', 'Proposed'), "
+        "description (one short sentence on what it is and how far from the property)), "
+        "zoning_changes (string or null), "
+        "impact_on_value (one of: 'Positive', 'Neutral', 'Negative'), "
+        "impact_reason (one short sentence)."
+    ),
 
     "transport": "Property: {address}\nReturn JSON with: nearest_train (name, distance_km, line, cbd_mins), bus_routes, tram_access, drive_to_cbd_peak_mins, drive_to_cbd_offpeak_mins, walkability_score, cycling_infrastructure.",
 
     "property_market": (
         "Property: {address}\n"
+        "SEARCH STEPS — follow this order: "
+        "(1) FIRST search realestate.com.au/[address-slug]/sold and domain.com.au/[address-slug] "
+        "to find when THIS exact property last sold and the sale price. This is mandatory — do not skip. "
+        "(2) Search for 2 recent comparable sales nearby. "
+        "(3) Search for suburb market data (days on market, clearance rates, outlook).\n"
         "Return JSON with: "
-        "subject_property_last_sale (price, date — for THIS exact address from realestate.com.au sold history or domain.com.au; null if no record), "
+        "subject_property_last_sale (object with price (numeric AUD) and date (string e.g. 'March 2022') — "
+        "REQUIRED: search realestate.com.au and domain.com.au sold history for THIS address before setting to null; "
+        "return null ONLY if both platforms return zero results for this address), "
         "comparable_sales (list of EXACTLY 2 most recent comparable sales in the same suburb — similar property type, similar size; each object must include: address, sale_price (numeric AUD), sale_date (e.g. 'March 2025'), bedrooms (int), bathrooms (int), land_sqm (int)), "
         "days_on_market, auction_clearance_rate, price_per_sqm, best_pockets, market_outlook. "
         "Use realestate.com.au and domain.com.au sold-history pages."
@@ -486,6 +508,14 @@ def _parse_json(text: str, label: str = "") -> dict:
 
 # ─── Individual Research Agent ────────────────────────────────────────────────
 
+# Tasks that need more web searches to reliably find specific data
+_TASK_MAX_SEARCHES = {
+    "property_market":     5,  # must search subject address + 2 comps + market data
+    "government_projects": 5,  # must search council + state + planning portal
+}
+_DEFAULT_MAX_SEARCHES = 3
+
+
 def run_research_task(client: anthropic.Anthropic, task_name: str, address: str) -> dict:
     """Run a single research task using Claude with web search."""
 
@@ -499,13 +529,14 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
         crime_url=state["crime"],
         flood_url=state["flood"],
     )
+    max_searches = _TASK_MAX_SEARCHES.get(task_name, _DEFAULT_MAX_SEARCHES)
 
     for attempt in range(4):
         try:
             response = client.messages.create(
                 model="claude-sonnet-4-6",
                 max_tokens=3000,
-                tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 3}],
+                tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": max_searches}],
                 system=(
                     "Australian property researcher. Respond with valid JSON only — no prose, "
                     "no markdown, no explanations outside the JSON. Use null for any field you "

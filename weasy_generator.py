@@ -727,12 +727,23 @@ def build_view(report) -> dict:
                 "icsea": entry.get("icsea") or "—",
             })
 
-    # Infrastructure pipeline
+    # Infrastructure pipeline — check all possible field names the AI may use
     pipeline = []
-    raw_proj = gov.get("transport_projects") or []
+    raw_proj = (
+        gov.get("infrastructure_projects")
+        or gov.get("transport_projects")
+        or gov.get("council_developments")
+        or gov.get("federal_investment")
+        or []
+    )
+    if isinstance(raw_proj, dict):
+        raw_proj = [raw_proj]
     for proj in raw_proj[:3]:
         if isinstance(proj, dict) and proj.get("name"):
-            pipeline.append({"name": proj["name"], "status": proj.get("status") or proj.get("timeline") or "—"})
+            pipeline.append({
+                "name":   proj["name"],
+                "status": proj.get("status") or proj.get("timeline") or proj.get("type") or "—",
+            })
 
     # Map legend (real research data, used alongside the Google Static Map)
     def _dist(d):

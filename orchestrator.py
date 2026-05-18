@@ -942,27 +942,38 @@ def _propertyvalue_last_sale(address: str) -> dict | None:
     slug = re.sub(r',?\s*australia\s*$', '', slug).strip()
     slug = re.sub(r'[^a-z0-9]+', '-', slug).strip('-')
 
-    # Step 1 — use DuckDuckGo to find the full propertyvalue.com.au URL (which contains a
-    # unique numeric ID we can't predict, e.g. /property/23-waterside-drive-.../14360875)
-    ddg_url = (
-        f"https://html.duckduckgo.com/html/?q="
-        f"{quote('site:propertyvalue.com.au ' + address)}"
-    )
+    # Step 1 — search Bing to find the full propertyvalue.com.au URL including its
+    # numeric property ID (e.g. /property/23-waterside-drive-.../14360875).
+    # Try Bing first, fall back to DuckDuckGo.
+    search_attempts = [
+        (
+            "Bing",
+            f"https://www.bing.com/search?q={quote('site:propertyvalue.com.au ' + address)}"
+        ),
+        (
+            "DDG",
+            f"https://html.duckduckgo.com/html/?q={quote('site:propertyvalue.com.au ' + address)}"
+        ),
+    ]
     property_url = None
-    try:
-        print(f"  🌐 DDG search for propertyvalue URL: {ddg_url}")
-        req = Request(ddg_url, headers=_SCRAPE_HEADERS)
-        with urlopen(req, timeout=10) as resp:
-            content = resp.read().decode("utf-8", errors="ignore")
-        m = re.search(rf'propertyvalue\.com\.au/property/{re.escape(slug)}/(\d+)', content)
-        if m:
-            property_url = f"https://www.propertyvalue.com.au/property/{slug}/{m.group(1)}"
-            print(f"  ✅ propertyvalue URL found: {property_url}")
-    except Exception as e:
-        print(f"  ℹ️  DDG search failed: {e}")
+    for engine, search_url in search_attempts:
+        try:
+            print(f"  🌐 {engine} search for propertyvalue URL: {search_url}")
+            req = Request(search_url, headers=_SCRAPE_HEADERS)
+            with urlopen(req, timeout=10) as resp:
+                content = resp.read().decode("utf-8", errors="ignore")
+            m = re.search(rf'propertyvalue\.com\.au/property/{re.escape(slug)}/(\d+)', content)
+            if m:
+                property_url = f"https://www.propertyvalue.com.au/property/{slug}/{m.group(1)}"
+                print(f"  ✅ propertyvalue URL found via {engine}: {property_url}")
+                break
+            else:
+                print(f"  ℹ️  {engine}: no propertyvalue URL in results")
+        except Exception as e:
+            print(f"  ℹ️  {engine} search failed: {e}")
 
     if not property_url:
-        print("  ℹ️  propertyvalue.com.au: property URL not found via DDG search")
+        print("  ℹ️  propertyvalue.com.au: property URL not found — consider Domain API integration")
         return None
 
     # Step 2 — fetch the property page and extract the most recent sold price

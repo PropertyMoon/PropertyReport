@@ -9,6 +9,8 @@ import re
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
+from urllib.request import Request, urlopen
+from urllib.error import URLError
 
 # Reuse state detection from pdf_generator
 _STATE_SOURCES = {
@@ -868,6 +870,58 @@ def _normalise_address(address: str) -> str:
     return result
 
 
+def _ratemyagent_last_sale(address: str) -> dict | None:
+    """Directly fetch the RateMyAgent property page and extract the last sold price.
+
+    RateMyAgent uses predictable SSR'd URLs:
+      https://www.ratemyagent.com.au/property/[number]-[street]-[suburb]-[state]-[postcode]
+    The sold price appears as plain text: 'Last sold for $1,470,000'
+    """
+    # Build URL slug from the normalised address
+    slug = address.lower()
+    slug = re.sub(r',?\s*australia\s*$', '', slug).strip()   # strip trailing country
+    slug = re.sub(r'[^a-z0-9]+', '-', slug).strip('-')       # spaces/punct → hyphens
+
+    url = f"https://www.ratemyagent.com.au/property/{slug}"
+    print(f"  🌐 RateMyAgent direct fetch: {url}")
+
+    try:
+        req = Request(url, headers={
+            "User-Agent": "Mozilla/5.0 (compatible; PropertyReport/1.0; +https://propertyreport.com.au)",
+            "Accept": "text/html,application/xhtml+xml",
+            "Accept-Language": "en-AU,en;q=0.9",
+        })
+        with urlopen(req, timeout=10) as resp:
+            html = resp.read().decode("utf-8", errors="ignore")
+
+        # "Last sold for $1,470,000"
+        price_m = re.search(r'Last sold for\s*<[^>]*>\s*\$([\d,]+)', html)
+        if not price_m:
+            price_m = re.search(r'Last sold for\s+\$([\d,]+)', html)
+        if not price_m:
+            print("  ℹ️  RateMyAgent: page fetched but no 'Last sold for $' found")
+            return None
+
+        price = int(price_m.group(1).replace(",", ""))
+
+        # "last sold this property on 24 February 2025"
+        date_m = re.search(
+            r'last sold this property on\s+([\d]{1,2}\s+\w+\s+\d{4})',
+            html, re.IGNORECASE
+        )
+        date = date_m.group(1) if date_m else None
+
+        print(f"  ✅ RateMyAgent: last sale = ${price:,} on {date}")
+        return {"price": price, "date": date}
+
+    except URLError as e:
+        print(f"  ℹ️  RateMyAgent fetch error: {e}")
+        return None
+    except Exception as e:
+        print(f"  ℹ️  RateMyAgent unexpected error: {e}")
+        return None
+
+
 # ─── Main Orchestrator ────────────────────────────────────────────────────────
 
 def research_property(address: str, api_key: str = None) -> PropertyReport:
@@ -935,7 +989,18 @@ def research_property(address: str, api_key: str = None) -> PropertyReport:
     )
     report.metrics = extract_metrics(report)
     report.scores  = parse_scores_from_summary(summary)
-    
+
+    # Override last_sale_price with a direct RateMyAgent fetch if the AI search missed it
+    if report.metrics.get("last_sale_price") in (None, "Not on record"):
+        rma = _ratemyagent_last_sale(address)
+        if rma and rma.get("price"):
+            yr = _sale_year(rma.get("date", ""))
+            if yr is None or yr >= 2022:
+                price_str = _fmt_price(str(rma["price"]))
+                report.metrics["last_sale_price"] = (
+                    f"{price_str} ({rma['date']})" if rma.get("date") else price_str
+                )
+
     print("\n✅ Report complete!")
     return report
 

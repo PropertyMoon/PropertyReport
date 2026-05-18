@@ -385,10 +385,14 @@ async def stripe_webhook(request: Request, background_tasks: BackgroundTasks):
     payload    = await request.body()
     sig_header = request.headers.get("stripe-signature", "")
 
-    # CRIT: verify signature BEFORE touching the payload
+    # CRIT: verify signature BEFORE touching the payload.
+    # construct_event() returns a StripeObject — call it for verification only,
+    # then re-parse the raw bytes as a plain dict so the rest of the handler
+    # can use standard dict access without StripeObject quirks.
     if STRIPE_WEBHOOK_SECRET:
         try:
-            event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
+            stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
+            event = json.loads(payload)
         except stripe.SignatureVerificationError:
             log.warning("Webhook signature verification failed")
             raise HTTPException(400, "Invalid webhook signature")

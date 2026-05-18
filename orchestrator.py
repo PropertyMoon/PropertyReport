@@ -5,6 +5,7 @@ Uses Claude API with web search to research Australian properties
 
 import anthropic
 import json
+import os
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -942,38 +943,37 @@ def _propertyvalue_last_sale(address: str) -> dict | None:
     slug = re.sub(r',?\s*australia\s*$', '', slug).strip()
     slug = re.sub(r'[^a-z0-9]+', '-', slug).strip('-')
 
-    # Step 1 — search Bing to find the full propertyvalue.com.au URL including its
-    # numeric property ID (e.g. /property/23-waterside-drive-.../14360875).
-    # Try Bing first, fall back to DuckDuckGo.
-    search_attempts = [
-        (
-            "Bing",
-            f"https://www.bing.com/search?q={quote('site:propertyvalue.com.au ' + address)}"
-        ),
-        (
-            "DDG",
-            f"https://html.duckduckgo.com/html/?q={quote('site:propertyvalue.com.au ' + address)}"
-        ),
-    ]
+    # Step 1 — use Google Custom Search API to find the full propertyvalue.com.au URL
+    # (which contains an unpredictable numeric ID we can't derive from the address alone).
+    cse_key = os.getenv("GOOGLE_CSE_KEY", "")
+    cse_cx  = os.getenv("GOOGLE_CSE_CX", "e7ad18ec6ddc148d0")
+
     property_url = None
-    for engine, search_url in search_attempts:
+    if cse_key:
+        cse_api = (
+            f"https://www.googleapis.com/customsearch/v1"
+            f"?key={cse_key}&cx={cse_cx}&num=3&q={quote(address)}"
+        )
         try:
-            print(f"  🌐 {engine} search for propertyvalue URL: {search_url}")
-            req = Request(search_url, headers=_SCRAPE_HEADERS)
+            print(f"  🌐 Google CSE search for propertyvalue URL")
+            req = Request(cse_api, headers={"Accept": "application/json"})
             with urlopen(req, timeout=10) as resp:
-                content = resp.read().decode("utf-8", errors="ignore")
-            m = re.search(rf'propertyvalue\.com\.au/property/{re.escape(slug)}/(\d+)', content)
-            if m:
-                property_url = f"https://www.propertyvalue.com.au/property/{slug}/{m.group(1)}"
-                print(f"  ✅ propertyvalue URL found via {engine}: {property_url}")
-                break
-            else:
-                print(f"  ℹ️  {engine}: no propertyvalue URL in results")
+                data = json.loads(resp.read().decode("utf-8"))
+            for item in data.get("items", []):
+                link = item.get("link", "")
+                m = re.search(rf'/property/{re.escape(slug)}/(\d+)', link)
+                if m:
+                    property_url = f"https://www.propertyvalue.com.au/property/{slug}/{m.group(1)}"
+                    print(f"  ✅ propertyvalue URL found: {property_url}")
+                    break
+            if not property_url:
+                print("  ℹ️  Google CSE: no propertyvalue URL in results")
         except Exception as e:
-            print(f"  ℹ️  {engine} search failed: {e}")
+            print(f"  ℹ️  Google CSE search failed: {e}")
+    else:
+        print("  ℹ️  GOOGLE_CSE_KEY not set — skipping propertyvalue lookup")
 
     if not property_url:
-        print("  ℹ️  propertyvalue.com.au: property URL not found — consider Domain API integration")
         return None
 
     # Step 2 — fetch the property page and extract the most recent sold price

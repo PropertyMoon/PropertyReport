@@ -855,6 +855,11 @@ def research_property(address: str, api_key: str = None) -> PropertyReport:
             task_name = futures[future]
             try:
                 research_data[task_name] = future.result()
+                if task_name == "property_market":
+                    pm = research_data[task_name]
+                    print(f"  📊 [DEBUG] property_market raw last_sale = "
+                          f"{pm.get('subject_property_last_sale')!r}")
+                    print(f"  📊 [DEBUG] property_market keys = {list(pm.keys())}")
             except Exception as e:
                 print(f"  ❌ Error in {task_name}: {e}")
                 research_data[task_name] = {"error": str(e)}

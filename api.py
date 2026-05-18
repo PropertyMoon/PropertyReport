@@ -45,6 +45,11 @@ logging.basicConfig(
 )
 log = logging.getLogger("propertyreport")
 
+# Suppress noisy internal loggers from WeasyPrint's font pipeline
+logging.getLogger("fontTools").setLevel(logging.WARNING)
+logging.getLogger("weasyprint").setLevel(logging.WARNING)
+logging.getLogger("weasyprint.progress").setLevel(logging.WARNING)
+
 from orchestrator import research_property, PropertyReport
 from pdf_generator import generate_pdf
 from email_sender import send_report_email

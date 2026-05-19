@@ -880,152 +880,114 @@ def _normalise_address(address: str) -> str:
     return result
 
 
-def _ratemyagent_last_sale(address: str) -> dict | None:
-    """Directly fetch the RateMyAgent property page and extract the last sold price.
-
-    RateMyAgent uses predictable SSR'd URLs:
-      https://www.ratemyagent.com.au/property/[number]-[street]-[suburb]-[state]-[postcode]
-    The sold price appears as plain text: 'Last sold for $1,470,000'
-    """
-    # Build URL slug from the normalised address
-    slug = address.lower()
-    slug = re.sub(r',?\s*australia\s*$', '', slug).strip()   # strip trailing country
-    slug = re.sub(r'[^a-z0-9]+', '-', slug).strip('-')       # spaces/punct → hyphens
-
-    url = f"https://www.ratemyagent.com.au/property/{slug}"
-    print(f"  🌐 RateMyAgent direct fetch: {url}")
-
+def _extract_sale_from_snippet(text: str) -> dict | None:
+    """Extract a sold price and optional date from a search snippet or title string.
+    Only matches patterns that strongly indicate a specific property sale, not median prices."""
+    # Match "sold for $X", "last sold $X", "sale price $X", "sold $X" with optional date
+    m = re.search(
+        r'(?:sold\s+(?:for\s+)?|last\s+sold\s+(?:for\s+)?|sale\s+price[:\s]+)'
+        r'\$\s*([\d,]{4,10})'
+        r'(?:[^$\d]{0,30}([\d]{1,2}\s+\w+\s+20\d\d|\w+\s+20\d\d))?',
+        text, re.IGNORECASE
+    )
+    if not m:
+        return None
     try:
-        req = Request(url, headers={
-            "User-Agent": "Mozilla/5.0 (compatible; PropertyReport/1.0; +https://propertyreport.com.au)",
-            "Accept": "text/html,application/xhtml+xml",
-            "Accept-Language": "en-AU,en;q=0.9",
-        })
-        with urlopen(req, timeout=10) as resp:
-            html = resp.read().decode("utf-8", errors="ignore")
-
-        # "Last sold for $1,470,000"
-        price_m = re.search(r'Last sold for\s*<[^>]*>\s*\$([\d,]+)', html)
-        if not price_m:
-            price_m = re.search(r'Last sold for\s+\$([\d,]+)', html)
-        if not price_m:
-            print("  ℹ️  RateMyAgent: page fetched but no 'Last sold for $' found")
-            return None
-
-        price = int(price_m.group(1).replace(",", ""))
-
-        # "last sold this property on 24 February 2025"
-        date_m = re.search(
-            r'last sold this property on\s+([\d]{1,2}\s+\w+\s+\d{4})',
-            html, re.IGNORECASE
-        )
-        date = date_m.group(1) if date_m else None
-
-        print(f"  ✅ RateMyAgent: last sale = ${price:,} on {date}")
-        return {"price": price, "date": date}
-
-    except URLError as e:
-        print(f"  ℹ️  RateMyAgent fetch error: {e}")
+        price = int(m.group(1).replace(",", ""))
+    except ValueError:
         return None
-    except Exception as e:
-        print(f"  ℹ️  RateMyAgent unexpected error: {e}")
+    if not (100_000 <= price <= 20_000_000):
         return None
+    date = m.group(2).strip() if m.group(2) else None
+    yr = _sale_year(date)
+    if yr is not None and yr < 2022:
+        return None
+    return {"price": price, "date": date}
 
 
-_SCRAPE_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
-    ),
-    "Accept": "text/html,application/xhtml+xml,application/json,*/*",
-    "Accept-Language": "en-AU,en;q=0.9",
-}
+def _serp_last_sale(address: str) -> dict | None:
+    """Use SerpAPI to find last sold price from Google search snippets.
 
-
-def _propertyvalue_last_sale(address: str) -> dict | None:
-    """Two-step scrape of propertyvalue.com.au:
-    1. Search to discover the property URL (which contains a unique numeric ID).
-    2. Fetch that URL and extract the most recent post-2022 sold price.
+    Searches broadly (no site: restriction) and parses snippet + title text
+    for sale price patterns. Falls back to scraping a propertyvalue.com.au
+    page if a URL with a numeric ID appears in the results.
     """
+    serp_key = os.getenv("SERP_API_KEY", "")
+    if not serp_key:
+        print("  ℹ️  SERP_API_KEY not set — skipping last-sale lookup")
+        return None
+
     slug = address.lower()
     slug = re.sub(r',?\s*australia\s*$', '', slug).strip()
     slug = re.sub(r'[^a-z0-9]+', '-', slug).strip('-')
 
-    # Step 1 — use SerpAPI to find the full propertyvalue.com.au URL
-    # (which contains an unpredictable numeric ID we can't derive from the address alone).
-    serp_key = os.getenv("SERP_API_KEY", "")
-
-    property_url = None
-    if serp_key:
-        serp_api = (
-            f"https://serpapi.com/search.json"
-            f"?api_key={serp_key}&engine=google&num=3"
-            f"&q={quote('site:propertyvalue.com.au ' + address)}"
-        )
-        try:
-            print(f"  🌐 SerpAPI search for propertyvalue URL")
-            req = Request(serp_api, headers={"Accept": "application/json"})
-            with urlopen(req, timeout=15) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-            for item in data.get("organic_results", []):
-                link = item.get("link", "")
-                m = re.search(rf'/property/{re.escape(slug)}/(\d+)', link)
-                if m:
-                    property_url = f"https://www.propertyvalue.com.au/property/{slug}/{m.group(1)}"
-                    print(f"  ✅ propertyvalue URL found: {property_url}")
-                    break
-            if not property_url:
-                print("  ℹ️  SerpAPI: no propertyvalue URL in results")
-        except Exception as e:
-            print(f"  ℹ️  SerpAPI search failed: {e}")
-    else:
-        print("  ℹ️  SERP_API_KEY not set — skipping propertyvalue lookup")
-
-    if not property_url:
-        return None
-
-    # Step 2 — fetch the property page and extract the most recent sold price
+    query = f'"{address}" sold price'
+    serp_api = (
+        f"https://serpapi.com/search.json"
+        f"?api_key={serp_key}&engine=google&num=5"
+        f"&q={quote(query)}"
+    )
     try:
-        req = Request(property_url, headers=_SCRAPE_HEADERS)
-        with urlopen(req, timeout=10) as resp:
-            html = resp.read().decode("utf-8", errors="ignore")
-
-        # Pattern: "Last sold for $1,470,000 on 24 Feb 2025"
-        sales = []
-        for m in re.finditer(
-            r'[Ll]ast\s+sold\s+for\s*\$?([\d,]+)'
-            r'(?:\s+on\s+([\d]{1,2}\s+\w+\s+\d{4}|\w+\s+\d{4}))?',
-            html
-        ):
-            price = int(m.group(1).replace(",", ""))
-            date  = m.group(2) if m.group(2) else None
-            sales.append({"price": price, "date": date, "year": _sale_year(date)})
-
-        # Fallback: any large dollar amount near a year
-        if not sales:
-            for m in re.finditer(r'\$([\d,]{6,10})', html):
-                price = int(m.group(1).replace(",", ""))
-                if 100_000 <= price <= 20_000_000:
-                    sales.append({"price": price, "date": None, "year": None})
-
-        if not sales:
-            print("  ℹ️  propertyvalue.com.au: no price found on page")
-            return None
-
-        # Prefer most recent post-2022 sale
-        recent = [s for s in sales if s.get("year") and s["year"] >= 2022]
-        best = max(recent, key=lambda s: s["year"]) if recent else None
-
-        if best:
-            print(f"  ✅ propertyvalue.com.au: ${best['price']:,} on {best['date']}")
-            return {"price": best["price"], "date": best["date"]}
-
-        print("  ℹ️  propertyvalue.com.au: no post-2022 sale on page")
-        return None
-
+        print(f"  🌐 SerpAPI: searching last sale for {address}")
+        req = Request(serp_api, headers={"Accept": "application/json"})
+        with urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
     except Exception as e:
-        print(f"  ℹ️  propertyvalue.com.au page fetch failed: {e}")
+        print(f"  ℹ️  SerpAPI request failed: {e}")
         return None
+
+    propertyvalue_url = None
+
+    for item in data.get("organic_results", []):
+        link    = item.get("link", "")
+        snippet = item.get("snippet", "")
+        title   = item.get("title", "")
+
+        # Try to pull price from snippet or title text
+        result = _extract_sale_from_snippet(f"{title} {snippet}")
+        if result:
+            print(f"  ✅ SerpAPI snippet: ${result['price']:,} on {result.get('date')}")
+            return result
+
+        # Record propertyvalue.com.au URL with numeric ID for fallback
+        if not propertyvalue_url:
+            m = re.search(rf'/property/{re.escape(slug)}/(\d+)', link)
+            if m:
+                propertyvalue_url = (
+                    f"https://www.propertyvalue.com.au/property/{slug}/{m.group(1)}"
+                )
+
+    # Fallback: scrape propertyvalue.com.au page if URL was found in results
+    if propertyvalue_url:
+        print(f"  🌐 Fetching propertyvalue.com.au: {propertyvalue_url}")
+        try:
+            req = Request(propertyvalue_url, headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Accept": "text/html,*/*",
+                "Accept-Language": "en-AU,en;q=0.9",
+            })
+            with urlopen(req, timeout=10) as resp:
+                html = resp.read().decode("utf-8", errors="ignore")
+            sales = []
+            for m in re.finditer(
+                r'[Ll]ast\s+sold\s+for\s*\$?([\d,]+)'
+                r'(?:\s+on\s+([\d]{1,2}\s+\w+\s+\d{4}|\w+\s+\d{4}))?',
+                html
+            ):
+                price = int(m.group(1).replace(",", ""))
+                date  = m.group(2) if m.group(2) else None
+                yr    = _sale_year(date)
+                if yr is None or yr >= 2022:
+                    sales.append({"price": price, "date": date, "year": yr or 0})
+            if sales:
+                best = max(sales, key=lambda s: s["year"])
+                print(f"  ✅ propertyvalue.com.au: ${best['price']:,} on {best['date']}")
+                return {"price": best["price"], "date": best["date"]}
+        except Exception as e:
+            print(f"  ℹ️  propertyvalue.com.au fetch failed: {e}")
+
+    print("  ℹ️  SerpAPI: no sale price found")
+    return None
 
 
 # ─── Main Orchestrator ────────────────────────────────────────────────────────
@@ -1091,18 +1053,14 @@ def research_property(address: str, api_key: str = None) -> PropertyReport:
     report.metrics = extract_metrics(report)
     report.scores  = parse_scores_from_summary(summary)
 
-    # Override last_sale_price with direct scraping if the AI search missed it
+    # Override last_sale_price with SerpAPI snippet search if the AI missed it
     if report.metrics.get("last_sale_price") in (None, "Not on record"):
-        for scrape_fn in (_ratemyagent_last_sale, _propertyvalue_last_sale):
-            result = scrape_fn(address)
-            if result and result.get("price"):
-                yr = _sale_year(result.get("date", ""))
-                if yr is None or yr >= 2022:
-                    price_str = _fmt_price(str(result["price"]))
-                    report.metrics["last_sale_price"] = (
-                        f"{price_str} ({result['date']})" if result.get("date") else price_str
-                    )
-                    break
+        result = _serp_last_sale(address)
+        if result and result.get("price"):
+            price_str = _fmt_price(str(result["price"]))
+            report.metrics["last_sale_price"] = (
+                f"{price_str} ({result['date']})" if result.get("date") else price_str
+            )
 
     print("\n✅ Report complete!")
     return report

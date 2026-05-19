@@ -10,8 +10,6 @@ import re
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
-from urllib.request import Request, urlopen
-from urllib.error import URLError
 
 
 # Reuse state detection from pdf_generator
@@ -880,142 +878,6 @@ def _normalise_address(address: str) -> str:
     return result
 
 
-def _extract_sale_from_snippet(text: str) -> dict | None:
-    """Extract a sold price and optional date from a search snippet or title string.
-    Only matches patterns that strongly indicate a specific property sale, not median prices."""
-    # Match "sold for $X", "last sold $X", "sale price $X", "sold $X" with optional date
-    m = re.search(
-        r'(?:sold\s+(?:for\s+)?|last\s+sold\s+(?:for\s+)?|sale\s+price[:\s]+)'
-        r'\$\s*([\d,]{4,10})'
-        r'(?:[^$\d]{0,30}([\d]{1,2}\s+\w+\s+20\d\d|\w+\s+20\d\d))?',
-        text, re.IGNORECASE
-    )
-    if not m:
-        return None
-    try:
-        price = int(m.group(1).replace(",", ""))
-    except ValueError:
-        return None
-    if not (100_000 <= price <= 20_000_000):
-        return None
-    date = m.group(2).strip() if m.group(2) else None
-    yr = _sale_year(date)
-    if yr is not None and yr < 2022:
-        return None
-    return {"price": price, "date": date}
-
-
-# Reverse abbreviation map for realestate.com.au URL slugs
-# (realestate.com.au uses abbreviated street types: Drive→dr, Street→st, etc.)
-_REA_STREET_ABBREV = {
-    r'\bDrive\b': 'dr',    r'\bStreet\b': 'st',   r'\bRoad\b': 'rd',
-    r'\bAvenue\b': 'ave',  r'\bCrescent\b': 'cres',r'\bPlace\b': 'pl',
-    r'\bCourt\b': 'ct',    r'\bClose\b': 'cl',     r'\bBoulevard\b': 'blvd',
-    r'\bHighway\b': 'hwy', r'\bParade\b': 'pde',   r'\bTerrace\b': 'tce',
-    r'\bLane\b': 'ln',     r'\bGrove\b': 'gr',     r'\bCircuit\b': 'cct',
-}
-
-def _rea_slug(address: str) -> str:
-    """Build the realestate.com.au URL slug: abbreviate street types, lowercase, hyphenate."""
-    s = address
-    for pattern, abbrev in _REA_STREET_ABBREV.items():
-        s = re.sub(pattern, abbrev, s, flags=re.IGNORECASE)
-    s = s.lower()
-    s = re.sub(r',?\s*australia\s*$', '', s).strip()
-    s = re.sub(r'[^a-z0-9]+', '-', s).strip('-')
-    return s
-
-
-def _search_next_data_for_sale(json_str: str) -> dict | None:
-    """Search the raw __NEXT_DATA__ JSON string for a sold price + date.
-    Works on the string directly to avoid deep recursion on large blobs."""
-    # Look for lastSoldPrice / salePrice / soldPrice as a number
-    price_m = re.search(
-        r'"(?:lastSoldPrice|salePrice|soldPrice|lastSalePrice)"'
-        r'\s*:\s*"?\$?([\d,]+)"?',
-        json_str
-    )
-    if not price_m:
-        return None
-    try:
-        price = int(price_m.group(1).replace(",", ""))
-    except ValueError:
-        return None
-    if not (100_000 <= price <= 20_000_000):
-        return None
-
-    # Look for a date key nearby (within 200 chars after the price match)
-    nearby = json_str[price_m.start(): price_m.start() + 300]
-    date_m = re.search(
-        r'"(?:lastSoldDate|saleDate|soldDate|lastSaleDate|date)"'
-        r'\s*:\s*"([^"]+)"',
-        nearby
-    )
-    date = date_m.group(1) if date_m else None
-    yr = _sale_year(date)
-    if yr is not None and yr < 2022:
-        return None
-    return {"price": price, "date": date}
-
-
-def _rea_last_sale(address: str) -> dict | None:
-    """Fetch the realestate.com.au property page and extract last sold price.
-
-    realestate.com.au uses a predictable URL with abbreviated street types
-    (Drive→dr, Street→st, etc.) so no search API is needed.
-    Price is extracted from the __NEXT_DATA__ JSON blob embedded in the page,
-    with a regex fallback on the raw HTML.
-    """
-    slug = _rea_slug(address)
-    url  = f"https://www.realestate.com.au/property/{slug}/"
-    print(f"  🌐 realestate.com.au fetch: {url}")
-
-    try:
-        req = Request(url, headers={
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
-            ),
-            "Accept": "text/html,application/xhtml+xml,*/*",
-            "Accept-Language": "en-AU,en;q=0.9",
-        })
-        with urlopen(req, timeout=15) as resp:
-            html = resp.read().decode("utf-8", errors="ignore")
-    except Exception as e:
-        print(f"  ℹ️  realestate.com.au fetch error: {e}")
-        return None
-
-    # Strategy 1: __NEXT_DATA__ JSON blob (structured, most reliable)
-    nd_m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.DOTALL)
-    if nd_m:
-        result = _search_next_data_for_sale(nd_m.group(1))
-        if result:
-            print(f"  ✅ realestate.com.au: ${result['price']:,} on {result.get('date')}")
-            return result
-
-    # Strategy 2: find first ">Sold<" in the sales history timeline,
-    # then grab the nearest dollar amount — first match = most recent sale.
-    sold_m = re.search(r'>Sold<', html)
-    if sold_m:
-        context = html[sold_m.start(): sold_m.start() + 400]
-        price_m = re.search(r'\$([\d,]+)', context)
-        if price_m:
-            try:
-                price = int(price_m.group(1).replace(",", ""))
-            except ValueError:
-                price = 0
-            if price >= 10_000:
-                date_m = re.search(
-                    r'(\d{1,2}\s+\w+\s+20\d\d|\w+\s+20\d\d)', context
-                )
-                date = date_m.group(1) if date_m else None
-                yr = _sale_year(date)
-                if yr is None or yr >= 2022:
-                    print(f"  ✅ realestate.com.au timeline: ${price:,} on {date}")
-                    return {"price": price, "date": date}
-
-    print("  ℹ️  realestate.com.au: no price found")
-    return None
 
 
 # ─── Main Orchestrator ────────────────────────────────────────────────────────
@@ -1080,15 +942,6 @@ def research_property(address: str, api_key: str = None) -> PropertyReport:
     )
     report.metrics = extract_metrics(report)
     report.scores  = parse_scores_from_summary(summary)
-
-    # Override last_sale_price with direct realestate.com.au scrape if the AI missed it
-    if report.metrics.get("last_sale_price") in (None, "Not on record"):
-        result = _rea_last_sale(address)
-        if result and result.get("price"):
-            price_str = _fmt_price(str(result["price"]))
-            report.metrics["last_sale_price"] = (
-                f"{price_str} ({result['date']})" if result.get("date") else price_str
-            )
 
     print("\n✅ Report complete!")
     return report

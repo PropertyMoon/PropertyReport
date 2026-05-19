@@ -355,19 +355,24 @@ def extract_metrics(report: "PropertyReport") -> dict:
 RESEARCH_TASKS = {
     "suburb": (
         "Property: {address}\nState: {state}\n"
+        "CRIME DATA — MANDATORY: You MUST search {crime_url} for crime statistics. "
+        "Search '[suburb] crime statistics site:{crime_url}' first. "
+        "Do NOT use any other source for crime figures — only {crime_url}.\n"
         "Return JSON with: suburb, postcode, median_house_price, median_unit_price, "
-        "price_growth_5yr, rental_yield, demographics, crime_rating, key_amenities, "
+        "price_growth_5yr, rental_yield, demographics, key_amenities, "
         "liveability_score, "
         "nearest_freeway (object: name, distance_km — closest major freeway/motorway/highway), "
         "nearby_gps (list of up to 2 objects: name, distance_km — nearest general practitioner clinics), "
         "nearby_hospitals (list of up to 3 objects: name, distance_km — only if within 10km), "
-        "crime_safety_percentile (integer 0-100 from {crime_url}, where 100 = safest in the state), "
-        "crime_violent_vs_state_avg_pct (signed integer — percentage delta of suburb's violent crime rate vs state average; positive = worse), "
-        "crime_property_vs_state_avg_pct (signed integer — same for property crime), "
+        "crime_safety_percentile (integer 0-100 derived from {crime_url} data only, where 100 = safest in the state — "
+        "compute this from the raw crime rate by ranking the suburb against state-wide suburb rates; "
+        "return null only if {crime_url} returns no data at all for this suburb), "
+        "crime_violent_vs_state_avg_pct (signed integer — percentage delta of suburb's violent crime rate vs state average from {crime_url}; positive = worse than average), "
+        "crime_property_vs_state_avg_pct (signed integer — same for property crime from {crime_url}), "
         "price_history_5yr (list of up to 6 objects: year (int 2019-2025), median_house_price (numeric AUD) — annual median for the suburb), "
         "moving_here_demographic (one sentence describing who is moving to the suburb — e.g. 'Young professional families displaced from inner-city; Asian-Australian households drawn by schools'), "
         "becoming_narrative (one sentence on what this suburb is becoming over the next 5 years — gentrification trajectory, infrastructure-driven change, etc.). "
-        "Use {crime_url} for crime data and CoreLogic/realestate.com.au median history for prices."
+        "Use CoreLogic/realestate.com.au median history for price data."
     ),
 
     "schools": "Property: {address}\nReturn JSON with: primary_schools (name, distance_km, icsea), secondary_schools (name, distance_km, icsea), private_schools (name, distance_km), in_catchment_zone, school_quality_summary. Use myschool.edu.au.",
@@ -411,14 +416,19 @@ RESEARCH_TASKS = {
         "STEP 3 — If step 2 returns nothing, search: \"{address} sold domain.com.au\"\n\n"
         "STEP 4 — If step 3 returns nothing, search: \"{address} sold price 2025 OR 2024 OR 2023\"\n\n"
         "ABSOLUTE RULE: If a sale found has a date before 2022, return null — never return a pre-2022 price.\n\n"
-        "STEP 5 — Search for 2 recent comparable sales in the same suburb.\n"
+        "STEP 5 — Search realestate.com.au or domain.com.au for comparable sales: "
+        "search '[suburb] [state] sold 2024 OR 2025 [dwelling type] site:realestate.com.au' "
+        "and pick the 2 most recently sold properties similar in type and size. "
+        "Only include sales from the last 12 months — ignore anything sold before 2024.\n"
         "STEP 6 — Search for suburb-level market data (days on market, clearance rate, outlook).\n\n"
         "Return JSON with: "
         "subject_property_last_sale (object: price (numeric AUD — no $ sign, just the number), "
         "date (string e.g. 'February 2025') — "
         "REQUIRED: only return null if all five steps above return zero dollar amounts for this address), "
-        "comparable_sales (list of EXACTLY 2 most recent comparable sales in the same suburb — "
-        "similar type and size; each: address, sale_price (numeric AUD), sale_date, bedrooms (int), bathrooms (int), land_sqm (int)), "
+        "comparable_sales (list of EXACTLY 2 comparable sales — similar type and size, "
+        "sold within the last 12 months, most recent first — "
+        "if you cannot find 2 sales within 12 months return an empty list rather than using older sales; "
+        "each: address, sale_price (numeric AUD), sale_date (string e.g. 'March 2025'), bedrooms (int), bathrooms (int), land_sqm (int)), "
         "days_on_market, auction_clearance_rate, price_per_sqm, best_pockets, market_outlook."
     ),
 
@@ -600,8 +610,6 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
         if block.type == "text":
             full_text += block.text
 
-    if task_name == "property_market":
-        print(f"  📊 [DEBUG] property_market raw model output:\n{full_text[:2000]}")
 
     return _parse_json(full_text, task_name)
 
@@ -1058,11 +1066,6 @@ def research_property(address: str, api_key: str = None) -> PropertyReport:
             task_name = futures[future]
             try:
                 research_data[task_name] = future.result()
-                if task_name == "property_market":
-                    pm = research_data[task_name]
-                    print(f"  📊 [DEBUG] property_market raw last_sale = "
-                          f"{pm.get('subject_property_last_sale')!r}")
-                    print(f"  📊 [DEBUG] property_market keys = {list(pm.keys())}")
             except Exception as e:
                 print(f"  ❌ Error in {task_name}: {e}")
                 research_data[task_name] = {"error": str(e)}

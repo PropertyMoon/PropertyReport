@@ -398,19 +398,26 @@ RESEARCH_TASKS = {
     "property_market": (
         "Property: {address}\n"
         "CRITICAL: You MUST find the last sold price for this specific property.\n"
-        "Execute steps IN ORDER — do not run them in parallel — stop as soon as you find a dollar amount.\n\n"
-        "STEP 1 — Search: \"{address} sold 2025 OR 2024\" and read the price from snippet text. "
-        "Look for patterns like 'Sold $1,470,000' or 'sold for $X' in the results.\n\n"
-        "STEP 2 — If step 1 returns no price, search: \"{address} sold domain.com.au\" "
-        "and fetch the top domain.com.au result — look for sold price in the page.\n\n"
-        "STEP 3 — If step 2 returns nothing, search: \"{address} sold price history\"\n\n"
+        "Execute steps IN ORDER — do not skip ahead — stop as soon as you find a dollar amount.\n\n"
+        "STEP 1 — Fetch the realestate.com.au property page directly. "
+        "Construct the URL: https://www.realestate.com.au/property/[dwelling-type]-[number]-[street-abbreviated]-[suburb]-[state-abbrev]-[postcode]/ "
+        "Rules: all lowercase, spaces→hyphens; street abbreviations: Street→st, Road→rd, Avenue→ave, Drive→dr, "
+        "Court→ct, Place→pl, Crescent→cres, Close→cl, Boulevard→bvd, Terrace→tce, Lane→ln, Way→wy, Grove→gr. "
+        "Try 'house' as dwelling-type first; if the page 404s try 'townhouse', then 'unit'. "
+        "In the page, find 'Sold' followed by a dollar amount in the Sales History section — "
+        "the FIRST (most recent) sold entry is the one to use.\n\n"
+        "STEP 2 — If step 1 finds no sold price, search: \"{address} sold 2025 OR 2024 OR 2023\" "
+        "and read any 'Sold $X' price from the snippet text.\n\n"
+        "STEP 3 — If step 2 finds nothing, search: \"{address} sold site:domain.com.au\" "
+        "and fetch the top result — look for sold price on the page.\n\n"
+        "STEP 4 — If step 3 finds nothing, search: \"{address} sold price history\"\n\n"
         "ABSOLUTE RULE: If a sale found has a date before 2022, return null — never return a pre-2022 price.\n\n"
-        "STEP 4 — Search for comparable sales: search '[suburb] [state] sold 2026 OR 2025 [dwelling type]' "
+        "STEP 5 — Search for comparable sales: search '[suburb] [state] sold 2026 OR 2025 [dwelling type]' "
         "(no site restriction — use any property portal). "
         "Pick the 2 most recently sold properties similar in type and size to the subject property. "
         "Only include sales from the last 12 months. "
         "If you find at least 1 comparable, include it — only return empty list if you find zero results.\n"
-        "STEP 5 — Search for suburb-level market data (days on market, clearance rate, outlook).\n\n"
+        "STEP 6 — Search for suburb-level market data (days on market, clearance rate, outlook).\n\n"
         "Return JSON with: "
         "subject_property_last_sale (object: price (numeric AUD — no $ sign, just the number), "
         "date (string e.g. 'February 2025') — null only if all steps above return zero results), "
@@ -546,10 +553,15 @@ def _parse_json(text: str, label: str = "") -> dict:
 
 # Tasks that need more web searches to reliably find specific data
 _TASK_MAX_SEARCHES = {
-    "property_market":     8,  # 5 last-sale fallback queries + comps + market data
-    "government_projects": 5,  # must search council + state + planning portal
+    "property_market":     10,  # direct fetch + fallback queries + comps + market data
+    "government_projects": 5,   # must search council + state + planning portal
 }
 _DEFAULT_MAX_SEARCHES = 3
+
+_TASK_MAX_TOKENS = {
+    "property_market": 6000,  # verbose reasoning + full JSON; 3000 causes truncation
+}
+_DEFAULT_MAX_TOKENS = 3000
 
 
 def run_research_task(client: anthropic.Anthropic, task_name: str, address: str) -> dict:
@@ -571,7 +583,7 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
         try:
             response = client.messages.create(
                 model="claude-sonnet-4-6",
-                max_tokens=3000,
+                max_tokens=_TASK_MAX_TOKENS.get(task_name, _DEFAULT_MAX_TOKENS),
                 tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": max_searches}],
                 system=(
                     "Australian property researcher. Respond with valid JSON only — no prose, "

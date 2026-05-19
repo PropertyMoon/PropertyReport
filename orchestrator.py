@@ -951,23 +951,23 @@ def _propertyvalue_last_sale(address: str) -> dict | None:
     slug = re.sub(r',?\s*australia\s*$', '', slug).strip()
     slug = re.sub(r'[^a-z0-9]+', '-', slug).strip('-')
 
-    # Step 1 — use Google Custom Search API to find the full propertyvalue.com.au URL
+    # Step 1 — use SerpAPI to find the full propertyvalue.com.au URL
     # (which contains an unpredictable numeric ID we can't derive from the address alone).
-    cse_key = os.getenv("GOOGLE_CSE_KEY", "")
-    cse_cx  = os.getenv("GOOGLE_CSE_CX", "e7ad18ec6ddc148d0")
+    serp_key = os.getenv("SERP_API_KEY", "")
 
     property_url = None
-    if cse_key:
-        cse_api = (
-            f"https://www.googleapis.com/customsearch/v1"
-            f"?key={cse_key}&cx={cse_cx}&num=3&q={quote(address)}"
+    if serp_key:
+        serp_api = (
+            f"https://serpapi.com/search.json"
+            f"?api_key={serp_key}&engine=google&num=3"
+            f"&q={quote('site:propertyvalue.com.au ' + address)}"
         )
         try:
-            print(f"  🌐 Google CSE search for propertyvalue URL")
-            req = Request(cse_api, headers={"Accept": "application/json"})
-            with urlopen(req, timeout=10) as resp:
+            print(f"  🌐 SerpAPI search for propertyvalue URL")
+            req = Request(serp_api, headers={"Accept": "application/json"})
+            with urlopen(req, timeout=15) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
-            for item in data.get("items", []):
+            for item in data.get("organic_results", []):
                 link = item.get("link", "")
                 m = re.search(rf'/property/{re.escape(slug)}/(\d+)', link)
                 if m:
@@ -975,11 +975,11 @@ def _propertyvalue_last_sale(address: str) -> dict | None:
                     print(f"  ✅ propertyvalue URL found: {property_url}")
                     break
             if not property_url:
-                print("  ℹ️  Google CSE: no propertyvalue URL in results")
+                print("  ℹ️  SerpAPI: no propertyvalue URL in results")
         except Exception as e:
-            print(f"  ℹ️  Google CSE search failed: {e}")
+            print(f"  ℹ️  SerpAPI search failed: {e}")
     else:
-        print("  ℹ️  GOOGLE_CSE_KEY not set — skipping propertyvalue lookup")
+        print("  ℹ️  SERP_API_KEY not set — skipping propertyvalue lookup")
 
     if not property_url:
         return None

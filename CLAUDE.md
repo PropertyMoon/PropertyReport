@@ -67,6 +67,7 @@ No test suite exists. Manual testing via the dev endpoint or CLI is the primary 
 | `REPORT_PRICE_CENTS` | Default `2000` (AUD $20.00) |
 | `JOB_DB_PATH` | SQLite file path, default `jobs.db` |
 | `CHECKOUT_RATE_LIMIT` / `CHECKOUT_RATE_WINDOW` | In-memory per-IP rate limiter, default 3 requests / 600s |
+| `SERP_API_KEY` | SerpAPI key (serpapi.com) — used to discover propertyvalue.com.au URL for last-sale scraping. 100 free searches/month on free plan. |
 
 ## Deployment
 

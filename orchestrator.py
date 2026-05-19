@@ -607,10 +607,14 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
     for block in response.content:
         if block.type == "text":
             full_text += block.text
-        elif block.type == "tool_use" and task_name == "property_market":
-            print(f"  🔎 [DEBUG] web_search query: {block.input.get('query', '')}")
+        elif task_name == "property_market":
+            if block.type == "server_tool_use":
+                print(f"  🔎 [DEBUG] web_search query: {getattr(block, 'input', {}).get('query', block)}")
+            else:
+                print(f"  🧩 [DEBUG] block type: {block.type}")
 
     if task_name == "property_market":
+        print(f"  📄 [DEBUG] raw model output:\n{full_text[:3000]}")
         parsed = _parse_json(full_text, task_name)
         print(f"  📊 [DEBUG] subject_property_last_sale = {parsed.get('subject_property_last_sale')}")
         return parsed

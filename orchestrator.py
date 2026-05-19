@@ -993,11 +993,26 @@ def _rea_last_sale(address: str) -> dict | None:
             print(f"  ✅ realestate.com.au: ${result['price']:,} on {result.get('date')}")
             return result
 
-    # Strategy 2: plain-text regex on the HTML (catches "Sold on 24 Feb 2025 · $1,470,000" etc.)
-    result = _extract_sale_from_snippet(html)
-    if result:
-        print(f"  ✅ realestate.com.au HTML: ${result['price']:,} on {result.get('date')}")
-        return result
+    # Strategy 2: find first ">Sold<" in the sales history timeline,
+    # then grab the nearest dollar amount — first match = most recent sale.
+    sold_m = re.search(r'>Sold<', html)
+    if sold_m:
+        context = html[sold_m.start(): sold_m.start() + 400]
+        price_m = re.search(r'\$([\d,]+)', context)
+        if price_m:
+            try:
+                price = int(price_m.group(1).replace(",", ""))
+            except ValueError:
+                price = 0
+            if price >= 10_000:
+                date_m = re.search(
+                    r'(\d{1,2}\s+\w+\s+20\d\d|\w+\s+20\d\d)', context
+                )
+                date = date_m.group(1) if date_m else None
+                yr = _sale_year(date)
+                if yr is None or yr >= 2022:
+                    print(f"  ✅ realestate.com.au timeline: ${price:,} on {date}")
+                    return {"price": price, "date": date}
 
     print("  ℹ️  realestate.com.au: no price found")
     return None

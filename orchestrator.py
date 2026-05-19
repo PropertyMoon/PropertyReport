@@ -922,6 +922,10 @@ def research_property(address: str, api_key: str = None) -> PropertyReport:
                 print(f"  ❌ Error in {task_name}: {e}")
                 research_data[task_name] = {"error": str(e)}
 
+    # [DEBUG] Show comparable sales so we can verify recency
+    pm = research_data.get("property_market", {})
+    print(f"\n  📊 [DEBUG] comparable_sales = {pm.get('comparable_sales')}")
+
     print("\n📝 All research complete. Synthesising...")
     print("=" * 60)
     

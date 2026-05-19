@@ -415,9 +415,9 @@ RESEARCH_TASKS = {
         "STEP 4 — If step 3 returns nothing, search: \"{address} sold price 2025 OR 2024 OR 2023\"\n\n"
         "ABSOLUTE RULE: If a sale found has a date before 2022, return null — never return a pre-2022 price.\n\n"
         "STEP 5 — Search realestate.com.au or domain.com.au for comparable sales: "
-        "search '[suburb] [state] sold 2024 OR 2025 [dwelling type] site:realestate.com.au' "
+        "search '[suburb] [state] sold 2026 OR 2025 [dwelling type] site:realestate.com.au' "
         "and pick the 2 most recently sold properties similar in type and size. "
-        "Only include sales from the last 12 months — ignore anything sold before 2024.\n"
+        "Only include sales from the last 12 months — ignore anything sold before May 2025.\n"
         "STEP 6 — Search for suburb-level market data (days on market, clearance rate, outlook).\n\n"
         "Return JSON with: "
         "subject_property_last_sale (object: price (numeric AUD — no $ sign, just the number), "
@@ -921,10 +921,6 @@ def research_property(address: str, api_key: str = None) -> PropertyReport:
             except Exception as e:
                 print(f"  ❌ Error in {task_name}: {e}")
                 research_data[task_name] = {"error": str(e)}
-
-    # [DEBUG] Show comparable sales so we can verify recency
-    pm = research_data.get("property_market", {})
-    print(f"\n  📊 [DEBUG] comparable_sales = {pm.get('comparable_sales')}")
 
     print("\n📝 All research complete. Synthesising...")
     print("=" * 60)

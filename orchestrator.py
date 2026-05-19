@@ -12,7 +12,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from urllib.request import Request, urlopen
 from urllib.error import URLError
-from urllib.parse import quote
+
 
 # Reuse state detection from pdf_generator
 _STATE_SOURCES = {
@@ -905,88 +905,101 @@ def _extract_sale_from_snippet(text: str) -> dict | None:
     return {"price": price, "date": date}
 
 
-def _serp_last_sale(address: str) -> dict | None:
-    """Use SerpAPI to find last sold price from Google search snippets.
+# Reverse abbreviation map for realestate.com.au URL slugs
+# (realestate.com.au uses abbreviated street types: Drive→dr, Street→st, etc.)
+_REA_STREET_ABBREV = {
+    r'\bDrive\b': 'dr',    r'\bStreet\b': 'st',   r'\bRoad\b': 'rd',
+    r'\bAvenue\b': 'ave',  r'\bCrescent\b': 'cres',r'\bPlace\b': 'pl',
+    r'\bCourt\b': 'ct',    r'\bClose\b': 'cl',     r'\bBoulevard\b': 'blvd',
+    r'\bHighway\b': 'hwy', r'\bParade\b': 'pde',   r'\bTerrace\b': 'tce',
+    r'\bLane\b': 'ln',     r'\bGrove\b': 'gr',     r'\bCircuit\b': 'cct',
+}
 
-    Searches broadly (no site: restriction) and parses snippet + title text
-    for sale price patterns. Falls back to scraping a propertyvalue.com.au
-    page if a URL with a numeric ID appears in the results.
-    """
-    serp_key = os.getenv("SERP_API_KEY", "")
-    if not serp_key:
-        print("  ℹ️  SERP_API_KEY not set — skipping last-sale lookup")
-        return None
+def _rea_slug(address: str) -> str:
+    """Build the realestate.com.au URL slug: abbreviate street types, lowercase, hyphenate."""
+    s = address
+    for pattern, abbrev in _REA_STREET_ABBREV.items():
+        s = re.sub(pattern, abbrev, s, flags=re.IGNORECASE)
+    s = s.lower()
+    s = re.sub(r',?\s*australia\s*$', '', s).strip()
+    s = re.sub(r'[^a-z0-9]+', '-', s).strip('-')
+    return s
 
-    slug = address.lower()
-    slug = re.sub(r',?\s*australia\s*$', '', slug).strip()
-    slug = re.sub(r'[^a-z0-9]+', '-', slug).strip('-')
 
-    query = f'"{address}" sold price'
-    serp_api = (
-        f"https://serpapi.com/search.json"
-        f"?api_key={serp_key}&engine=google&num=5"
-        f"&q={quote(query)}"
+def _search_next_data_for_sale(json_str: str) -> dict | None:
+    """Search the raw __NEXT_DATA__ JSON string for a sold price + date.
+    Works on the string directly to avoid deep recursion on large blobs."""
+    # Look for lastSoldPrice / salePrice / soldPrice as a number
+    price_m = re.search(
+        r'"(?:lastSoldPrice|salePrice|soldPrice|lastSalePrice)"'
+        r'\s*:\s*"?\$?([\d,]+)"?',
+        json_str
     )
+    if not price_m:
+        return None
     try:
-        print(f"  🌐 SerpAPI: searching last sale for {address}")
-        req = Request(serp_api, headers={"Accept": "application/json"})
-        with urlopen(req, timeout=15) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-    except Exception as e:
-        print(f"  ℹ️  SerpAPI request failed: {e}")
+        price = int(price_m.group(1).replace(",", ""))
+    except ValueError:
+        return None
+    if not (100_000 <= price <= 20_000_000):
         return None
 
-    propertyvalue_url = None
+    # Look for a date key nearby (within 200 chars after the price match)
+    nearby = json_str[price_m.start(): price_m.start() + 300]
+    date_m = re.search(
+        r'"(?:lastSoldDate|saleDate|soldDate|lastSaleDate|date)"'
+        r'\s*:\s*"([^"]+)"',
+        nearby
+    )
+    date = date_m.group(1) if date_m else None
+    yr = _sale_year(date)
+    if yr is not None and yr < 2022:
+        return None
+    return {"price": price, "date": date}
 
-    for item in data.get("organic_results", []):
-        link    = item.get("link", "")
-        snippet = item.get("snippet", "")
-        title   = item.get("title", "")
 
-        # Try to pull price from snippet or title text
-        result = _extract_sale_from_snippet(f"{title} {snippet}")
+def _rea_last_sale(address: str) -> dict | None:
+    """Fetch the realestate.com.au property page and extract last sold price.
+
+    realestate.com.au uses a predictable URL with abbreviated street types
+    (Drive→dr, Street→st, etc.) so no search API is needed.
+    Price is extracted from the __NEXT_DATA__ JSON blob embedded in the page,
+    with a regex fallback on the raw HTML.
+    """
+    slug = _rea_slug(address)
+    url  = f"https://www.realestate.com.au/property/{slug}/"
+    print(f"  🌐 realestate.com.au fetch: {url}")
+
+    try:
+        req = Request(url, headers={
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+            ),
+            "Accept": "text/html,application/xhtml+xml,*/*",
+            "Accept-Language": "en-AU,en;q=0.9",
+        })
+        with urlopen(req, timeout=15) as resp:
+            html = resp.read().decode("utf-8", errors="ignore")
+    except Exception as e:
+        print(f"  ℹ️  realestate.com.au fetch error: {e}")
+        return None
+
+    # Strategy 1: __NEXT_DATA__ JSON blob (structured, most reliable)
+    nd_m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.DOTALL)
+    if nd_m:
+        result = _search_next_data_for_sale(nd_m.group(1))
         if result:
-            print(f"  ✅ SerpAPI snippet: ${result['price']:,} on {result.get('date')}")
+            print(f"  ✅ realestate.com.au: ${result['price']:,} on {result.get('date')}")
             return result
 
-        # Record propertyvalue.com.au URL with numeric ID for fallback
-        if not propertyvalue_url:
-            m = re.search(rf'/property/{re.escape(slug)}/(\d+)', link)
-            if m:
-                propertyvalue_url = (
-                    f"https://www.propertyvalue.com.au/property/{slug}/{m.group(1)}"
-                )
+    # Strategy 2: plain-text regex on the HTML (catches "Sold on 24 Feb 2025 · $1,470,000" etc.)
+    result = _extract_sale_from_snippet(html)
+    if result:
+        print(f"  ✅ realestate.com.au HTML: ${result['price']:,} on {result.get('date')}")
+        return result
 
-    # Fallback: scrape propertyvalue.com.au page if URL was found in results
-    if propertyvalue_url:
-        print(f"  🌐 Fetching propertyvalue.com.au: {propertyvalue_url}")
-        try:
-            req = Request(propertyvalue_url, headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                "Accept": "text/html,*/*",
-                "Accept-Language": "en-AU,en;q=0.9",
-            })
-            with urlopen(req, timeout=10) as resp:
-                html = resp.read().decode("utf-8", errors="ignore")
-            sales = []
-            for m in re.finditer(
-                r'[Ll]ast\s+sold\s+for\s*\$?([\d,]+)'
-                r'(?:\s+on\s+([\d]{1,2}\s+\w+\s+\d{4}|\w+\s+\d{4}))?',
-                html
-            ):
-                price = int(m.group(1).replace(",", ""))
-                date  = m.group(2) if m.group(2) else None
-                yr    = _sale_year(date)
-                if yr is None or yr >= 2022:
-                    sales.append({"price": price, "date": date, "year": yr or 0})
-            if sales:
-                best = max(sales, key=lambda s: s["year"])
-                print(f"  ✅ propertyvalue.com.au: ${best['price']:,} on {best['date']}")
-                return {"price": best["price"], "date": best["date"]}
-        except Exception as e:
-            print(f"  ℹ️  propertyvalue.com.au fetch failed: {e}")
-
-    print("  ℹ️  SerpAPI: no sale price found")
+    print("  ℹ️  realestate.com.au: no price found")
     return None
 
 
@@ -1053,9 +1066,9 @@ def research_property(address: str, api_key: str = None) -> PropertyReport:
     report.metrics = extract_metrics(report)
     report.scores  = parse_scores_from_summary(summary)
 
-    # Override last_sale_price with SerpAPI snippet search if the AI missed it
+    # Override last_sale_price with direct realestate.com.au scrape if the AI missed it
     if report.metrics.get("last_sale_price") in (None, "Not on record"):
-        result = _serp_last_sale(address)
+        result = _rea_last_sale(address)
         if result and result.get("price"):
             price_str = _fmt_price(str(result["price"]))
             report.metrics["last_sale_price"] = (

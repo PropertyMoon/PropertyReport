@@ -68,6 +68,8 @@ No test suite exists. Manual testing via the dev endpoint or CLI is the primary 
 | `JOB_DB_PATH` | SQLite file path, default `jobs.db` |
 | `CHECKOUT_RATE_LIMIT` / `CHECKOUT_RATE_WINDOW` | In-memory per-IP rate limiter, default 3 requests / 600s |
 | `SERP_API_KEY` | SerpAPI key (serpapi.com) — used to discover propertyvalue.com.au URL for last-sale scraping. 100 free searches/month on free plan. |
+| `RESEARCH_BACKEND` | `claude` (default) or `perplexity` — selects the AI backend for all 6 research tasks. |
+| `PERPLEXITY_API_KEY` | Required when `RESEARCH_BACKEND=perplexity`. Uses `sonar-pro` model with built-in web search. |
 
 ## Deployment
 

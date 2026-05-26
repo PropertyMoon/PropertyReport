@@ -11,6 +11,14 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 
+# ─── Backend selection ────────────────────────────────────────────────────────
+# Set RESEARCH_BACKEND=perplexity to route all research tasks through Perplexity
+# sonar-pro (built-in web search). Default is claude (Anthropic web_search tool).
+_RESEARCH_BACKEND = os.getenv("RESEARCH_BACKEND", "claude").lower()
+
+if _RESEARCH_BACKEND == "perplexity":
+    from openai import OpenAI as _OpenAI
+
 
 # Reuse state detection from pdf_generator
 _STATE_SOURCES = {
@@ -564,36 +572,29 @@ _TASK_MAX_TOKENS = {
 _DEFAULT_MAX_TOKENS = 3000
 
 
-def run_research_task(client: anthropic.Anthropic, task_name: str, address: str) -> dict:
-    """Run a single research task using Claude with web search."""
+_RESEARCH_SYSTEM_PROMPT = (
+    "Australian property researcher. Respond with valid JSON only — no prose, "
+    "no markdown, no explanations outside the JSON. Use null for any field you "
+    "genuinely cannot find from authoritative sources; do not invent values. "
+    "Numeric fields must be numbers (not strings). "
+    "Keep every string value concise — one short sentence or a few words max. "
+    "Never include a 'sources', 'citations', or 'notes' field unless the prompt "
+    "explicitly requests it."
+)
 
-    print(f"  🔍 Researching {task_name}...")
 
-    state  = _get_state(address)
-    prompt = RESEARCH_TASKS[task_name].format(
-        address=address,
-        state=state["label"],
-        planning_url=state["planning"],
-        crime_url=state["crime"],
-        flood_url=state["flood"],
-    )
+def _run_research_task_claude(client: anthropic.Anthropic, task_name: str, prompt: str) -> str:
+    """Execute a research task via Claude with the web_search tool. Returns raw text."""
     max_searches = _TASK_MAX_SEARCHES.get(task_name, _DEFAULT_MAX_SEARCHES)
+    max_tokens   = _TASK_MAX_TOKENS.get(task_name, _DEFAULT_MAX_TOKENS)
 
     for attempt in range(4):
         try:
             response = client.messages.create(
                 model="claude-sonnet-4-6",
-                max_tokens=_TASK_MAX_TOKENS.get(task_name, _DEFAULT_MAX_TOKENS),
+                max_tokens=max_tokens,
                 tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": max_searches}],
-                system=(
-                    "Australian property researcher. Respond with valid JSON only — no prose, "
-                    "no markdown, no explanations outside the JSON. Use null for any field you "
-                    "genuinely cannot find from authoritative sources; do not invent values. "
-                    "Numeric fields must be numbers (not strings). "
-                    "Keep every string value concise — one short sentence or a few words max. "
-                    "Never include a 'sources', 'citations', or 'notes' field unless the prompt "
-                    "explicitly requests it."
-                ),
+                system=_RESEARCH_SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": prompt}]
             )
             break
@@ -603,8 +604,7 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
             wait = 60 * (attempt + 1)
             print(f"  ⏳ Rate limited on {task_name}, retrying in {wait}s...")
             time.sleep(wait)
-    
-    # Extract text from response (may include tool use blocks)
+
     full_text = ""
     for block in response.content:
         if block.type == "text":
@@ -614,6 +614,54 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
                 print(f"  🔎 [DEBUG] web_search query: {getattr(block, 'input', {}).get('query', block)}")
             else:
                 print(f"  🧩 [DEBUG] block type: {block.type}")
+    return full_text
+
+
+def _run_research_task_perplexity(task_name: str, prompt: str) -> str:
+    """Execute a research task via Perplexity sonar-pro. Returns raw text."""
+    perplexity_client = _OpenAI(
+        api_key=os.environ["PERPLEXITY_API_KEY"],
+        base_url="https://api.perplexity.ai",
+    )
+
+    for attempt in range(4):
+        try:
+            response = perplexity_client.chat.completions.create(
+                model="sonar-pro",
+                messages=[
+                    {"role": "system", "content": _RESEARCH_SYSTEM_PROMPT},
+                    {"role": "user",   "content": prompt},
+                ],
+            )
+            return response.choices[0].message.content or ""
+        except Exception as e:
+            if attempt == 3:
+                raise
+            wait = 60 * (attempt + 1)
+            print(f"  ⏳ Perplexity error on {task_name} ({e}), retrying in {wait}s...")
+            time.sleep(wait)
+
+    return ""
+
+
+def run_research_task(client: anthropic.Anthropic, task_name: str, address: str) -> dict:
+    """Run a single research task using the configured backend (claude or perplexity)."""
+
+    print(f"  🔍 Researching {task_name} [{_RESEARCH_BACKEND}]...")
+
+    state  = _get_state(address)
+    prompt = RESEARCH_TASKS[task_name].format(
+        address=address,
+        state=state["label"],
+        planning_url=state["planning"],
+        crime_url=state["crime"],
+        flood_url=state["flood"],
+    )
+
+    if _RESEARCH_BACKEND == "perplexity":
+        full_text = _run_research_task_perplexity(task_name, prompt)
+    else:
+        full_text = _run_research_task_claude(client, task_name, prompt)
 
     if task_name == "property_market":
         print(f"  📄 [DEBUG] raw model output:\n{full_text[:3000]}")

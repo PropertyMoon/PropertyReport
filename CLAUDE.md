@@ -52,7 +52,7 @@ No test suite exists. Manual testing via the dev endpoint or CLI is the primary 
 
 **Frontend** (`frontend/`): Static HTML/JS served by FastAPI's `StaticFiles` mount, which must be registered last in `api.py` so API routes take priority.
 
-**State detection duplication**: `_STATE_SOURCES` (state abbreviation → planning/crime/flood URLs) is defined independently in both `orchestrator.py` and `pdf_generator.py`. Keep them in sync when adding states or changing URLs.
+**State detection duplication**: `_STATE_SOURCES` (state abbreviation → planning/crime/flood/transport URLs) is defined independently in both `orchestrator.py` and `pdf_generator.py`. Keep them in sync when adding states or changing URLs.
 
 ## Key env vars
 

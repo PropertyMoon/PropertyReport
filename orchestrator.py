@@ -22,16 +22,16 @@ if _RESEARCH_BACKEND == "perplexity":
 
 # Reuse state detection from pdf_generator
 _STATE_SOURCES = {
-    "VIC": {"label": "Victoria",             "planning": "planning.vic.gov.au",   "crime": "crimestats.vic.gov.au",                 "flood": "vicfloodmap.com.au"},
-    "NSW": {"label": "New South Wales",      "planning": "planning.nsw.gov.au",   "crime": "bocsar.nsw.gov.au",                     "flood": "floodplanning.nsw.gov.au"},
-    "QLD": {"label": "Queensland",           "planning": "dsdilgp.qld.gov.au",    "crime": "police.qld.gov.au/maps-and-statistics", "flood": "floodcheck.qld.gov.au"},
-    "SA":  {"label": "South Australia",      "planning": "plan.sa.gov.au",         "crime": "police.sa.gov.au/services-and-stats",  "flood": "environment.sa.gov.au/flood"},
-    "WA":  {"label": "Western Australia",    "planning": "planning.wa.gov.au",     "crime": "police.wa.gov.au/crime-statistics",    "flood": "planning.wa.gov.au/flood"},
-    "TAS": {"label": "Tasmania",             "planning": "listmap.tas.gov.au",     "crime": "justice.tas.gov.au/crime-statistics",  "flood": "dpipwe.tas.gov.au/flood"},
-    "ACT": {"label": "ACT",                  "planning": "actmapi.act.gov.au",     "crime": "police.act.gov.au/crime-statistics",   "flood": "esa.act.gov.au/flood"},
-    "NT":  {"label": "Northern Territory",   "planning": "planning.nt.gov.au",     "crime": "pfes.nt.gov.au/crime-statistics",      "flood": "nt.gov.au/emergency/flood"},
+    "VIC": {"label": "Victoria",           "planning": "planning.vic.gov.au",   "crime": "crimestats.vic.gov.au",                 "flood": "vicfloodmap.com.au",          "transport": "ptv.vic.gov.au"},
+    "NSW": {"label": "New South Wales",    "planning": "planning.nsw.gov.au",   "crime": "bocsar.nsw.gov.au",                     "flood": "floodplanning.nsw.gov.au",    "transport": "transportnsw.info"},
+    "QLD": {"label": "Queensland",         "planning": "dsdilgp.qld.gov.au",    "crime": "police.qld.gov.au/maps-and-statistics", "flood": "floodcheck.qld.gov.au",       "transport": "translink.com.au"},
+    "SA":  {"label": "South Australia",    "planning": "plan.sa.gov.au",        "crime": "police.sa.gov.au/services-and-stats",   "flood": "environment.sa.gov.au/flood", "transport": "adelaidemetro.com.au"},
+    "WA":  {"label": "Western Australia",  "planning": "planning.wa.gov.au",    "crime": "police.wa.gov.au/crime-statistics",     "flood": "planning.wa.gov.au/flood",    "transport": "transperth.wa.gov.au"},
+    "TAS": {"label": "Tasmania",           "planning": "listmap.tas.gov.au",    "crime": "justice.tas.gov.au/crime-statistics",   "flood": "dpipwe.tas.gov.au/flood",     "transport": "metrotas.com.au"},
+    "ACT": {"label": "ACT",                "planning": "actmapi.act.gov.au",    "crime": "police.act.gov.au/crime-statistics",    "flood": "esa.act.gov.au/flood",        "transport": "transport.act.gov.au"},
+    "NT":  {"label": "Northern Territory", "planning": "planning.nt.gov.au",    "crime": "pfes.nt.gov.au/crime-statistics",       "flood": "nt.gov.au/emergency/flood",   "transport": "nt.gov.au/driving-transport/public-transport"},
 }
-_DEFAULT_STATE = {"label": "Australia", "planning": "planning.gov.au", "crime": "aic.gov.au", "flood": "ga.gov.au/flood"}
+_DEFAULT_STATE = {"label": "Australia", "planning": "planning.gov.au", "crime": "aic.gov.au", "flood": "ga.gov.au/flood", "transport": "transportnsw.info"}
 
 def _get_state(address: str) -> dict:
     m = re.search(r'\b(VIC|NSW|QLD|SA|WA|TAS|ACT|NT)\b', address, re.IGNORECASE)
@@ -401,7 +401,23 @@ RESEARCH_TASKS = {
         "impact_reason (one short sentence)."
     ),
 
-    "transport": "Property: {address}\nReturn JSON with: nearest_train (name, distance_km, line, cbd_mins), bus_routes, tram_access, drive_to_cbd_peak_mins, drive_to_cbd_offpeak_mins, walkability_score, cycling_infrastructure.",
+    "transport": (
+        "Property: {address}\nState: {state}\n"
+        "SEARCH STEPS — use all searches, in order:\n"
+        "(1) Search '{address} nearest train station' on {transport_url} — find the closest station, line name, and travel time to CBD.\n"
+        "(2) Search '{address} bus routes' site:{transport_url} — find bus route numbers that stop within 500m of the address. "
+        "Only list routes confirmed on {transport_url}; do not guess or infer from suburb-level pages.\n"
+        "(3) Search '{address} tram' site:{transport_url} — only return tram access if a tram stop is confirmed within 500m.\n"
+        "(4) Search '{address} drive time CBD peak hour' for realistic peak/off-peak drive estimates.\n"
+        "Return JSON with: "
+        "nearest_train (object: name, distance_km, line, cbd_mins), "
+        "bus_routes (list of confirmed route numbers and brief destination — e.g. ['Route 216 — Northland to CBD', 'Route 207 — Preston to CBD']; "
+        "empty list if none confirmed within 500m), "
+        "tram_access (string describing nearest tram stop and route, or null if none within 500m), "
+        "drive_to_cbd_peak_mins, drive_to_cbd_offpeak_mins, "
+        "walkability_score (integer 0-100), "
+        "cycling_infrastructure (one short sentence on dedicated paths or lanes nearby)."
+    ),
 
     "property_market": (
         "Property: {address}\n"
@@ -656,6 +672,7 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
         planning_url=state["planning"],
         crime_url=state["crime"],
         flood_url=state["flood"],
+        transport_url=state["transport"],
     )
 
     if _RESEARCH_BACKEND == "perplexity":

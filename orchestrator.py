@@ -361,12 +361,15 @@ def extract_metrics(report: "PropertyReport") -> dict:
 RESEARCH_TASKS = {
     "suburb": (
         "Property: {address}\nState: {state}\n"
-        "STEP 1 — MEDIAN PRICE: Fetch this URL directly: https://www.realestate.com.au/[state-lower]/[suburb-lowercase-hyphenated]-[postcode]/ "
-        "(e.g. for Taylors Lakes VIC 3038: https://www.realestate.com.au/vic/taylors-lakes-3038/). "
-        "From the page read: median_house_price, median_unit_price, price_growth_5yr, rental_yield, and annual price history. "
-        "If the fetch fails or returns no price data, search 'realestate.com.au [suburb] [state] [postcode] median house price' as fallback. "
-        "These values are authoritative — use them as-is for all price fields.\n"
-        "STEP 2 — CRIME: Search '[suburb] [state] crime statistics' and prefer {crime_url} as the primary source. "
+        "STEP 1 — MEDIAN PRICE: Search '[suburb] [state] median house price 2025' — read the median house price, "
+        "median unit price, and 5-year price growth from whichever property portal appears (realestate.com.au, "
+        "domain.com.au, or any suburb profile site). Accept the first credible figure you find.\n"
+        "STEP 2 — RENTAL YIELD: Search '[suburb] [postcode] gross rental yield 2025' — read the rental yield "
+        "percentage from whichever source appears. If no yield figure is found, search '[suburb] [state] median weekly rent' "
+        "and calculate yield as (weekly_rent × 52 / median_house_price × 100).\n"
+        "STEP 3 — PRICE HISTORY: Search '[suburb] [state] median house price history site:realestate.com.au OR site:domain.com.au' "
+        "— find year-by-year median prices from 2021 to 2025.\n"
+        "STEP 4 — CRIME: Search '[suburb] [state] crime statistics' and prefer {crime_url} as the primary source. "
         "If {crime_url} has no suburb-level data, use any authoritative source (state police, ABS, suburb profiles). "
         "You MUST return numeric values for crime fields — derive the percentile and deltas from the actual offence "
         "rates you find (e.g. if suburb has 850 offences/100k vs state avg 1200/100k, percentile is ~70). "
@@ -382,7 +385,7 @@ RESEARCH_TASKS = {
         "null only if zero crime data found anywhere), "
         "crime_violent_vs_state_avg_pct (signed integer — percentage delta of suburb's violent crime rate vs state average; positive = worse than average; null if not found), "
         "crime_property_vs_state_avg_pct (signed integer — same for property crime; null if not found), "
-        "price_history_5yr (list of up to 6 objects: year (int 2021-2026), median_house_price (numeric AUD) — from Step 1 realestate.com.au data), "
+        "price_history_5yr (list of up to 6 objects: year (int 2021-2026), median_house_price (numeric AUD) — from Step 3 price history search), "
         "moving_here_demographic (one sentence describing who is moving to the suburb), "
         "becoming_narrative (one sentence on what this suburb is becoming over the next 5 years)."
     ),
@@ -586,6 +589,7 @@ def _parse_json(text: str, label: str = "") -> dict:
 _TASK_MAX_SEARCHES = {
     "property_market":     10,  # direct fetch + fallback queries + comps + market data
     "government_projects": 5,   # must search council + state + planning portal
+    "suburb":              6,   # median price + rental yield + price history + crime
 }
 _DEFAULT_MAX_SEARCHES = 3
 

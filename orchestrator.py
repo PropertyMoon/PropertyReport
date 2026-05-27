@@ -55,7 +55,7 @@ def _extract_suburb(address: str) -> str:
     before_state = re.sub(r'\s+\d{4}\s*$', '', before_state).strip()
     street_m = _STREET_TYPE_RE.search(before_state)
     if street_m:
-        after_type = before_state[street_m.end():].strip()
+        after_type = before_state[street_m.end():].strip().lstrip(",").strip()
         if after_type:
             return after_type
     return before_state

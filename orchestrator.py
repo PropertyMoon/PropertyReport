@@ -4,6 +4,7 @@ Uses Claude API with web search to research Australian properties
 """
 
 import anthropic
+import datetime
 import httpx
 import json
 import os
@@ -196,8 +197,7 @@ def _sale_year(date_val) -> int | None:
 
 
 def _fmt_last_sale(market: dict) -> str | None:
-    """Pull subject-property last sale into a 'Price (date)' string.
-    Silently discards any sale older than 2022 — stale prices mislead buyers."""
+    """Pull subject-property last sale into a 'Price (date)' string."""
     raw = (market.get("subject_property_last_sale")
            or market.get("last_sale")
            or market.get("most_recent_sale"))
@@ -207,10 +207,6 @@ def _fmt_last_sale(market: dict) -> str | None:
         s = raw.strip()
         if not s or s.lower() in ("null", "none", "n/a", ""):
             return None
-        yr = _sale_year(s)
-        if yr is not None and yr < 2022:
-            print(f"  ℹ️  [last_sale] Discarding pre-2022 sale ({yr}) — returning None")
-            return None
         return s
     if isinstance(raw, dict):
         price = (raw.get("price") or raw.get("sale_price")
@@ -218,10 +214,6 @@ def _fmt_last_sale(market: dict) -> str | None:
         date = (raw.get("date") or raw.get("sale_date")
                 or raw.get("year") or raw.get("sold_date"))
         if price is None:
-            return None
-        yr = _sale_year(date)
-        if yr is not None and yr < 2022:
-            print(f"  ℹ️  [last_sale] Discarding pre-2022 sale ({yr}) — returning None")
             return None
         p = _fmt_price(str(price))
         return f"{p} ({date})" if date else p
@@ -508,18 +500,18 @@ RESEARCH_TASKS = {
         "STEP 3 — If step 2 finds nothing, search: \"{address} sold site:domain.com.au\" "
         "and fetch the top result — look for sold price on the page.\n\n"
         "STEP 4 — If step 3 finds nothing, search: \"{address} sold price history\"\n\n"
-        "ABSOLUTE RULE: If a sale found has a date before 2022, return null — never return a pre-2022 price.\n\n"
-        "STEP 5 — Search for comparable sales: search '[suburb] [state] house sold 2026 site:realestate.com.au OR site:domain.com.au'. "
-        "If that returns fewer than 2 results, also search '[suburb] [state] house sold 2025 site:realestate.com.au OR site:domain.com.au'. "
-        "Pick the 2 most recently sold properties most similar in type (house/unit/townhouse) and size to the subject property. "
-        "Only include sales from the last 12 months — discard anything older. "
-        "Return empty list only if you find zero results after both searches.\n"
+        "STEP 5 — Search for comparable sales. Start with the most recent month and work backwards: "
+        "search '[suburb] [state] house sold {current_month} site:realestate.com.au OR site:domain.com.au'. "
+        "If fewer than 2-3 results, search the previous month, then the month before, continuing backwards "
+        "month by month until you have 2-3 comparable sales. Stop as soon as you reach 2-3 results. "
+        "Pick properties most similar in type (house/unit/townhouse) and approximate size to the subject property. "
+        "Return empty list only if you find zero results after searching back 6 months.\n"
         "STEP 6 — Search for suburb-level market data (days on market, clearance rate, outlook).\n\n"
         "Return JSON with: "
         "subject_property_last_sale (object: price (numeric AUD — no $ sign, just the number), "
         "date (string e.g. 'February 2025') — null only if all steps above return zero results), "
-        "comparable_sales (list of up to 2 comparable sales — similar type and size, "
-        "sold within the last 12 months, most recent first; "
+        "comparable_sales (list of up to 3 comparable sales — similar type and size, "
+        "most recently sold first; "
         "each: address, sale_price (numeric AUD), sale_date (string e.g. 'March 2025'), bedrooms (int), bathrooms (int), land_sqm (int or null)), "
         "days_on_market, auction_clearance_rate, price_per_sqm, best_pockets, market_outlook."
     ),
@@ -739,7 +731,8 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
 
     print(f"  🔍 Researching {task_name} [{_RESEARCH_BACKEND}]...")
 
-    state  = _get_state(address)
+    state         = _get_state(address)
+    current_month = datetime.datetime.now().strftime("%B %Y")
     prompt = RESEARCH_TASKS[task_name].format(
         address=address,
         state=state["label"],
@@ -747,6 +740,7 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
         crime_url=state["crime"],
         flood_url=state["flood"],
         transport_url=state["transport"],
+        current_month=current_month,
     )
 
     # Pre-fetch crime data for suburb task — inject into prompt so the AI
@@ -968,6 +962,27 @@ Do not write anything else after the sentinel.
 _SYNTHESIS_MODEL = "claude-sonnet-4-6"
 
 
+def _data_sources_section(address: str, research_data: dict) -> str:
+    """Build a ## DATA SOURCES markdown section from known research inputs."""
+    state = _get_state(address)
+    crime_source = research_data.get("suburb", {}).get("crime_data_source")
+
+    sources = []
+    if crime_source:
+        sources.append(f"**Crime statistics:** {crime_source}")
+    else:
+        sources.append(f"**Crime statistics:** {state['crime']}")
+    sources += [
+        "**Property market data:** realestate.com.au, domain.com.au",
+        "**School data:** myschool.edu.au (ACARA)",
+        f"**Planning & zoning:** {state['planning']}",
+        f"**Flood & environmental risk:** {state['flood']}",
+        f"**Transport:** {state['transport']}",
+    ]
+    bullets = "\n".join(f"- {s}" for s in sources)
+    return f"## DATA SOURCES\n\n{bullets}"
+
+
 def _synth_chunk(
     client: anthropic.Anthropic,
     user_prompt: str,
@@ -1021,7 +1036,8 @@ def synthesise_report(client: anthropic.Anthropic, address: str, research_data: 
         part_a = _trim_at_sentinel(f_a.result(), "<<END_A>>")
         part_b = _trim_at_sentinel(f_b.result(), "<<END_B>>")
 
-    return part_a + "\n\n" + part_b.lstrip()
+    attribution = _data_sources_section(address, research_data)
+    return part_a + "\n\n" + part_b.lstrip() + "\n\n" + attribution
 
 
 # ─── Address Normalisation ───────────────────────────────────────────────────

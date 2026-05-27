@@ -4,6 +4,7 @@ Uses Claude API with web search to research Australian properties
 """
 
 import anthropic
+import httpx
 import json
 import os
 import re
@@ -32,6 +33,68 @@ _STATE_SOURCES = {
     "NT":  {"label": "Northern Territory", "planning": "planning.nt.gov.au",    "crime": "pfes.nt.gov.au/crime-statistics",       "flood": "nt.gov.au/emergency/flood",   "transport": "nt.gov.au/driving-transport/public-transport"},
 }
 _DEFAULT_STATE = {"label": "Australia", "planning": "planning.gov.au", "crime": "aic.gov.au", "flood": "ga.gov.au/flood", "transport": "transportnsw.info"}
+
+_CRIME_MCP_URL = os.getenv(
+    "CRIME_MCP_URL",
+    "https://au-crime-mcp-production.up.railway.app/suburb-crime",
+)
+
+_STREET_TYPE_RE = re.compile(
+    r'\b(Street|St|Road|Rd|Avenue|Ave|Drive|Dr|Court|Ct|Place|Pl|Crescent|Cres|'
+    r'Close|Cl|Boulevard|Blvd|Terrace|Tce|Lane|Ln|Way|Grove|Gr|Highway|Hwy|'
+    r'Circuit|Cct|Parade|Pde|Rise|Row|Square|Track|Walk)\b',
+    re.IGNORECASE,
+)
+
+def _extract_suburb(address: str) -> str:
+    """Extract suburb name from an address like '35 Pindari Ave Taylors Lakes VIC 3038'."""
+    state_m = re.search(r'\b(VIC|NSW|QLD|SA|WA|TAS|ACT|NT)\b', address, re.IGNORECASE)
+    if not state_m:
+        return ""
+    before_state = address[:state_m.start()].strip()
+    before_state = re.sub(r'\s+\d{4}\s*$', '', before_state).strip()
+    street_m = _STREET_TYPE_RE.search(before_state)
+    if street_m:
+        after_type = before_state[street_m.end():].strip()
+        if after_type:
+            return after_type
+    return before_state
+
+
+def _get_state_abbrev(address: str) -> str:
+    m = re.search(r'\b(VIC|NSW|QLD|SA|WA|TAS|ACT|NT)\b', address, re.IGNORECASE)
+    return m.group(1).upper() if m else ""
+
+
+def _fetch_crime_data(suburb: str, state: str) -> dict | None:
+    """Call the au-crime-mcp /suburb-crime endpoint. Returns None on failure."""
+    if not suburb or not state:
+        return None
+    try:
+        r = httpx.get(_CRIME_MCP_URL, params={"suburb": suburb, "state": state}, timeout=10)
+        if r.status_code == 200:
+            return r.json()
+    except Exception as e:
+        print(f"  ⚠️  Crime MCP unavailable ({e}), falling back to web search")
+    return None
+
+
+def _inject_crime_into_suburb_prompt(prompt: str, crime: dict) -> str:
+    """Replace STEP 4 crime search block with pre-fetched authoritative values."""
+    source = crime.get("data_source", "authoritative state source")
+    injected = (
+        f"STEP 4 — CRIME: Data pre-fetched from {source}. "
+        f"Use these exact values — do NOT search for crime:\n"
+        f"  crime_safety_percentile = {crime.get('crime_safety_percentile')}\n"
+        f"  crime_violent_vs_state_avg_pct = {crime.get('crime_violent_vs_state_avg_pct')}\n"
+        f"  crime_property_vs_state_avg_pct = {crime.get('crime_property_vs_state_avg_pct')}\n"
+    )
+    step4_start = prompt.find("STEP 4 — CRIME:")
+    return_json_start = prompt.find("Return JSON with:", step4_start if step4_start >= 0 else 0)
+    if step4_start >= 0 and return_json_start >= 0:
+        return prompt[:step4_start] + injected + "\n" + prompt[return_json_start:]
+    return prompt
+
 
 def _get_state(address: str) -> dict:
     m = re.search(r'\b(VIC|NSW|QLD|SA|WA|TAS|ACT|NT)\b', address, re.IGNORECASE)
@@ -686,6 +749,19 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
         transport_url=state["transport"],
     )
 
+    # Pre-fetch crime data for suburb task — inject into prompt so the AI
+    # skips the crime web search and uses authoritative values instead.
+    crime_data = None
+    if task_name == "suburb":
+        suburb_name  = _extract_suburb(address)
+        state_abbrev = _get_state_abbrev(address)
+        crime_data   = _fetch_crime_data(suburb_name, state_abbrev)
+        if crime_data and crime_data.get("coverage") == "available":
+            prompt = _inject_crime_into_suburb_prompt(prompt, crime_data)
+            print(f"  ✅ Crime MCP: {suburb_name} {state_abbrev} — percentile={crime_data.get('crime_safety_percentile')}")
+        else:
+            crime_data = None  # not available — let AI search
+
     if _RESEARCH_BACKEND == "perplexity":
         full_text = _run_research_task_perplexity(task_name, prompt)
     else:
@@ -697,7 +773,17 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
         print(f"  📊 [DEBUG] subject_property_last_sale = {parsed.get('subject_property_last_sale')}")
         return parsed
 
-    return _parse_json(full_text, task_name)
+    result = _parse_json(full_text, task_name)
+
+    # Overwrite crime fields with authoritative MCP values (belt-and-suspenders —
+    # ensures the AI didn't alter or ignore the injected values).
+    if crime_data and crime_data.get("coverage") == "available":
+        result["crime_safety_percentile"]        = crime_data.get("crime_safety_percentile")
+        result["crime_violent_vs_state_avg_pct"] = crime_data.get("crime_violent_vs_state_avg_pct")
+        result["crime_property_vs_state_avg_pct"]= crime_data.get("crime_property_vs_state_avg_pct")
+        result["crime_data_source"]              = crime_data.get("data_source")
+
+    return result
 
 
 # ─── Synthesis Agent ─────────────────────────────────────────────────────────

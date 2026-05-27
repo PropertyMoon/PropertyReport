@@ -71,7 +71,7 @@ def _fetch_crime_data(suburb: str, state: str) -> dict | None:
     if not suburb or not state:
         return None
     try:
-        r = httpx.get(_CRIME_MCP_URL, params={"suburb": suburb, "state": state}, timeout=10)
+        r = httpx.get(_CRIME_MCP_URL, params={"suburb": suburb, "state": state}, timeout=60)
         if r.status_code == 200:
             return r.json()
     except Exception as e:

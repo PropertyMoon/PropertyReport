@@ -1250,7 +1250,7 @@ body {
 
 .dashboard {
   display: grid;
-  grid-template-rows: 100px 90px 180px 140px 84px;
+  grid-template-rows: 100px 90px 190px 165px 84px;
   gap: 8px;
 }
 
@@ -1264,6 +1264,7 @@ body {
   border: 1px solid var(--grey-200);
   border-radius: 8px;
   padding: 10px 12px;
+  overflow: hidden;
 }
 
 .label {

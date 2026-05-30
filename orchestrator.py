@@ -21,6 +21,8 @@ _RESEARCH_BACKEND = os.getenv("RESEARCH_BACKEND", "claude").lower()
 if _RESEARCH_BACKEND == "perplexity":
     from openai import OpenAI as _OpenAI
 
+from domain_client import get_last_sale as _domain_get_last_sale
+
 
 # Reuse state detection from pdf_generator
 _STATE_SOURCES = {
@@ -1098,21 +1100,36 @@ def research_property(address: str, api_key: str = None) -> PropertyReport:
     print(f"\n🏠 Starting property research for: {address}")
     print("=" * 60)
 
-    # Run all 6 research tasks in parallel
+    # Run all research tasks + Domain API last-sale lookup in parallel
     research_data = {}
 
-    with ThreadPoolExecutor(max_workers=len(RESEARCH_TASKS)) as executor:
-        futures = {
+    with ThreadPoolExecutor(max_workers=len(RESEARCH_TASKS) + 1) as executor:
+        domain_future = executor.submit(_domain_get_last_sale, address)
+
+        task_futures = {
             executor.submit(run_research_task, client, task_name, address): task_name
             for task_name in RESEARCH_TASKS.keys()
         }
-        for future in as_completed(futures):
-            task_name = futures[future]
+        for future in as_completed(task_futures):
+            task_name = task_futures[future]
             try:
                 research_data[task_name] = future.result()
             except Exception as e:
                 print(f"  ❌ Error in {task_name}: {e}")
                 research_data[task_name] = {"error": str(e)}
+
+        # Override last sale with authoritative Domain API data when available
+        try:
+            domain_sale = domain_future.result(timeout=15)
+            if domain_sale:
+                pm = research_data.get("property_market")
+                if not isinstance(pm, dict):
+                    research_data["property_market"] = {}
+                    pm = research_data["property_market"]
+                pm["subject_property_last_sale"] = domain_sale
+                print("  ✅ [Domain API] Last sale injected into property_market")
+        except Exception as e:
+            print(f"  ⚠️  [Domain API] Result unavailable: {e}")
 
     print("\n📝 All research complete. Synthesising...")
     print("=" * 60)

@@ -81,6 +81,8 @@ _STREET_ABBREV = {
     'boulevard': 'bvd', 'terrace': 'tce', 'lane': 'ln', 'way': 'wy',
     'grove': 'gr', 'highway': 'hwy', 'parade': 'pde', 'circuit': 'cct',
     'esplanade': 'esp', 'square': 'sq', 'mews': 'mews', 'rise': 'rise',
+    'promenade': 'prom', 'track': 'trk', 'trail': 'trl', 'ridge': 'rdge',
+    'quay': 'qy', 'walk': 'wlk', 'loop': 'loop', 'link': 'lnk',
 }
 
 
@@ -169,16 +171,18 @@ def _scrape_property_com_au(address: str) -> dict | None:
         print("  ⚠️  [property.com.au] Could not parse address components")
         return None
 
-    state    = parts["state"].lower()
-    suburb   = parts["suburb"].lower().replace(" ", "-").replace("'", "")
-    street   = f"{parts['number']}-{_street_to_slug(parts['street'])}"
-    postcode = parts["postcode"]
+    state       = parts["state"].lower()
+    suburb_slug = parts["suburb"].lower().replace(" ", "-").replace("'", "")
+    postcode    = parts["postcode"]
+    street_slug = _street_to_slug(parts["street"])  # e.g. "berwick-springs-prom"
+    number      = parts["number"]
 
-    # Try a couple of URL patterns — property.com.au varies by listing type
+    # Correct property.com.au URL format:
+    # /state/suburb-postcode/street-slug/number[-pid-ID]/
+    # PID is unknown so we try without it — site may redirect or serve the page.
     candidate_urls = [
-        f"https://www.property.com.au/{state}/{suburb}/{street}/{postcode}/",
-        f"https://www.property.com.au/{state}/{suburb}/{street}-{postcode}/",
-        f"https://www.property.com.au/property/{state}/{suburb}/{street}-{postcode}/",
+        f"https://www.property.com.au/{state}/{suburb_slug}-{postcode}/{street_slug}/{number}/",
+        f"https://www.property.com.au/{state}/{suburb_slug}/{street_slug}/{number}/",
     ]
 
     for url in candidate_urls:

@@ -64,7 +64,7 @@ No test suite exists. Manual testing via the dev endpoint or CLI is the primary 
 | `SENDGRID_API_KEY` + `SENDER_EMAIL` | Required for email delivery |
 | `GOOGLE_MAPS_API_KEY` | Google Maps Platform key — needs **Street View Static API**, **Maps Static API** (backend PDF/cover images), and **Places API** (frontend autocomplete). Key is served to the frontend via `GET /config`; restrict it to your domain in Google Cloud Console. |
 | `ENV` | Set to `production` to disable `/dev/generate` and enforce all required vars |
-| `REPORT_PRICE_CENTS` | Default `2000` (AUD $20.00) |
+| `REPORT_PRICE_CENTS` | Default `999` (AUD $9.99) |
 | `JOB_DB_PATH` | SQLite file path, default `jobs.db` |
 | `CHECKOUT_RATE_LIMIT` / `CHECKOUT_RATE_WINDOW` | In-memory per-IP rate limiter, default 3 requests / 600s |
 | `DOMAIN_CLIENT_ID` + `DOMAIN_CLIENT_SECRET` | Domain API credentials (developer.domain.com.au free tier). Used to look up last sold price via `/properties/_suggest` + `/properties/{id}`. Falls back to Claude web search if not set. |

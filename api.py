@@ -85,7 +85,7 @@ def _render_pdf(report: PropertyReport, pdf_path: str) -> str:
 
 stripe.api_key         = os.getenv("STRIPE_SECRET_KEY", "")
 STRIPE_WEBHOOK_SECRET  = os.getenv("STRIPE_WEBHOOK_SECRET", "")
-REPORT_PRICE_AUD_CENTS = int(os.getenv("REPORT_PRICE_CENTS", "2000"))
+REPORT_PRICE_AUD_CENTS = int(os.getenv("REPORT_PRICE_CENTS", "999"))
 FRONTEND_URL           = os.getenv("FRONTEND_URL", "http://localhost:8000")
 IS_TEST_MODE           = stripe.api_key.startswith("sk_test_")
 ENV                    = os.getenv("ENV", "development")

@@ -76,3 +76,18 @@ No test suite exists. Manual testing via the dev endpoint or CLI is the primary 
 ## Deployment
 
 Deployed on Railway via `railway.toml`. Health check at `GET /health`. The `/dev/generate` endpoint is disabled when `ENV=production`.
+
+## Branch strategy
+
+| Branch | Railway project | Stripe keys | Deploys |
+|---|---|---|---|
+| `main` | Preprod | `sk_test_...` (sandbox) | Auto on every push |
+| `production` | Prod | `sk_live_...` (live) | Auto when PR merged |
+
+**To release to production:**
+1. Push changes to `main` — preprod deploys automatically
+2. Verify on preprod
+3. Open a PR on GitHub: `main → production`
+4. Get approval → merge → prod deploys automatically
+
+The `production` branch is protected on GitHub (requires 1 approving review before merge). Never push directly to `production`.

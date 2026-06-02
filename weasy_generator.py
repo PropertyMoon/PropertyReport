@@ -1023,7 +1023,14 @@ def _school_chart_svg(schools: dict) -> str:
             if not isinstance(s, dict):
                 continue
             icsea = s.get("icsea")
-            if isinstance(icsea, bool) or not isinstance(icsea, (int, float)):
+            if isinstance(icsea, bool):
+                continue
+            if isinstance(icsea, str):
+                try:
+                    icsea = float(icsea)
+                except (ValueError, TypeError):
+                    continue
+            elif not isinstance(icsea, (int, float)):
                 continue
             if not (800 <= float(icsea) <= 1300):
                 continue

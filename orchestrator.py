@@ -447,7 +447,18 @@ RESEARCH_TASKS = {
         "becoming_narrative (one sentence on what this suburb is becoming over the next 5 years)."
     ),
 
-    "schools": "Property: {address}\nReturn JSON with: primary_schools (name, distance_km, icsea), secondary_schools (name, distance_km, icsea), private_schools (name, distance_km), in_catchment_zone, school_quality_summary. Use myschool.edu.au.",
+    "schools": (
+        "Property: {address}\n"
+        "Use myschool.edu.au to look up schools. "
+        "Return JSON with: "
+        "primary_schools (list of objects: name, distance_km, icsea — icsea MUST be an integer from MySchool; null only if the school is genuinely absent from MySchool), "
+        "secondary_schools (same fields), "
+        "private_schools (same fields), "
+        "in_catchment_zone (string), "
+        "school_quality_summary (MUST be exactly one of: 'Excellent', 'Strong', 'Average', 'Below Average', 'Limited' — "
+        "base this on the ICSEA scores of in-catchment schools relative to the national average of 1000: "
+        "≥1080 = Excellent, 1040–1079 = Strong, 1000–1039 = Average, 960–999 = Below Average, <960 = Limited)."
+    ),
 
     "government_projects": (
         "Property: {address}\nState: {state}\n"
@@ -853,6 +864,8 @@ SECTIONS TO WRITE:
 - Owner-occupiers: [LOW / MODERATE / HIGH] — [short reason]
 - Investors: [LOW / MODERATE / HIGH] — [short reason]
 
+<!-- EMAIL_SUMMARY: [Exactly 2 plain-English sentences summarising the property's location, headline data, and investment/lifestyle stance. No markdown, no bullets, no asterisks.] -->
+
 ## PROPERTY SNAPSHOT
 [1 short sentence framing the subject-property situation; the data table renders specifics]
 
@@ -1027,10 +1040,13 @@ def synthesise_report(client: anthropic.Anthropic, address: str, research_data: 
 
     print("  ✍️  Synthesising report (2 parallel chunks on Sonnet 4.6)...")
 
+    today_str   = datetime.datetime.now().strftime("%B %Y")
     user_prompt = (
         f"Address: {address}\n"
+        f"Today's date: {today_str}\n"
         f"Data: {json.dumps(research_data, separators=(',', ':'))}\n\n"
-        "Write your assigned sections. Replace [ADDRESS] with the address above. "
+        f"Write your assigned sections. Replace [ADDRESS] with the address above. "
+        f"Replace [Month YYYY] with '{today_str}'. "
         "End with the sentinel exactly as instructed."
     )
 
@@ -1040,8 +1056,16 @@ def synthesise_report(client: anthropic.Anthropic, address: str, research_data: 
         part_a = _trim_at_sentinel(f_a.result(), "<<END_A>>")
         part_b = _trim_at_sentinel(f_b.result(), "<<END_B>>")
 
+    full = part_a + "\n\n" + part_b.lstrip()
+    # Guarantee the Report Date is correct regardless of what the AI wrote
+    today_str = datetime.datetime.now().strftime("%B %Y")
+    full = re.sub(
+        r'(\*\*Report Date:\*\*|\*\*Report Date\*\*:)\s+\S[^\n]*',
+        f'**Report Date:** {today_str}',
+        full,
+    )
     attribution = _data_sources_section(address, research_data)
-    return part_a + "\n\n" + part_b.lstrip() + "\n\n" + attribution
+    return full + "\n\n" + attribution
 
 
 # ─── Address Normalisation ───────────────────────────────────────────────────

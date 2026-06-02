@@ -35,64 +35,88 @@ def send_report_email(
 
 
 def _extract_executive_summary(summary: str) -> str:
-    """Pull just the Executive Summary section from the full narrative."""
+    """Extract the dedicated EMAIL_SUMMARY comment if present; otherwise fall back to
+    the first 1-2 sentences of the Executive Summary section (before any bullets)."""
+    # Primary: look for the dedicated marker written by the synthesis model
+    m = re.search(r'<!--\s*EMAIL_SUMMARY:\s*(.*?)\s*-->', summary, re.DOTALL)
+    if m:
+        text = re.sub(r'\s+', ' ', m.group(1)).strip()
+        if text:
+            return text
+
+    # Fallback: take only the opening sentences before the first ### subsection
     lines = summary.split("\n")
     in_exec = False
     result = []
-
     for line in lines:
         stripped = line.strip()
-        # Start capturing at Executive Summary heading
         if re.search(r'executive\s+summary', stripped, re.IGNORECASE) and stripped.startswith("#"):
             in_exec = True
             continue
-        # Stop at the next section heading
-        if in_exec and stripped.startswith("#") and not re.search(r'executive\s+summary', stripped, re.IGNORECASE):
+        if not in_exec:
+            continue
+        if stripped.startswith("###") or stripped.startswith("- "):
             break
-        if in_exec and stripped:
-            clean = re.sub(r"\*\*(.*?)\*\*", r"\1", stripped)  # strip bold markers
-            clean = clean.lstrip("#- •").strip()
+        if stripped.startswith("##"):
+            break
+        if stripped:
+            clean = re.sub(r"\*\*(.*?)\*\*", r"\1", stripped).strip()
             if clean:
                 result.append(clean)
 
-    # Fallback: first 3 non-empty non-heading lines
-    if not result:
-        count = 0
-        for line in lines:
-            s = line.strip()
-            if s and not s.startswith("#") and not s.startswith("---"):
-                clean = re.sub(r"\*\*(.*?)\*\*", r"\1", s).lstrip("- •").strip()
-                if clean:
-                    result.append(clean)
-                    count += 1
-                    if count >= 3:
-                        break
+    return " ".join(result[:2])
 
-    return " ".join(result[:4])  # max ~4 sentences
+
+def _school_badge_html(quality: str) -> str:
+    """Return a coloured badge span for a school quality label."""
+    q = quality.lower()
+    if any(w in q for w in ("excellent", "strong", "good", "above", "high", "outstanding")):
+        color, bg = "#065f46", "#d1fae5"
+    elif any(w in q for w in ("average", "moderate", "fair")):
+        color, bg = "#92400e", "#fef3c7"
+    else:
+        color, bg = "#9f1239", "#ffe4e6"
+    escaped = html.escape(str(quality))
+    return (
+        f'<span style="display:inline-block;padding:3px 10px;border-radius:999px;'
+        f'background:{bg};color:{color};font-size:12px;font-weight:700;">{escaped}</span>'
+    )
 
 
 def _metrics_table_html(metrics: dict) -> str:
-    cells = [
-        ("Median Price",  metrics.get("median_price",   "N/A")),
-        ("Rental Yield",  metrics.get("rental_yield",   "N/A")),
-        ("Schools",       metrics.get("school_quality", "N/A")),
-        ("Flood Risk",    metrics.get("flood_risk",     "N/A")),
-        ("Train to CBD",  metrics.get("cbd_train_mins", "N/A")),
-        ("Market",        metrics.get("market_outlook", "N/A")),
+    school_val = metrics.get("school_quality", "N/A")
+    school_cell = _school_badge_html(school_val) if school_val != "N/A" else html.escape("N/A")
+
+    standard_cells = [
+        ("Median Price", html.escape(str(metrics.get("median_price", "N/A")))),
+        ("Rental Yield", html.escape(str(metrics.get("rental_yield", "N/A")))),
+        ("Train to CBD", html.escape(str(metrics.get("cbd_train_mins", "N/A")))),
     ]
     cell_html = ""
-    for label, value in cells:
-        cell_html += f"""
-        <td style="width:16.6%;padding:14px 8px;text-align:center;border-right:1px solid #e2e8f0;vertical-align:top;">
-          <div style="font-size:10px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;color:#94a3b8;margin-bottom:6px;">{html.escape(label)}</div>
-          <div style="font-size:15px;font-weight:700;color:#1e293b;line-height:1.3;">{html.escape(str(value))}</div>
-        </td>"""
+    for label, value_html in standard_cells:
+        cell_html += (
+            f'<td style="width:25%;padding:14px 8px;text-align:center;'
+            f'border-right:1px solid #e2e8f0;vertical-align:top;">'
+            f'<div style="font-size:10px;font-weight:600;letter-spacing:0.8px;'
+            f'text-transform:uppercase;color:#94a3b8;margin-bottom:6px;">{label}</div>'
+            f'<div style="font-size:15px;font-weight:700;color:#1e293b;line-height:1.3;">{value_html}</div>'
+            f'</td>'
+        )
+    # Schools cell with colour badge
+    cell_html += (
+        f'<td style="width:25%;padding:14px 8px;text-align:center;vertical-align:top;">'
+        f'<div style="font-size:10px;font-weight:600;letter-spacing:0.8px;'
+        f'text-transform:uppercase;color:#94a3b8;margin-bottom:8px;">Schools</div>'
+        f'<div>{school_cell}</div>'
+        f'</td>'
+    )
 
-    return f"""
-    <table width="100%" cellpadding="0" cellspacing="0"
-      style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin:20px 0;">
-      <tr style="background:#f8fafc;">{cell_html}</tr>
-    </table>"""
+    return (
+        f'<table width="100%" cellpadding="0" cellspacing="0" '
+        f'style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin:20px 0;">'
+        f'<tr style="background:#f8fafc;">{cell_html}</tr>'
+        f'</table>'
+    )
 
 
 def build_email_html(report: PropertyReport, recipient_name: str) -> str:

@@ -163,8 +163,22 @@ def job_get(job_id: str) -> Optional[dict]:
 
 # ─── Startup ──────────────────────────────────────────────────────────────────
 
+def _ensure_sample_pdf() -> None:
+    here = os.path.dirname(os.path.abspath(__file__))
+    sample_path = os.path.join(here, "frontend", "sample_report.pdf")
+    if os.path.exists(sample_path):
+        return
+    try:
+        import runpy
+        runpy.run_path(os.path.join(here, "generate_sample_pdf.py"))
+        log.info("Sample PDF generated at %s", sample_path)
+    except Exception as exc:
+        log.warning("Could not generate sample PDF: %s", exc)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _ensure_sample_pdf()
     init_db()
     mode  = "TEST MODE" if IS_TEST_MODE else "LIVE MODE"
     price = f"${REPORT_PRICE_AUD_CENTS / 100:.2f} AUD"

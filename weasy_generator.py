@@ -1125,17 +1125,14 @@ HTML_TEMPLATE = r"""<!doctype html>
 <head>
 <meta charset="utf-8">
 <title>{{ view.address }} — PropertyReport</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 @page title { size: A4 portrait;  margin: 0; }
 @page cover { size: A4 landscape; margin: 8mm; }
 @page body  {
   size: A4 portrait;
   margin: 14mm 14mm 16mm 14mm;
-  @bottom-left  { content: "PropertyReport"; font-size: 7.5pt; color: #94a3b8; font-family: 'Inter', sans-serif; letter-spacing: 0.6px; }
-  @bottom-right { content: "Page " counter(page); font-size: 7.5pt; color: #94a3b8; font-family: 'Inter', sans-serif; }
+  @bottom-left  { content: "PropertyReport"; font-size: 7.5pt; color: #94a3b8; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.6px; }
+  @bottom-right { content: "Page " counter(page); font-size: 7.5pt; color: #94a3b8; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
 }
 .title-page { page: title; page-break-after: always; }
 .cover-page { page: cover; page-break-before: always; }
@@ -1168,7 +1165,7 @@ HTML_TEMPLATE = r"""<!doctype html>
 
 * { box-sizing: border-box; }
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
   color: var(--slate);
   background: white;
   margin: 0;
@@ -1207,7 +1204,7 @@ body {
 }
 .title-page > * { position: relative; z-index: 1; }
 .title-brand {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
   font-size: 18pt;
   font-weight: 700;
   letter-spacing: -0.3px;
@@ -1229,7 +1226,7 @@ body {
   border-radius: 999px;
 }
 .title-headline {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
   font-size: 48pt;
   font-weight: 800;
   color: white;
@@ -1252,7 +1249,7 @@ body {
   margin-bottom: 16px;
 }
 .title-address {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
   font-size: 16pt;
   font-weight: 600;
   color: white;
@@ -1699,7 +1696,7 @@ body {
 .body-section { margin-bottom: 16px; }
 .body-section + .body-section { padding-top: 4px; }
 .body-section h2.section-title {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
   font-size: 14.5pt;
   font-weight: 700;
   color: white;

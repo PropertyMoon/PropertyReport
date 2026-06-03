@@ -166,8 +166,6 @@ def job_get(job_id: str) -> Optional[dict]:
 def _ensure_sample_pdf() -> None:
     here = os.path.dirname(os.path.abspath(__file__))
     sample_path = os.path.join(here, "frontend", "sample_report.pdf")
-    if os.path.exists(sample_path):
-        return
     try:
         import runpy
         runpy.run_path(os.path.join(here, "generate_sample_pdf.py"))
@@ -348,7 +346,7 @@ def health():
     return {"status": "ok"}
 
 
-@app.post("/create-checkout", response_model=CheckoutResponse)
+@app.post("/api/v1/session", response_model=CheckoutResponse)
 async def create_checkout(req: CheckoutRequest, request: Request):
     # ProxyHeadersMiddleware already resolved the real IP into request.client.host
     client_ip = request.client.host if request.client else "unknown"
@@ -453,7 +451,7 @@ async def stripe_webhook(request: Request, background_tasks: BackgroundTasks):
     return JSONResponse({"status": "ok"})
 
 
-@app.get("/report/{job_id}", response_model=JobStatus)
+@app.get("/api/v1/status/{job_id}", response_model=JobStatus)
 async def get_report_status(job_id: str):
     job = job_get(job_id)
     if not job:
@@ -484,11 +482,11 @@ async def dev_generate(
     return {
         "job_id":  job_id,
         "message": "Report generation started (dev mode)",
-        "poll":    f"GET /report/{job_id}",
+        "poll":    f"GET /api/v1/status/{job_id}",
     }
 
 
-@app.get("/config")
+@app.get("/api/v1/cfg")
 def get_config():
     """Public config for the frontend — safe to expose (key is domain-restricted in Google Cloud)."""
     return {"google_maps_api_key": os.getenv("GOOGLE_MAPS_API_KEY", "")}

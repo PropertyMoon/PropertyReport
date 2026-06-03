@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from dataclasses import field
 from orchestrator import PropertyReport
-from pdf_generator import generate_pdf
+from weasy_generator import render_dashboard_pdf
 
 SUMMARY = """\
 # PROPERTY INVESTMENT REPORT
@@ -266,5 +266,5 @@ report.scores = {
 }
 
 out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "frontend", "sample_report.pdf")
-generate_pdf(report, out)
+render_dashboard_pdf(report, out)
 print(f"Sample PDF saved to: {out}")

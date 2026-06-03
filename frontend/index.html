@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <script>
-    fetch('/config')
+    fetch('/api/v1/cfg')
       .then(r => r.json())
       .then(cfg => {
         if (!cfg.google_maps_api_key) return;
@@ -627,7 +627,7 @@
     btn.innerHTML = "⏳ Creating checkout...";
 
     try {
-      const res = await fetch(`${API_URL}/create-checkout`, {
+      const res = await fetch(`${API_URL}/api/v1/session`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ address, buyer_name: name, buyer_email: email })
@@ -795,7 +795,7 @@
 
     const poll = async () => {
       try {
-        const res  = await fetch(`${API_URL}/report/${jobId}`);
+        const res  = await fetch(`${API_URL}/api/v1/status/${jobId}`);
         const data = await res.json();
 
         renderStatus(data.status, data.message);

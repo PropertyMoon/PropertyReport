@@ -878,12 +878,13 @@ SECTIONS TO WRITE:
 **Property Type:** [type if known, else 'Residential']
 
 ## EXECUTIVE SUMMARY
-[1-2 short sentences: where the property is, headline data, one-line stance]
+[3–4 sentences covering: (1) property location and type, (2) key suburb metrics (median price, rental yield, school quality), (3) market conditions and recent comparable sales context, (4) overall investment/lifestyle assessment. Write in plain English, no bullet points in this paragraph. Be specific — cite actual figures from the data.]
 
 ### Key Highlights
-- [bullet — max 15 words]
-- [bullet]
-- [bullet]
+- [bullet — 15–25 words, include a specific figure where possible]
+- [bullet — 15–25 words, include a specific figure where possible]
+- [bullet — 15–25 words, include a specific figure where possible]
+- [bullet — 15–25 words, include a specific figure where possible]
 
 ### Primary Concerns
 - [bullet]

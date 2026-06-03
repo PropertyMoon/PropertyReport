@@ -449,15 +449,20 @@ RESEARCH_TASKS = {
 
     "schools": (
         "Property: {address}\n"
-        "Use myschool.edu.au to look up schools. "
+        "STEP 1 — Search '[suburb] [state] primary school catchment zone' to identify the in-catchment government primary school. "
+        "Then fetch its myschool.edu.au profile to get its ICSEA score. Also note 1-2 other nearby primary schools within 2 km.\n"
+        "STEP 2 — Search '[suburb] [state] secondary school catchment zone' to identify the in-catchment government secondary school. "
+        "Fetch its myschool.edu.au profile for ICSEA. Note 1-2 other nearby secondary schools.\n"
+        "STEP 3 — Search '[suburb] [state] private schools' for nearby private/independent options within 5 km. "
+        "Fetch myschool.edu.au profiles for ICSEA where available.\n"
+        "STEP 4 — Review all ICSEA scores collected. Assign school_quality_summary based on the in-catchment schools' average ICSEA.\n"
         "Return JSON with: "
-        "primary_schools (list of objects: name, distance_km, icsea — icsea MUST be an integer from MySchool; null only if the school is genuinely absent from MySchool), "
-        "secondary_schools (same fields), "
-        "private_schools (same fields), "
-        "in_catchment_zone (string), "
+        "primary_schools (list: name, distance_km, icsea as integer from MySchool — null only if genuinely absent), "
+        "secondary_schools (same), "
+        "private_schools (same), "
+        "in_catchment_zone (string describing the catchment boundary), "
         "school_quality_summary (MUST be exactly one of: 'Excellent', 'Strong', 'Average', 'Below Average', 'Limited' — "
-        "base this on the ICSEA scores of in-catchment schools relative to the national average of 1000: "
-        "≥1080 = Excellent, 1040–1079 = Strong, 1000–1039 = Average, 960–999 = Below Average, <960 = Limited)."
+        "≥1080 avg ICSEA = Excellent, 1040–1079 = Strong, 1000–1039 = Average, 960–999 = Below Average, <960 = Limited)."
     ),
 
     "government_projects": (
@@ -531,7 +536,26 @@ RESEARCH_TASKS = {
         "days_on_market, auction_clearance_rate, price_per_sqm, best_pockets, market_outlook."
     ),
 
-    "risk_overlays": "Property: {address}\nState: {state}\nReturn JSON with: flood_risk, bushfire_bal_rating, heritage_overlay, landscape_overlay, subdivision_potential, noise_concerns, contamination_flags. Use {planning_url} and {flood_url}.",
+    "risk_overlays": (
+        "Property: {address}\nState: {state}\n"
+        "STEP 1 — FLOOD: Search '[address] flood risk' and check {flood_url} — determine if the property is in a flood zone "
+        "(high/medium/low/negligible) and whether it is in a 1-in-100 year flood area.\n"
+        "STEP 2 — BUSHFIRE & BAL: Search '[suburb] [state] bushfire attack level BAL rating' — find the BAL rating for this address "
+        "(BAL-FZ, BAL-40, BAL-29, BAL-19, BAL-12.5, BAL-Low, or N/A for urban areas). Use any state fire authority source.\n"
+        "STEP 3 — PLANNING OVERLAYS: Check {planning_url} for this address — identify any heritage overlay, vegetation/landscape overlay, "
+        "airport/flight path overlay, environmental significance overlay, or development contribution overlay that applies.\n"
+        "STEP 4 — NOISE & OTHER: Search '[suburb] noise concerns airport train' to flag any aircraft noise, freeway noise, or rail noise. "
+        "Also note any known contamination or EPA issues for the address if found.\n"
+        "Return JSON with: "
+        "flood_risk (string: 'High', 'Medium', 'Low', or 'Negligible' — with one sentence of context), "
+        "bushfire_bal_rating (string e.g. 'BAL-Low', 'BAL-12.5', 'N/A — urban area'), "
+        "heritage_overlay (string or null — overlay code and what it restricts), "
+        "landscape_overlay (string or null), "
+        "airport_overlay (string or null — flight path or building height restriction), "
+        "noise_concerns (string or null — source and severity), "
+        "contamination_flags (string or null), "
+        "subdivision_potential (string: 'High', 'Moderate', 'Low' — one sentence reason)."
+    ),
 
     "property_intel": (
         "Property: {address}\nState: {state}\n"
@@ -657,14 +681,19 @@ def _parse_json(text: str, label: str = "") -> dict:
 
 # Tasks that need more web searches to reliably find specific data
 _TASK_MAX_SEARCHES = {
-    "property_market":     10,  # direct fetch + fallback queries + comps + market data
-    "government_projects": 5,   # must search council + state + planning portal
-    "suburb":              6,   # median price + rental yield + price history + crime
+    "property_market":     10,
+    "government_projects": 5,
+    "suburb":              6,
+    "schools":             4,
+    "transport":           4,
+    "risk_overlays":       4,
 }
 _DEFAULT_MAX_SEARCHES = 3
 
 _TASK_MAX_TOKENS = {
-    "property_market": 6000,  # verbose reasoning + full JSON; 3000 causes truncation
+    "property_market": 6000,
+    "risk_overlays":   4000,
+    "schools":         3500,
 }
 _DEFAULT_MAX_TOKENS = 3000
 

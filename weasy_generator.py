@@ -816,6 +816,11 @@ def build_view(report) -> dict:
             "crime":   icon("shield"),
         },
         "schools_rating_icon": icon(schools_icon_name, size=22, fill="#10b981" if _school_above_avg else "#f43f5e"),
+        "schools_quality_color": (
+            "#10b981" if any(w in schools_quality.lower() for w in ("excellent", "strong"))
+            else "#f59e0b" if "average" in schools_quality.lower()
+            else "#e11d48"
+        ),
         "pipeline":   pipeline,
         "map_legend": map_legend,
         "photo_uri":  photo_uri,
@@ -1841,8 +1846,8 @@ body {
     <div class="card metric-card">
       <div class="metric-icon icon-violet">{{ view.metric_icons.schools | safe }}</div>
       <div class="metric-label">Schools</div>
-      <div class="metric-value schools-rating">{{ view.schools_rating_icon | safe }}</div>
-      <div class="metric-sub">Quality</div>
+      <div class="metric-value" style="color: {{ view.schools_quality_color }}">{{ view.metrics.schools }}</div>
+      <div class="metric-sub">Quality Rating</div>
     </div>
     <div class="card metric-card">
       <div class="metric-icon icon-teal">{{ view.metric_icons.train | safe }}</div>

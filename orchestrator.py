@@ -768,28 +768,25 @@ def _run_research_task_claude(client: anthropic.Anthropic, task_name: str, promp
 
 
 def _run_research_task_perplexity(task_name: str, prompt: str) -> str:
-    """Execute a research task via Perplexity sonar-deep-research. Returns raw text."""
+    """Execute a research task via Perplexity sonar-pro. Returns raw text."""
     perplexity_client = _OpenAI(
         api_key=os.environ["PERPLEXITY_API_KEY"],
         base_url="https://api.perplexity.ai",
     )
 
-    for attempt in range(3):
+    for attempt in range(4):
         try:
             response = perplexity_client.chat.completions.create(
-                model="sonar-deep-research",
+                model="sonar-pro",
                 messages=[
                     {"role": "system", "content": _RESEARCH_SYSTEM_PROMPT},
                     {"role": "user",   "content": prompt},
                 ],
-                timeout=360,  # deep-research can take 2-5 min per task
+                timeout=120,
             )
-            msg = response.choices[0].message
-            # sonar-deep-research returns a `reasoning` field with chain-of-thought;
-            # use only the final answer content for JSON parsing downstream
-            return msg.content or ""
+            return response.choices[0].message.content or ""
         except Exception as e:
-            if attempt == 2:
+            if attempt == 3:
                 raise
             wait = 30 * (attempt + 1)
             print(f"  ⏳ Perplexity error on {task_name} ({e}), retrying in {wait}s...")

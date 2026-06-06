@@ -450,17 +450,29 @@ RESEARCH_TASKS = {
     "schools": (
         "Property: {address}\n"
         "STEP 1 — Search '[suburb] [state] primary school catchment zone' to identify the in-catchment government primary school. "
-        "Then fetch its myschool.edu.au profile to get its ICSEA score. Also note 1-2 other nearby primary schools within 2 km.\n"
-        "STEP 2 — Search '[suburb] [state] secondary school catchment zone' to identify the in-catchment government secondary school. "
-        "Fetch its myschool.edu.au profile for ICSEA. Note 1-2 other nearby secondary schools.\n"
-        "STEP 3 — Search '[suburb] [state] private schools' for nearby private/independent options within 5 km. "
-        "Fetch myschool.edu.au profiles for ICSEA where available.\n"
-        "STEP 4 — Review all ICSEA scores collected. Assign school_quality_summary based on the in-catchment schools' average ICSEA.\n"
+        "Confirm whether THIS specific address falls inside that school's boundary (in_catchment = true/false). "
+        "Fetch its myschool.edu.au profile for ICSEA and latest NAPLAN results (reading/numeracy percentile vs national average). "
+        "Estimate the walk time in minutes from the property to the school. "
+        "Also note 1-2 other nearby primary schools within 2 km.\n"
+        "STEP 2 — Search '[suburb] [state] secondary school catchment zone' to identify the in-catchment secondary school. "
+        "Confirm catchment status for this address. Fetch myschool.edu.au for ICSEA and NAPLAN. "
+        "Estimate walk time. Note 1-2 other nearby secondary schools.\n"
+        "STEP 3 — Search '[suburb] [state] private schools' for independent/Catholic/Anglican/selective options within 5 km. "
+        "For each: fetch myschool.edu.au ICSEA where available, identify school_type (Catholic / Independent / Anglican / Selective / Other), "
+        "and estimate annual tuition fees from the school's website if findable.\n"
+        "STEP 4 — Review ICSEA scores. Assign school_quality_summary based on the in-catchment schools' average ICSEA.\n"
         "Return JSON with: "
-        "primary_schools (list: name, distance_km, icsea as integer from MySchool — null only if genuinely absent), "
-        "secondary_schools (same), "
-        "private_schools (same), "
-        "in_catchment_zone (string describing the catchment boundary), "
+        "primary_schools (list of objects: name, distance_km, icsea (int or null), "
+        "in_catchment (boolean — true if this address is inside the school's catchment zone), "
+        "walk_mins (int — estimated walk time in minutes; null if more than 25 min or walk not practical), "
+        "naplan_reading_pct (int 1–100 — NAPLAN reading percentile rank vs national average from myschool.edu.au; null if not found), "
+        "naplan_numeracy_pct (int 1–100 — same for numeracy; null if not found)), "
+        "secondary_schools (same fields as primary_schools), "
+        "private_schools (list: name, distance_km, icsea (int or null), "
+        "school_type (string — 'Catholic', 'Independent', 'Anglican', 'Selective', or 'Other'), "
+        "fees_annual_aud (int — approximate annual tuition fees AUD; null if unknown), "
+        "naplan_reading_pct (int or null), naplan_numeracy_pct (int or null)), "
+        "in_catchment_zone (one sentence describing the catchment boundary for this address), "
         "school_quality_summary (MUST be exactly one of: 'Excellent', 'Strong', 'Average', 'Below Average', 'Limited' — "
         "≥1080 avg ICSEA = Excellent, 1040–1079 = Strong, 1000–1039 = Average, 960–999 = Below Average, <960 = Limited)."
     ),
@@ -958,7 +970,7 @@ MISSING-DATA WORDING rules — never 'Data unavailable'.
 """ + _SHARED_RULES + """
 SECTIONS TO WRITE:
 ## SCHOOLS CATCHMENT
-[MAX 2 short sentences — the ICSEA chart renders per-school detail. Do NOT enumerate school names with scores.]
+[MAX 2 short sentences — the school detail table renders catchment status, ICSEA, NAPLAN percentiles, and proximity for each school. Reference the qualitative picture only (e.g. in-catchment schools above national average, walkable from the property) — do NOT list individual school names or numeric scores.]
 
 ## INFRASTRUCTURE & DEVELOPMENT
 - [MAX 4 bullets total — combine major projects, planning reforms, recent completions. Each ≤18 words.]

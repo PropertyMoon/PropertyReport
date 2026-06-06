@@ -201,8 +201,24 @@ report = PropertyReport(
         "crime_trend_years": [2023, 2024, 2025],
     },
     schools={
-        "primary_schools":   [{"name": "Taylors Lakes Primary School",    "icsea": 1050, "distance_km": 0.9}],
-        "secondary_schools": [{"name": "Taylors Lakes Secondary College", "icsea": 1015, "distance_km": 1.2}],
+        "primary_schools": [{
+            "name": "Taylors Lakes Primary School",
+            "icsea": 1050, "distance_km": 0.9,
+            "in_catchment": True, "walk_mins": 11,
+            "naplan_reading_pct": 74, "naplan_numeracy_pct": 71,
+        }],
+        "secondary_schools": [{
+            "name": "Taylors Lakes Secondary College",
+            "icsea": 1015, "distance_km": 1.2,
+            "in_catchment": True, "walk_mins": None,
+            "naplan_reading_pct": 66, "naplan_numeracy_pct": 63,
+        }],
+        "private_schools": [{
+            "name": "Overnewton Anglican Community College",
+            "icsea": 1075, "distance_km": 4.5,
+            "school_type": "Anglican", "fees_annual_aud": 12000,
+            "naplan_reading_pct": 78, "naplan_numeracy_pct": 75,
+        }],
         "school_quality_summary": "Strong",
     },
     transport={

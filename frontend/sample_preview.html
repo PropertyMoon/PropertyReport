@@ -1,0 +1,1132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>35 Pindari Ave, Taylors Lakes VIC 3038 — PropertyReport</title>
+<style>
+@page title { size: A4 portrait;  margin: 0; }
+@page cover { size: A4 landscape; margin: 8mm; }
+@page body  {
+  size: A4 portrait;
+  margin: 14mm 14mm 16mm 14mm;
+  @bottom-left  { content: "PropertyReport"; font-size: 7.5pt; color: #94a3b8; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.6px; }
+  @bottom-right { content: "Page " counter(page); font-size: 7.5pt; color: #94a3b8; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+}
+.title-page { page: title; page-break-after: always; }
+.cover-page { page: cover; page-break-before: always; }
+.body-pages { page: body;  page-break-before: always; }
+
+:root {
+  --navy: #0f172a;
+  --slate: #1e293b;
+  --slate-2: #475569;
+  --slate-3: #94a3b8;
+  --slate-4: #cbd5e1;
+  --grey-50: #f8fafc;
+  --grey-100: #f1f5f9;
+  --grey-200: #e2e8f0;
+  --emerald: #10b981;
+  --emerald-soft: #d1fae5;
+  --amber: #f59e0b;
+  --amber-soft: #fef3c7;
+  --rose: #e11d48;
+  --rose-soft: #ffe4e6;
+  --blue: #2563eb;
+  --blue-soft: #dbeafe;
+  --violet: #7c3aed;
+  --violet-soft: #ede9fe;
+  --teal: #0891b2;
+  --teal-soft: #cffafe;
+  --orange: #ea580c;
+  --orange-soft: #ffedd5;
+}
+
+* { box-sizing: border-box; }
+body {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  color: var(--slate);
+  background: white;
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.35;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+/* ── TITLE PAGE (full-bleed portrait, sits before the landscape cover) ── */
+.title-page {
+  width: 210mm;
+  height: 297mm;
+  padding: 28mm;
+  box-sizing: border-box;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #1e3a5f 100%);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+}
+.title-page::before {
+  content: '';
+  position: absolute;
+  top: -90mm; right: -90mm;
+  width: 200mm; height: 200mm;
+  background: radial-gradient(circle, rgba(16,185,129,0.18) 0%, transparent 65%);
+}
+.title-page::after {
+  content: '';
+  position: absolute;
+  bottom: -100mm; left: -100mm;
+  width: 180mm; height: 180mm;
+  background: radial-gradient(circle, rgba(16,185,129,0.10) 0%, transparent 65%);
+}
+.title-page > * { position: relative; z-index: 1; }
+.title-brand {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 18pt;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: white;
+}
+.title-brand .accent { color: var(--emerald); }
+.title-headline-wrap { align-self: flex-start; max-width: 90%; }
+.title-eyebrow {
+  display: inline-block;
+  font-size: 9pt;
+  font-weight: 600;
+  letter-spacing: 2.4px;
+  text-transform: uppercase;
+  color: #6ee7b7;
+  margin-bottom: 26px;
+  padding: 5px 14px;
+  background: rgba(16,185,129,0.13);
+  border: 1px solid rgba(16,185,129,0.32);
+  border-radius: 999px;
+}
+.title-headline {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 48pt;
+  font-weight: 800;
+  color: white;
+  line-height: 1.05;
+  letter-spacing: -1.5px;
+  margin: 0;
+}
+.title-headline em {
+  font-style: normal;
+  color: var(--emerald);
+}
+.title-footer {
+  padding-top: 16px;
+  border-top: 1px solid rgba(255,255,255,0.12);
+}
+.title-accent-bar {
+  width: 60px;
+  height: 3px;
+  background: var(--emerald);
+  margin-bottom: 16px;
+}
+.title-address {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 16pt;
+  font-weight: 600;
+  color: white;
+  letter-spacing: -0.3px;
+  line-height: 1.25;
+}
+
+.dashboard {
+  display: grid;
+  grid-template-rows: 82px 74px 190px 165px 84px;
+  gap: 8px;
+}
+
+.row {
+  display: grid;
+  gap: 8px;
+}
+
+.card {
+  background: white;
+  border: 1px solid var(--grey-200);
+  border-radius: 8px;
+  padding: 10px 12px;
+  overflow: hidden;
+}
+
+.label {
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: var(--slate-3);
+  text-transform: uppercase;
+  margin: 0 0 6px;
+}
+
+/* ── HEADER ROW ── */
+.header-row { grid-template-columns: 3fr 1.4fr; }
+
+/* ── LIFESTYLE SNAPSHOT ROW ── */
+.lifestyle-row { grid-template-columns: repeat(8, 1fr); }
+.lifestyle-card {
+  display: flex; flex-direction: column; align-items: flex-start;
+  padding: 7px 9px; gap: 1px; overflow: hidden;
+}
+.lifestyle-icon {
+  width: 22px; height: 22px; border-radius: 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0; margin-bottom: 3px;
+}
+.lifestyle-icon svg { width: 13px; height: 13px; display: block; }
+.lifestyle-category {
+  font-size: 7px; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--slate-3); font-weight: 600; line-height: 1.2;
+}
+.lifestyle-name {
+  font-size: 9px; font-weight: 700; color: var(--navy);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;
+  line-height: 1.25;
+}
+.lifestyle-distance {
+  font-size: 8px; color: var(--slate-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;
+  line-height: 1.2;
+}
+.lifestyle-detail {
+  font-size: 7.5px; color: var(--emerald); font-weight: 600; line-height: 1.2;
+}
+
+/* ── TOP AMENITIES (replaces pipeline in detail row) ── */
+.top-amenity-row {
+  display: flex; align-items: flex-start; gap: 7px;
+  padding: 5px 0; border-bottom: 1px solid var(--grey-100);
+}
+.top-amenity-row:last-child { border-bottom: none; }
+.top-amenity-body { display: flex; flex-direction: column; gap: 1px; }
+.top-amenity-body strong { font-weight: 600; color: var(--navy); font-size: 9.5px; line-height: 1.25; }
+.top-amenity-body span { color: var(--slate-3); font-size: 8.5px; }
+.title-card {
+  background: linear-gradient(135deg, var(--navy) 0%, var(--slate) 100%);
+  color: white;
+  border: none;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+.title-card .addr {
+  font-size: 17px;
+  font-weight: 700;
+  color: white;
+  line-height: 1.2;
+  overflow: hidden;
+}
+.photo-card {
+  border: 1px solid var(--grey-200);
+  border-radius: 8px;
+  background: linear-gradient(120deg, #cbd5e1 0%, #94a3b8 100%);
+  position: relative;
+  overflow: hidden;
+  padding: 0;
+}
+.photo-card img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.photo-card .photo-tag {
+  position: absolute;
+  bottom: 6px;
+  left: 8px;
+  background: rgba(15,23,42,0.72);
+  color: white;
+  font-size: 8px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  letter-spacing: 0.3px;
+}
+
+
+/* ── METRIC ROW ── */
+.metric-row { grid-template-columns: repeat(5, 1fr); }
+.metric-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 8px 12px;
+  overflow: hidden;
+  min-width: 0;
+}
+.metric-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+.metric-icon svg { width: 16px; height: 16px; display: block; }
+.icon-sm svg     { width: 11px; height: 11px; display: block; }
+.legend-icon svg { width: 10px; height: 10px; display: block; }
+.section-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.section-icon svg { width: 20px; height: 20px; display: block; }
+.icon-emerald { background: var(--emerald-soft); color: var(--emerald); }
+.icon-blue    { background: var(--blue-soft);    color: var(--blue); }
+.icon-violet  { background: var(--violet-soft);  color: var(--violet); }
+.icon-teal    { background: var(--teal-soft);    color: var(--teal); }
+.icon-amber   { background: var(--amber-soft);   color: var(--amber); }
+.icon-rose    { background: var(--rose-soft);    color: var(--rose); }
+.icon-orange  { background: var(--orange-soft);  color: var(--orange); }
+
+/* WeasyPrint doesn't reliably inherit `color` into SVG `currentColor`.
+   Target the SVG children directly so the fill is unambiguous. */
+.icon-emerald svg, .icon-emerald svg path, .icon-emerald svg rect, .icon-emerald svg circle { fill: var(--emerald); }
+.icon-blue    svg, .icon-blue    svg path, .icon-blue    svg rect, .icon-blue    svg circle { fill: var(--blue); }
+.icon-violet  svg, .icon-violet  svg path, .icon-violet  svg rect, .icon-violet  svg circle { fill: var(--violet); }
+.icon-teal    svg, .icon-teal    svg path, .icon-teal    svg rect, .icon-teal    svg circle { fill: var(--teal); }
+.icon-amber   svg, .icon-amber   svg path, .icon-amber   svg rect, .icon-amber   svg circle { fill: var(--amber); }
+.icon-rose    svg, .icon-rose    svg path, .icon-rose    svg rect, .icon-rose    svg circle { fill: var(--rose); }
+.icon-orange  svg, .icon-orange  svg path, .icon-orange  svg rect, .icon-orange  svg circle { fill: var(--orange); }
+
+.metric-label {
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--slate-3);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+.metric-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--navy);
+  line-height: 1.2;
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.schools-rating { display: flex; align-items: center; }
+.schools-rating svg { width: 22px; height: 22px; display: block; }
+.metric-sub {
+  font-size: 8.5px;
+  color: var(--slate-3);
+  margin-top: 1px;
+}
+
+/* ── CHART ROW ── */
+.chart-row { grid-template-columns: 1.2fr 1.2fr 1.2fr 1.1fr; }
+.chart-svg { width: 100%; height: 120px; }
+.chart-stats { display: flex; gap: 12px; margin-top: 4px; font-size: 9px; }
+.chart-stats .key {
+  color: var(--emerald);
+  font-weight: 700;
+  font-size: 11px;
+}
+.chart-stats .lbl { color: var(--slate-3); }
+
+.comp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 8.5px;
+  margin-top: 2px;
+}
+.comp-table th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--slate-3);
+  text-transform: uppercase;
+  font-size: 7.5px;
+  padding: 4px 4px;
+  border-bottom: 1px solid var(--grey-200);
+}
+.comp-table td {
+  padding: 4px 4px;
+  border-bottom: 1px solid var(--grey-100);
+  color: var(--slate);
+}
+.last-sale-box {
+  margin-top: 6px;
+  background: var(--emerald-soft);
+  border-radius: 6px;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 9px;
+}
+.last-sale-box .star { color: var(--emerald); margin-right: 6px; }
+.last-sale-box .price { font-weight: 700; color: var(--navy); }
+
+.scorecard-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 0;
+  font-size: 9px;
+  border-bottom: 1px solid var(--grey-100);
+}
+.scorecard-row:last-child { border-bottom: none; }
+.scorecard-row .stars { letter-spacing: 1px; }
+.star.full  { color: var(--amber); }
+.star.half  { color: var(--amber); opacity: 0.6; }
+.star.empty { color: var(--grey-200); }
+.scorecard-row .score-num {
+  font-weight: 700;
+  color: var(--navy);
+  margin-left: 4px;
+  font-size: 10px;
+}
+.overall-band {
+  background: var(--navy);
+  color: white;
+  border-radius: 6px;
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 5px;
+}
+.overall-band .overall-text {
+  font-size: 9px;
+  letter-spacing: 0.4px;
+}
+.overall-band .overall-text strong { display: block; font-size: 10.5px; }
+.overall-band .overall-score {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+/* ── DETAIL ROW ── */
+.detail-row { grid-template-columns: 1.3fr 1.2fr 1.2fr 1.3fr; }
+.row-list .item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 0;
+  font-size: 9px;
+  border-bottom: 1px solid var(--grey-100);
+}
+.row-list .item:last-child { border-bottom: none; }
+.row-list .item .left { display: flex; align-items: center; gap: 6px; }
+.row-list .item .icon-sm {
+  width: 18px; height: 18px; border-radius: 4px;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 10px;
+}
+.row-list .item .right {
+  font-size: 8.5px;
+  color: var(--slate-3);
+  text-align: right;
+}
+.row-list .item .right strong { color: var(--navy); font-weight: 600; }
+
+.school-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--grey-100);
+  font-size: 9px;
+}
+.school-row:last-child { border-bottom: none; }
+.school-row .icsea {
+  background: var(--violet-soft);
+  color: var(--violet);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 8.5px;
+}
+.verify-note {
+  font-size: 8px;
+  color: var(--slate-3);
+  margin-top: 6px;
+  background: var(--grey-50);
+  padding: 5px 7px;
+  border-radius: 4px;
+}
+.verify-note a { color: var(--blue); text-decoration: none; }
+
+.crime-headline {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--navy);
+}
+.crime-rows { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.crime-row {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 9px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--grey-100);
+}
+.crime-row:last-child { border-bottom: none; }
+.crime-row .crime-label { color: var(--slate-2); }
+.crime-delta { font-size: 10.5px; font-weight: 700; }
+.delta-green { color: var(--emerald); }
+.delta-grey  { color: var(--slate-2); font-weight: 500; }
+.delta-amber { color: var(--amber); }
+.delta-red   { color: var(--rose); }
+
+.lifestyle-table {
+  width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 10pt;
+}
+.lifestyle-table th {
+  background: var(--grey-100); color: var(--slate-2); font-weight: 600;
+  text-align: left; padding: 6px 10px; font-size: 9pt; letter-spacing: 0.3px;
+}
+.lifestyle-table td {
+  padding: 7px 10px; border-bottom: 1px solid var(--grey-100); vertical-align: middle;
+}
+.lifestyle-table tr:last-child td { border-bottom: none; }
+.lt-cat { display: flex; align-items: center; gap: 6px; }
+
+.body-crime {
+  margin: 8px 0 14px 0;
+  padding: 10px 14px;
+  background: var(--grey-50);
+  border: 1px solid var(--grey-200);
+  border-radius: 6px;
+}
+.body-crime-headline {
+  font-size: 11pt; font-weight: 700; color: var(--navy);
+  margin-bottom: 4px;
+}
+.body-crime-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 0;
+  font-size: 10pt;
+  border-bottom: 1px solid var(--grey-200);
+}
+.body-crime-row:last-child { border-bottom: none; }
+
+.pipeline-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 0;
+  font-size: 9px;
+  border-bottom: 1px solid var(--grey-100);
+}
+.pipeline-row:last-child { border-bottom: none; }
+.pipeline-row .icon-sm {
+  width: 18px; height: 18px; border-radius: 4px;
+  background: var(--grey-100); color: var(--slate-2);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10px; margin-right: 6px;
+}
+.pipeline-row .status {
+  font-size: 8.5px; color: var(--slate-3);
+}
+.pipeline-row.completed .icon-sm { background: var(--emerald-soft); color: var(--emerald); }
+.pipeline-row.progress .icon-sm  { background: var(--blue-soft);    color: var(--blue); }
+.pipeline-row.planned .icon-sm   { background: var(--orange-soft);  color: var(--orange); }
+
+/* ── VERDICT BAND ── */
+.verdict-row { grid-template-columns: 1.4fr 1fr 1fr 1fr 1.2fr; gap: 8px; }
+.verdict-band {
+  background: var(--navy);
+  color: white;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.verdict-band .vd-stars { color: var(--amber); font-size: 11px; letter-spacing: 1px; }
+.verdict-band .vd-eyebrow {
+  font-size: 8px;
+  color: rgba(255,255,255,0.55);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-top: 3px;
+}
+.verdict-band .vd-title {
+  font-size: 13px;
+  font-weight: 700;
+  margin: 2px 0 4px;
+}
+.verdict-band .vd-body {
+  font-size: 8.5px;
+  color: rgba(255,255,255,0.7);
+  line-height: 1.45;
+}
+
+.verdict-cell {
+  padding: 8px 10px;
+  background: var(--grey-50);
+  border-radius: 8px;
+  border: 1px solid var(--grey-200);
+  font-size: 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.verdict-cell .eyebrow {
+  font-size: 8px;
+  color: var(--slate-3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+}
+.verdict-cell .title { font-weight: 700; color: var(--navy); font-size: 10px; }
+.verdict-cell .body  { color: var(--slate-2); font-size: 8.5px; }
+.verdict-cell.risk { background: #fffbeb; border-color: #fde68a; }
+.verdict-cell.risk .title { color: var(--amber); }
+.next-steps { padding: 8px 10px; background: var(--grey-50); border: 1px solid var(--grey-200); border-radius: 8px; font-size: 8.5px; }
+.next-steps .eyebrow {
+  font-size: 8px;
+  color: var(--slate-3);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.next-steps ul { list-style: none; margin: 0; padding: 0; }
+.next-steps li { padding: 2px 0; color: var(--slate-2); }
+.next-steps li::before { content: "✓"; color: var(--emerald); font-weight: 700; margin-right: 6px; }
+
+/* ── BODY PAGES (portrait, prose-heavy) ── */
+.body-pages { font-size: 10.5px; line-height: 1.55; color: var(--slate); }
+.body-section { margin-bottom: 16px; }
+.body-section + .body-section { padding-top: 4px; }
+.body-section h2.section-title {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 14.5pt;
+  font-weight: 700;
+  color: white;
+  background: linear-gradient(135deg, var(--navy) 0%, var(--slate) 100%);
+  padding: 8px 14px;
+  border-radius: 6px;
+  margin: 0 0 10px 0;
+  letter-spacing: 0.2px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.body-section h3 {
+  font-size: 10.5pt;
+  font-weight: 600;
+  color: var(--navy);
+  margin: 12px 0 4px;
+  letter-spacing: 0.1px;
+}
+.body-section p {
+  margin: 0 0 7px 0;
+  color: var(--slate-2);
+}
+.body-section ul, .body-section ol {
+  margin: 4px 0 8px 0;
+  padding-left: 18px;
+}
+.body-section li {
+  margin: 2px 0;
+  color: var(--slate-2);
+}
+.body-section li::marker { color: var(--emerald); }
+.body-section strong { color: var(--navy); font-weight: 600; }
+
+/* Property Snapshot data table */
+.snapshot-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0 14px 0;
+  font-size: 10pt;
+  border: 1px solid var(--grey-200);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.snapshot-table th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--navy);
+  background: #ecfdf5;
+  padding: 7px 12px;
+  width: 38%;
+  border-bottom: 1px solid var(--grey-200);
+  border-right: 1px solid var(--grey-200);
+}
+.snapshot-table td {
+  padding: 7px 12px;
+  color: var(--slate-2);
+  border-bottom: 1px solid var(--grey-100);
+}
+.snapshot-table tr:last-child th,
+.snapshot-table tr:last-child td { border-bottom: none; }
+.snapshot-table strong { color: var(--navy); }
+
+.body-chart {
+  margin: 8px 0 14px 0;
+  padding: 10px;
+  background: var(--grey-50);
+  border: 1px solid var(--grey-200);
+  border-radius: 6px;
+}
+.body-chart .chart-svg { width: 100%; height: auto; max-height: 240px; display: block; }
+.body-chart.body-chart-narrow .chart-svg { max-height: 160px; max-width: 280px; margin: 0 auto; }
+
+.body-disclaimer {
+  margin-top: 24px;
+  padding-top: 10px;
+  border-top: 1px solid var(--grey-200);
+  font-size: 8.5pt;
+  font-style: italic;
+  color: var(--slate-3);
+  line-height: 1.5;
+}
+
+/* ── SCHOOL DETAIL TABLE (body pages) ── */
+.sch-detail-table { width: 100%; border-collapse: collapse; font-size: 10pt; margin: 8px 0 6px; }
+.sch-th {
+  text-align: left; font-size: 8pt; font-weight: 700;
+  color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;
+  padding: 6px 10px; border-bottom: 2px solid #e2e8f0;
+}
+.sch-td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.sch-center { text-align: center; }
+.sch-name { color: #0f172a; font-size: 10.5pt; }
+.sch-sub  { font-size: 8.5pt; }
+.sch-icsea { font-weight: 700; color: #0f172a; font-size: 11pt; }
+.sch-pct   { font-weight: 700; font-size: 11pt; }
+.sch-badge {
+  display: inline-block; font-size: 8pt; font-weight: 600;
+  padding: 2px 7px; border-radius: 4px; white-space: nowrap;
+}
+.sch-badge-in      { background: #d1fae5; color: #065f46; }
+.sch-badge-out     { background: #fef3c7; color: #92400e; }
+.sch-badge-private { background: #ede9fe; color: #5b21b6; }
+.sch-note { font-size: 8.5pt; color: #94a3b8; margin-top: 4px; line-height: 1.4; }
+.sch-note a { color: #2563eb; text-decoration: none; }
+
+/* Cover school catchment badge */
+.catchment-badge {
+  display: inline-block; font-size: 7.5px; font-weight: 700;
+  padding: 2px 5px; border-radius: 3px;
+}
+.badge-in  { background: #d1fae5; color: #065f46; }
+.badge-out { background: #fef3c7; color: #92400e; }
+</style>
+</head>
+<body>
+
+<div class="title-page">
+  <div class="title-brand">Property<span class="accent">Report</span></div>
+  <div class="title-headline-wrap">
+    <div class="title-eyebrow">AI-assisted property intelligence</div>
+    <div class="title-headline">Know everything<br>before you <em>make an offer.</em></div>
+  </div>
+  <div class="title-footer">
+    <div class="title-accent-bar"></div>
+    <div class="title-address">35 Pindari Ave, Taylors Lakes VIC 3038</div>
+  </div>
+</div>
+
+<div class="dashboard cover-page">
+
+  <!-- HEADER ROW -->
+  <div class="row header-row">
+    <div class="card title-card">
+      <div class="addr">35 Pindari Ave, Taylors Lakes VIC 3038</div>
+    </div>
+    <div class="photo-card">
+      
+      <div class="photo-tag">Street View unavailable for this address</div>
+      
+    </div>
+  </div>
+
+  <!-- METRICS ROW -->
+  <div class="row metric-row">
+    <div class="card metric-card">
+      <div class="metric-icon icon-emerald"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 8h-3v9h-5v-6h-2v6H6v-9H3l9-8z"/></svg></div>
+      <div class="metric-label">Median House Price</div>
+      <div class="metric-value">$960K</div>
+      <div class="metric-sub">Suburb median</div>
+    </div>
+    <div class="card metric-card">
+      <div class="metric-icon icon-blue"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M3.5 17.5l5-5 4 4 7-7v4h2V6h-7.5v2h4.5l-6 6-4-4-5.5 5.5z"/></svg></div>
+      <div class="metric-label">Rental Yield</div>
+      <div class="metric-value">4.5%</div>
+      <div class="metric-sub">Estimate</div>
+    </div>
+    <div class="card metric-card">
+      <div class="metric-icon icon-violet"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3zm0 13L5 12v3l7 4 7-4v-3l-7 4z"/></svg></div>
+      <div class="metric-label">Schools</div>
+      <div class="metric-value" style="color: #10b981">Strong</div>
+      <div class="metric-sub">Quality Rating</div>
+    </div>
+    <div class="card metric-card">
+      <div class="metric-icon icon-teal"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c-4 0-8 .5-8 4v9.5C4 17.4 5.6 19 7.5 19L6 20.5v.5h12v-.5L16.5 19c1.9 0 3.5-1.6 3.5-3.5V6c0-3.5-4-4-8-4zM7.5 17a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm3.5-7H6V6h5v4zm6.5 7a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM18 10h-5V6h5v4z"/></svg></div>
+      <div class="metric-label">Train to CBD</div>
+      <div class="metric-value">34 min</div>
+      <div class="metric-sub">Watergardens Station</div>
+    </div>
+    <div class="card metric-card">
+      <div class="metric-icon icon-amber"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4 5v6c0 5.5 3.4 10.7 8 12 4.6-1.3 8-6.5 8-12V5l-8-3z"/></svg></div>
+      <div class="metric-label">Crime vs State Avg</div>
+      <div class="metric-value">Around state avg</div>
+      <div class="metric-sub">Lower is safer</div>
+    </div>
+  </div>
+
+  <!-- CHART ROW -->
+  <div class="row chart-row">
+    <div class="card">
+      <div class="label">Price Growth (Median House)</div>
+      <svg viewBox="0 0 380 180" xmlns="http://www.w3.org/2000/svg" class="chart-svg">
+  <polyline fill="none" stroke="#2563eb" stroke-width="2" points="40.0,152.0 149.3,110.8 258.7,53.0 368.0,20.0"/>
+  <circle cx="40.0" cy="152.0" r="3.2" fill="#2563eb"/><circle cx="149.3" cy="110.8" r="3.2" fill="#2563eb"/><circle cx="258.7" cy="53.0" r="3.2" fill="#2563eb"/><circle cx="368.0" cy="20.0" r="3.2" fill="#2563eb"/>
+  <g><rect x="340.0" y="-4.0" rx="4" ry="4" width="56" height="18" fill="#2563eb"/><text x="368.0" y="9.0" font-size="11" font-weight="600" fill="white" text-anchor="middle">$960K</text></g>
+  <text x="34" y="24.0" font-size="9" fill="#94a3b8" text-anchor="end">$960K</text><text x="34" y="57.0" font-size="9" fill="#94a3b8" text-anchor="end">$920K</text><text x="34" y="90.0" font-size="9" fill="#94a3b8" text-anchor="end">$880K</text><text x="34" y="123.0" font-size="9" fill="#94a3b8" text-anchor="end">$840K</text><text x="34" y="156.0" font-size="9" fill="#94a3b8" text-anchor="end">$800K</text>
+  <text x="40.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2022</text><text x="149.3" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2023</text><text x="258.7" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2024</text><text x="368.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2025</text>
+</svg>
+    </div>
+    <div class="card">
+      <div class="label">Rental Yield Trends</div>
+      <svg viewBox="0 0 380 180" xmlns="http://www.w3.org/2000/svg" class="chart-svg">
+  <rect x="49.4" y="50.1" width="28.4" height="101.9" fill="#86efac" rx="2"/><rect x="101.0" y="46.4" width="28.4" height="105.6" fill="#86efac" rx="2"/><rect x="152.7" y="42.9" width="28.4" height="109.1" fill="#86efac" rx="2"/><rect x="204.4" y="39.2" width="28.4" height="112.8" fill="#86efac" rx="2"/><rect x="256.0" y="35.7" width="28.4" height="116.3" fill="#86efac" rx="2"/><rect x="307.7" y="32.0" width="28.4" height="120.0" fill="#86efac" rx="2"/>
+  <polyline fill="none" stroke="#059669" stroke-width="2" points="63.8,64.0 115.5,61.8 167.2,59.6 218.8,57.4 270.5,55.2 322.2,53.0"/>
+  <circle cx="63.8" cy="64.0" r="2.8" fill="#059669"/><circle cx="115.5" cy="61.8" r="2.8" fill="#059669"/><circle cx="167.2" cy="59.6" r="2.8" fill="#059669"/><circle cx="218.8" cy="57.4" r="2.8" fill="#059669"/><circle cx="270.5" cy="55.2" r="2.8" fill="#059669"/><circle cx="322.2" cy="53.0" r="2.8" fill="#059669"/>
+  <text x="63.8" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2020</text><text x="115.5" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2021</text><text x="167.2" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2022</text><text x="218.8" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2023</text><text x="270.5" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2024</text><text x="322.2" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2025</text>
+  <text x="34" y="24" font-size="9" fill="#94a3b8" text-anchor="end">$605</text>
+  <text x="352" y="24" font-size="9" fill="#059669" text-anchor="start">6%</text>
+</svg>
+    </div>
+    <div class="card">
+      <div class="label">Recent Comparable Sales</div>
+      <table class="comp-table">
+        <tr><th>Address</th><th>Sale Date</th><th>Sale Price</th></tr>
+        
+        <tr><td>13 Pindari Ave</td><td>May 2026</td><td>$775K</td></tr>
+        
+        <tr><td>28 Cloudburst Ave</td><td>April 2026</td><td>$942K</td></tr>
+        
+      </table>
+      <div class="last-sale-box">
+        <div><span class="star">★</span><strong>Last Sale (Subject Property)</strong></div>
+        <div><span class="price">$667K</span> &nbsp;<span style="color: var(--slate-3)">October 2018</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="label">Suburb Scorecard</div>
+      
+      <div class="scorecard-row">
+        <span>Growth Potential</span>
+        <span><span class="stars"><span class="star full">★</span><span class="star full">★</span><span class="star full">★</span><span class="star half">★</span><span class="star empty">☆</span></span> <span class="score-num">7.0/10</span></span>
+      </div>
+      
+      <div class="scorecard-row">
+        <span>Rental Demand</span>
+        <span><span class="stars"><span class="star full">★</span><span class="star full">★</span><span class="star full">★</span><span class="star empty">☆</span><span class="star empty">☆</span></span> <span class="score-num">6.0/10</span></span>
+      </div>
+      
+      <div class="scorecard-row">
+        <span>Infrastructure</span>
+        <span><span class="stars"><span class="star full">★</span><span class="star full">★</span><span class="star full">★</span><span class="star full">★</span><span class="star empty">☆</span></span> <span class="score-num">8.0/10</span></span>
+      </div>
+      
+      <div class="scorecard-row">
+        <span>Safety</span>
+        <span><span class="stars"><span class="star full">★</span><span class="star full">★</span><span class="star empty">☆</span><span class="star empty">☆</span><span class="star empty">☆</span></span> <span class="score-num">4.0/10</span></span>
+      </div>
+      
+      <div class="scorecard-row">
+        <span>Family Suitability</span>
+        <span><span class="stars"><span class="star full">★</span><span class="star full">★</span><span class="star full">★</span><span class="star full">★</span><span class="star empty">☆</span></span> <span class="score-num">8.0/10</span></span>
+      </div>
+      
+      
+      <div class="overall-band">
+        <div class="overall-text">Overall Score<strong>Good Long-Term Prospect</strong></div>
+        <div class="overall-score">6.5/10</div>
+      </div>
+      
+    </div>
+  </div>
+
+  <!-- DETAIL ROW -->
+  <div class="row detail-row">
+    <div class="card">
+      <div class="label">Transit &amp; Connectivity</div>
+      <div class="row-list">
+        
+        <div class="item">
+          <div class="left">
+            <span class="icon-sm icon-blue"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c-4 0-8 .5-8 4v9.5C4 17.4 5.6 19 7.5 19L6 20.5v.5h12v-.5L16.5 19c1.9 0 3.5-1.6 3.5-3.5V6c0-3.5-4-4-8-4zM7.5 17a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm3.5-7H6V6h5v4zm6.5 7a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM18 10h-5V6h5v4z"/></svg></span>
+            <span>Watergardens Station</span>
+          </div>
+          <div class="right">34 min  ·  By Train</div>
+        </div>
+        
+        <div class="item">
+          <div class="left">
+            <span class="icon-sm icon-amber"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M18.92 6c-.2-.6-.76-1-1.42-1H6.5c-.66 0-1.22.4-1.42 1L3 12v8c0 .55.45 1 1 1h1a1 1 0 001-1v-1h12v1a1 1 0 001 1h1c.55 0 1-.45 1-1v-8l-2.08-6zM6.5 16a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm11 0a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM5 11l1.5-4.5h11L19 11H5z"/></svg></span>
+            <span>Melbourne CBD</span>
+          </div>
+          <div class="right">20 min  ·  Off-peak</div>
+        </div>
+        
+        <div class="item">
+          <div class="left">
+            <span class="icon-sm icon-rose"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M11 5h2v3h-2V5zm0 5h2v3h-2v-3zm0 5h2v3h-2v-3zM7 5h2v3H7V5zm0 5h2v3H7v-3zm0 5h2v3H7v-3zm8-10h2v3h-2V5zm0 5h2v3h-2v-3zm0 5h2v3h-2v-3z"/></svg></span>
+            <span>M80 Ring Road</span>
+          </div>
+          <div class="right">5.2 km  ·  By Car</div>
+        </div>
+        
+      </div>
+    </div>
+    <div class="card">
+      <div class="label">School Catchment</div>
+      
+      <div class="school-row">
+        <div>
+          <strong style="color: var(--navy)">Taylors Lakes Primary School</strong><br>
+          <span style="color: var(--slate-3); font-size: 8.5px">Primary · 11 min walk</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
+          <span class="catchment-badge badge-in">✓</span>
+          <span class="icsea">ICSEA 1050</span>
+        </div>
+      </div>
+      
+      <div class="school-row">
+        <div>
+          <strong style="color: var(--navy)">Taylors Lakes Secondary College</strong><br>
+          <span style="color: var(--slate-3); font-size: 8.5px">Secondary · 1.2 km</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
+          <span class="catchment-badge badge-in">✓</span>
+          <span class="icsea">ICSEA 1015</span>
+        </div>
+      </div>
+      
+      <div class="verify-note">
+        Verify at <a href="https://findmyschool.vic.gov.au">findmyschool.vic.gov.au</a>
+      </div>
+    </div>
+    <div class="card crime-card">
+      <div class="label">Crime Snapshot (vs State Average)</div>
+      <div class="crime-headline">Around state average</div>
+      <div class="crime-rows">
+        
+        <div class="crime-row">
+          <span class="crime-label">Violent crime</span>
+          
+          <span class="crime-delta delta-green">17% lower</span>
+          
+        </div>
+        
+        <div class="crime-row">
+          <span class="crime-label">Property crime</span>
+          
+          <span class="crime-delta delta-amber">8% higher</span>
+          
+        </div>
+        
+      </div>
+    </div>
+    <div class="card">
+      <div class="label">Lifestyle</div>
+      
+      <div class="top-amenity-row">
+        <span class="icon-sm icon-blue"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c-4 0-8 .5-8 4v9.5C4 17.4 5.6 19 7.5 19L6 20.5v.5h12v-.5L16.5 19c1.9 0 3.5-1.6 3.5-3.5V6c0-3.5-4-4-8-4zM7.5 17a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm3.5-7H6V6h5v4zm6.5 7a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM18 10h-5V6h5v4z"/></svg></span>
+        <div class="top-amenity-body">
+          <strong>Watergardens Station</strong>
+          <span>120 m · 34 min to CBD</span>
+        </div>
+      </div>
+      
+      <div class="top-amenity-row">
+        <span class="icon-sm icon-emerald"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm10 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM7.16 15h10.68c.75 0 1.41-.41 1.75-1.03l3.41-6.18A1 1 0 0022.13 6H5.21L4.27 4H1v2h2l3.6 7.59L5.25 16H19v-2H7.42l-.26-.5L7.16 15z"/></svg></span>
+        <div class="top-amenity-body">
+          <strong>Woolworths Watergardens</strong>
+          <span>400 m</span>
+        </div>
+      </div>
+      
+      <div class="top-amenity-row">
+        <span class="icon-sm icon-teal"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M17 12h-3V3H10v9H7l5 6 5-6zm-5 8c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2z"/></svg></span>
+        <div class="top-amenity-body">
+          <strong>Taylors Lakes Reserve</strong>
+          <span>700 m</span>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+
+  <!-- VERDICT ROW -->
+  <div class="row verdict-row">
+    <div class="verdict-band">
+      <div class="vd-stars"><span class="star full">★</span><span class="star full">★</span><span class="star full">★</span><span class="star empty">☆</span><span class="star empty">☆</span></div>
+      <div class="vd-eyebrow">Investment Verdict</div>
+      <div class="vd-title">Good Long-Term Prospect</div>
+      <div class="vd-body">Premium transit location and stable family demand underpin long-term value.</div>
+    </div>
+    <div class="verdict-cell">
+      <span class="eyebrow">Ideal For</span>
+      <span class="title">Owner-Occupiers</span>
+      <span class="body">Walk to train, quality schools, established community.</span>
+    </div>
+    <div class="verdict-cell">
+      <span class="eyebrow">Suitable For</span>
+      <span class="title">Long-Term Investors</span>
+      <span class="body">Low yield but strong location and infrastructure tailwinds.</span>
+    </div>
+    <div class="verdict-cell risk">
+      <span class="eyebrow">Key Risks</span>
+      <span class="body">Moderate crime risk · Modest population growth · Airport overlay restrictions</span>
+    </div>
+    <div class="next-steps">
+      <div class="eyebrow">Next Steps for Buyers</div>
+      <ul>
+        <li>Obtain Section 10 (Title &amp; Planning Report)</li>
+        <li>Confirm land size and overlays via VicPlan</li>
+        <li>Inspect property &amp; recent sales in person</li>
+        <li>Speak with a finance broker</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+
+<div class="body-pages">
+  
+  <section class="body-section">
+    <h2 class="section-title"><span class="section-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1S9.6 1.84 9.18 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zm-7 0a1 1 0 110 2 1 1 0 010-2z"/></svg></span>Executive Summary</h2>
+    
+    
+    
+    
+    
+    <p>35 Pindari Ave, Taylors Lakes VIC 3038 is a 4-bedroom, 2-bathroom house.</p>
+    
+  </section>
+  
+  <section class="body-section">
+    <h2 class="section-title"><span class="section-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M12 3l9 8h-3v9h-5v-6h-2v6H6v-9H3l9-8z"/></svg></span>Property Snapshot</h2>
+    <table class="snapshot-table"><tr><th>Land Size</th><td>612 m²</td></tr><tr><th>Configuration</th><td>4br · 2ba</td></tr><tr><th>Zoning</th><td>GRZ1</td></tr></table>
+    
+    
+    
+    
+    <p>612 m2 GRZ1 lot.</p>
+    
+  </section>
+  
+  <section class="body-section">
+    <h2 class="section-title"><span class="section-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M3.5 17.5l5-5 4 4 7-7v4h2V6h-7.5v2h4.5l-6 6-4-4-5.5 5.5z"/></svg></span>Market Analysis</h2>
+    
+    <div class="body-chart"><svg viewBox="0 0 380 180" xmlns="http://www.w3.org/2000/svg" class="chart-svg">
+  <polyline fill="none" stroke="#2563eb" stroke-width="2" points="40.0,152.0 149.3,110.8 258.7,53.0 368.0,20.0"/>
+  <circle cx="40.0" cy="152.0" r="3.2" fill="#2563eb"/><circle cx="149.3" cy="110.8" r="3.2" fill="#2563eb"/><circle cx="258.7" cy="53.0" r="3.2" fill="#2563eb"/><circle cx="368.0" cy="20.0" r="3.2" fill="#2563eb"/>
+  <g><rect x="340.0" y="-4.0" rx="4" ry="4" width="56" height="18" fill="#2563eb"/><text x="368.0" y="9.0" font-size="11" font-weight="600" fill="white" text-anchor="middle">$960K</text></g>
+  <text x="34" y="24.0" font-size="9" fill="#94a3b8" text-anchor="end">$960K</text><text x="34" y="57.0" font-size="9" fill="#94a3b8" text-anchor="end">$920K</text><text x="34" y="90.0" font-size="9" fill="#94a3b8" text-anchor="end">$880K</text><text x="34" y="123.0" font-size="9" fill="#94a3b8" text-anchor="end">$840K</text><text x="34" y="156.0" font-size="9" fill="#94a3b8" text-anchor="end">$800K</text>
+  <text x="40.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2022</text><text x="149.3" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2023</text><text x="258.7" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2024</text><text x="368.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2025</text>
+</svg></div>
+    
+    
+    
+    <p>Median $960K.</p>
+<h3>Pricing & Rental</h3>
+<ul>
+<li>Suburb median: $960K</li>
+</ul>
+<h3>5-Year Outlook</h3>
+<ul>
+<li>Steady growth expected.</li>
+</ul>
+    
+  </section>
+  
+  <section class="body-section">
+    <h2 class="section-title"><span class="section-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/></svg></span>Suburb Profile</h2>
+    
+    
+    
+    
+    
+    <p>Taylors Lakes is a mature, low-density suburb 23 km north-west of Melbourne.</p>
+<h3>Who's Moving Here</h3>
+<p>Professional families and older couples are the primary inbound cohort.</p>
+<h3>What This Suburb Is Becoming</h3>
+<p>Consolidating as a family destination with measured densification near the station.</p>
+<h3>Lifestyle</h3>
+<ul>
+<li>86% owner-occupancy rate — one of the highest in Melbourne's outer west</li>
+<li>Active community anchored by Watergardens Town Centre retail and dining precinct</li>
+<li>Taylors Lakes shared-use path improving cycling and walking infrastructure</li>
+<li>Predominantly professional families; median household income above outer-suburban average</li>
+</ul>
+    <table class="lifestyle-table"><thead><tr><th>Category</th><th>Name</th><th>Distance</th><th>Detail</th></tr></thead><tbody><tr><td><div class='lt-cat'><span class="icon-sm icon-blue"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c-4 0-8 .5-8 4v9.5C4 17.4 5.6 19 7.5 19L6 20.5v.5h12v-.5L16.5 19c1.9 0 3.5-1.6 3.5-3.5V6c0-3.5-4-4-8-4zM7.5 17a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm3.5-7H6V6h5v4zm6.5 7a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM18 10h-5V6h5v4z"/></svg></span> Train</div></td><td><strong>Watergardens Station</strong></td><td>120 m</td><td>34 min to CBD</td></tr><tr><td><div class='lt-cat'><span class="icon-sm icon-violet"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3zm0 13L5 12v3l7 4 7-4v-3l-7 4z"/></svg></span> Primary School</div></td><td><strong>Taylors Lakes Primary School</strong></td><td>900 m</td><td>In catchment</td></tr><tr><td><div class='lt-cat'><span class="icon-sm icon-emerald"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm10 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM7.16 15h10.68c.75 0 1.41-.41 1.75-1.03l3.41-6.18A1 1 0 0022.13 6H5.21L4.27 4H1v2h2l3.6 7.59L5.25 16H19v-2H7.42l-.26-.5L7.16 15z"/></svg></span> Supermarket</div></td><td><strong>Woolworths Watergardens</strong></td><td>400 m</td><td>—</td></tr><tr><td><div class='lt-cat'><span class="icon-sm icon-teal"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M17 12h-3V3H10v9H7l5 6 5-6zm-5 8c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2z"/></svg></span> Park</div></td><td><strong>Taylors Lakes Reserve</strong></td><td>700 m</td><td>—</td></tr><tr><td><div class='lt-cat'><span class="icon-sm icon-rose"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3v6a4 4 0 008 0V3h-2v6a2 2 0 11-4 0V3H5zm-2 0h2v2H3V3zm8 0h2v2h-2V3zm0 11a5 5 0 0010 0v-3h-2v3a3 3 0 11-6 0v-1a6 6 0 01-2 .87V14z"/><circle cx="19" cy="9" r="2"/></svg></span> GP Clinic</div></td><td><strong>Watergardens Medical Centre</strong></td><td>1.0 km</td><td>—</td></tr><tr><td><div class='lt-cat'><span class="icon-sm icon-rose"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-4 11h-2v2h-2v-2H9v-2h2V9h2v3h2v2z"/></svg></span> Hospital</div></td><td><strong>Sunshine Hospital</strong></td><td>8.5 km</td><td>—</td></tr><tr><td><div class='lt-cat'><span class="icon-sm icon-orange"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M20.57 14.86L22 13.43 20.57 12 17 15.57 8.43 7 12 3.43 10.57 2 9.14 3.43 7.71 2 5.57 4.14 4.14 2.71 2.71 4.14l1.43 1.43L2 7.71l1.43 1.43L2 10.57 3.43 12 7 8.43 15.57 17 12 20.57 13.43 22l1.43-1.43L16.29 22l2.14-2.14-1.43-1.43L22 16.29l-1.43-1.43z"/></svg></span> Gym</div></td><td><strong>Genesis Gym</strong></td><td>900 m</td><td>~$15/wk</td></tr><tr><td><div class='lt-cat'><span class="icon-sm icon-amber"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M11 5h2v3h-2V5zm0 5h2v3h-2v-3zm0 5h2v3h-2v-3zM7 5h2v3H7V5zm0 5h2v3H7v-3zm0 5h2v3H7v-3zm8-10h2v3h-2V5zm0 5h2v3h-2v-3zm0 5h2v3h-2v-3z"/></svg></span> Freeway</div></td><td><strong>M80 Ring Road</strong></td><td>5.2 km</td><td>By car</td></tr></tbody></table>
+  </section>
+  
+  <section class="body-section">
+    <h2 class="section-title"><span class="section-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3zm0 13L5 12v3l7 4 7-4v-3l-7 4z"/></svg></span>Schools Catchment</h2>
+    
+    
+    <table class="sch-detail-table"><tr><th class="sch-th">School</th><th class="sch-th">Catchment</th><th class="sch-th sch-center">ICSEA</th><th class="sch-th sch-center">Reading</th><th class="sch-th sch-center">Numeracy</th><th class="sch-th">Proximity</th></tr><tr><td class="sch-td"><strong class="sch-name">Taylors Lakes Primary School</strong><br><span class="sch-sub" style="color:#7c3aed">Primary</span></td><td class="sch-td"><span class="sch-badge sch-badge-in">&#10003; In-catchment</span></td><td class="sch-td sch-center"><span class="sch-icsea">1050</span></td><td class="sch-td sch-center"><span class="sch-pct" style="color:#10b981">74th</span></td><td class="sch-td sch-center"><span class="sch-pct" style="color:#10b981">71th</span></td><td class="sch-td">11 min walk</td></tr><tr><td class="sch-td"><strong class="sch-name">Taylors Lakes Secondary College</strong><br><span class="sch-sub" style="color:#2563eb">Secondary</span></td><td class="sch-td"><span class="sch-badge sch-badge-in">&#10003; In-catchment</span></td><td class="sch-td sch-center"><span class="sch-icsea">1015</span></td><td class="sch-td sch-center"><span style="color:#94a3b8">—</span></td><td class="sch-td sch-center"><span style="color:#94a3b8">—</span></td><td class="sch-td">1.2 km</td></tr></table><p class="sch-note">NAPLAN percentile = rank vs national average from myschool.edu.au. Catchment zones should be confirmed at <a href="https://findmyschool.vic.gov.au">findmyschool.vic.gov.au</a>.</p>
+    
+    
+    <p>Strong school catchment.</p>
+    
+  </section>
+  
+  <section class="body-section">
+    <h2 class="section-title"><span class="section-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M12 2L4 5v6c0 5.5 3.4 10.7 8 12 4.6-1.3 8-6.5 8-12V5l-8-3z"/></svg></span>Risk Assessment</h2>
+    
+    
+    
+    
+    <div class="body-crime">
+      <div class="body-crime-headline">Around state average</div>
+      
+      <div class="body-crime-row">
+        <span>Violent crime</span>
+        <span class="crime-delta delta-green">17% lower</span>
+      </div>
+      
+      <div class="body-crime-row">
+        <span>Property crime</span>
+        <span class="crime-delta delta-amber">8% higher</span>
+      </div>
+      
+    </div>
+    
+    <div class="body-chart" style="margin-top:12px">
+      <p class="label" style="margin-bottom:6px">Crime Category Trend — Last 3 Years</p>
+      <svg viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg" class="chart-svg chart-body"><text x="45" y="24.0" font-size="9" fill="#94a3b8" text-anchor="end">241</text><line x1="50" y1="51.2" x2="580" y2="51.2" stroke="#f1f5f9" stroke-width="1"/><text x="45" y="55.2" font-size="9" fill="#94a3b8" text-anchor="end">181</text><line x1="50" y1="82.5" x2="580" y2="82.5" stroke="#f1f5f9" stroke-width="1"/><text x="45" y="86.5" font-size="9" fill="#94a3b8" text-anchor="end">120</text><line x1="50" y1="113.8" x2="580" y2="113.8" stroke="#f1f5f9" stroke-width="1"/><text x="45" y="117.8" font-size="9" fill="#94a3b8" text-anchor="end">60</text><line x1="50" y1="145.0" x2="580" y2="145.0" stroke="#f1f5f9" stroke-width="1"/><text x="45" y="149.0" font-size="9" fill="#94a3b8" text-anchor="end">0</text><line x1="50" y1="145" x2="580" y2="145" stroke="#e2e8f0" stroke-width="1"/><rect x="79.1" y="121.7" width="49.4" height="23.3" fill="#e11d48" rx="2" opacity="0.9"/><rect x="131.6" y="82.9" width="49.4" height="62.1" fill="#f59e0b" rx="2" opacity="0.9"/><rect x="184.0" y="101.0" width="49.4" height="44.0" fill="#7c3aed" rx="2" opacity="0.9"/><rect x="236.4" y="36.3" width="49.4" height="108.7" fill="#2563eb" rx="2" opacity="0.9"/><text x="182.5" y="159" font-size="11" fill="#334155" text-anchor="middle" font-weight="600">2024</text><rect x="344.1" y="123.3" width="49.4" height="21.7" fill="#e11d48" rx="2" opacity="0.9"/><rect x="396.6" y="89.1" width="49.4" height="55.9" fill="#f59e0b" rx="2" opacity="0.9"/><rect x="449.0" y="107.7" width="49.4" height="37.3" fill="#7c3aed" rx="2" opacity="0.9"/><rect x="501.4" y="49.2" width="49.4" height="95.8" fill="#2563eb" rx="2" opacity="0.9"/><text x="447.5" y="159" font-size="11" fill="#334155" text-anchor="middle" font-weight="600">2025</text><rect x="60.0" y="175" width="10" height="10" fill="#e11d48" rx="2"/><text x="74.0" y="184" font-size="10" fill="#475569">Assault</text><rect x="180.0" y="175" width="10" height="10" fill="#f59e0b" rx="2"/><text x="194.0" y="184" font-size="10" fill="#475569">Break & Enter</text><rect x="300.0" y="175" width="10" height="10" fill="#7c3aed" rx="2"/><text x="314.0" y="184" font-size="10" fill="#475569">Vehicle Theft</text><rect x="420.0" y="175" width="10" height="10" fill="#2563eb" rx="2"/><text x="434.0" y="184" font-size="10" fill="#475569">Theft</text></svg>
+    </div>
+    
+    
+    
+    <p>Moderate crime risk.</p>
+    
+  </section>
+  
+  <section class="body-section">
+    <h2 class="section-title"><span class="section-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zM12 2C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17a1 1 0 001 1h6a1 1 0 001-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/></svg></span>Verdict</h2>
+    
+    
+    
+    
+    <div class="body-chart"><svg viewBox="0 0 600 180" xmlns="http://www.w3.org/2000/svg" class="chart-svg chart-body"><text x="600" y="22" text-anchor="end" font-size="22" font-weight="700" fill="#0f172a">6.5<tspan font-size="12" fill="#94a3b8"> / 10</tspan></text><text x="600" y="36" text-anchor="end" font-size="9" fill="#94a3b8">Overall Score</text><text x="0" y="60" font-size="11" fill="#334155">Growth Potential</text><rect x="200" y="50" width="330" height="12" fill="#f1f5f9" rx="2"/><rect x="200" y="50" width="231.0" height="12" fill="#10b981" rx="2"/><text x="600" y="60" text-anchor="end" font-size="11" font-weight="600" fill="#0f172a">7.0</text><text x="0" y="88" font-size="11" fill="#334155">Rental Demand</text><rect x="200" y="78" width="330" height="12" fill="#f1f5f9" rx="2"/><rect x="200" y="78" width="198.0" height="12" fill="#f59e0b" rx="2"/><text x="600" y="88" text-anchor="end" font-size="11" font-weight="600" fill="#0f172a">6.0</text><text x="0" y="116" font-size="11" fill="#334155">Infrastructure</text><rect x="200" y="106" width="330" height="12" fill="#f1f5f9" rx="2"/><rect x="200" y="106" width="264.0" height="12" fill="#10b981" rx="2"/><text x="600" y="116" text-anchor="end" font-size="11" font-weight="600" fill="#0f172a">8.0</text><text x="0" y="144" font-size="11" fill="#334155">Safety</text><rect x="200" y="134" width="330" height="12" fill="#f1f5f9" rx="2"/><rect x="200" y="134" width="132.0" height="12" fill="#ef4444" rx="2"/><text x="600" y="144" text-anchor="end" font-size="11" font-weight="600" fill="#0f172a">4.0</text><text x="0" y="172" font-size="11" fill="#334155">Family Suitability</text><rect x="200" y="162" width="330" height="12" fill="#f1f5f9" rx="2"/><rect x="200" y="162" width="264.0" height="12" fill="#10b981" rx="2"/><text x="600" y="172" text-anchor="end" font-size="11" font-weight="600" fill="#0f172a">8.0</text></svg></div>
+    <h3>Score Breakdown</h3>
+<ul>
+<li>Growth Potential: <strong>7.0 / 10</strong></li>
+<li>Overall Score: <strong>6.5 / 10</strong></li>
+</ul>
+    
+  </section>
+  
+  <div class="body-disclaimer">This report was generated by artificial intelligence using publicly available Australian data sources. It is a research aid only and does not constitute financial, legal, or investment advice.</div>
+</div>
+
+
+</body>
+</html>

@@ -1593,7 +1593,7 @@ body {
 
 .dashboard {
   display: grid;
-  grid-template-rows: 100px 90px 190px 165px 84px;
+  grid-template-rows: 82px 74px 190px 165px 84px;
   gap: 8px;
 }
 
@@ -2378,7 +2378,6 @@ body {
     {% if sec.anchor == 'property-snapshot' and view.property_snapshot_html %}{{ view.property_snapshot_html | safe }}{% endif %}
     {% if sec.anchor == 'market-analysis' and view.history %}<div class="body-chart">{{ view.history | safe }}</div>{% endif %}
     {% if sec.anchor == 'schools-catchment' %}{% if view.school_detail_table_html %}{{ view.school_detail_table_html | safe }}{% elif view.school_chart_svg %}<div class="body-chart">{{ view.school_chart_svg | safe }}</div>{% endif %}{% endif %}
-    {% if sec.anchor in ('lifestyle', 'household-amenities', 'suburb-profile') and view.lifestyle_table_html %}{{ view.lifestyle_table_html | safe }}{% endif %}
     {% if sec.anchor == 'risk-assessment' and view.crime.rows %}
     <div class="body-crime">
       {% if view.crime.headline %}<div class="body-crime-headline">{{ view.crime.headline }}</div>{% endif %}
@@ -2398,6 +2397,7 @@ body {
     {% endif %}
     {% if sec.anchor == 'verdict' and view.score_chart_svg %}<div class="body-chart">{{ view.score_chart_svg | safe }}</div>{% endif %}
     {{ sec.body_html | safe }}
+    {% if sec.anchor in ('lifestyle', 'household-amenities', 'suburb-profile') and view.lifestyle_table_html %}{{ view.lifestyle_table_html | safe }}{% endif %}
   </section>
   {% endfor %}
   <div class="body-disclaimer">{{ view.disclaimer }}</div>

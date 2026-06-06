@@ -137,7 +137,7 @@ body {
 
 .dashboard {
   display: grid;
-  grid-template-rows: 82px 74px 190px 165px 84px;
+  grid-template-rows: 88px 205px 185px 88px;
   gap: 8px;
 }
 
@@ -162,6 +162,21 @@ body {
   text-transform: uppercase;
   margin: 0 0 6px;
 }
+.card-header {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 6px;
+}
+.card-header .label { margin-bottom: 0; }
+.metric-pill {
+  font-size: 10.5px; font-weight: 700; white-space: nowrap;
+  padding: 2px 8px; border-radius: 10px; flex-shrink: 0;
+}
+.pill-emerald { background: var(--emerald-soft); color: var(--emerald); }
+.pill-blue    { background: var(--blue-soft);    color: var(--blue); }
+.pill-violet  { background: var(--violet-soft);  color: var(--violet); }
+.pill-teal    { background: var(--teal-soft);    color: var(--teal); }
+.pill-amber   { background: var(--amber-soft);   color: var(--amber); }
+.pill-rose    { background: var(--rose-soft);    color: var(--rose); }
 
 /* ── HEADER ROW ── */
 .header-row { grid-template-columns: 3fr 1.4fr; }
@@ -473,8 +488,9 @@ body {
 .delta-amber { color: var(--amber); }
 .delta-red   { color: var(--rose); }
 
+.body-section ul { padding-left: 18px; margin: 4px 0 10px; }
 .lifestyle-table {
-  width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 10pt;
+  width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 10pt;
 }
 .lifestyle-table th {
   background: var(--grey-100); color: var(--slate-2); font-weight: 600;
@@ -738,54 +754,26 @@ body {
     </div>
   </div>
 
-  <!-- METRICS ROW -->
-  <div class="row metric-row">
-    <div class="card metric-card">
-      <div class="metric-icon icon-emerald"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 8h-3v9h-5v-6h-2v6H6v-9H3l9-8z"/></svg></div>
-      <div class="metric-label">Median House Price</div>
-      <div class="metric-value">$960K</div>
-      <div class="metric-sub">Suburb median</div>
-    </div>
-    <div class="card metric-card">
-      <div class="metric-icon icon-blue"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M3.5 17.5l5-5 4 4 7-7v4h2V6h-7.5v2h4.5l-6 6-4-4-5.5 5.5z"/></svg></div>
-      <div class="metric-label">Rental Yield</div>
-      <div class="metric-value">4.5%</div>
-      <div class="metric-sub">Estimate</div>
-    </div>
-    <div class="card metric-card">
-      <div class="metric-icon icon-violet"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3zm0 13L5 12v3l7 4 7-4v-3l-7 4z"/></svg></div>
-      <div class="metric-label">Schools</div>
-      <div class="metric-value" style="color: #10b981">Strong</div>
-      <div class="metric-sub">Quality Rating</div>
-    </div>
-    <div class="card metric-card">
-      <div class="metric-icon icon-teal"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c-4 0-8 .5-8 4v9.5C4 17.4 5.6 19 7.5 19L6 20.5v.5h12v-.5L16.5 19c1.9 0 3.5-1.6 3.5-3.5V6c0-3.5-4-4-8-4zM7.5 17a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm3.5-7H6V6h5v4zm6.5 7a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM18 10h-5V6h5v4z"/></svg></div>
-      <div class="metric-label">Train to CBD</div>
-      <div class="metric-value">34 min</div>
-      <div class="metric-sub">Watergardens Station</div>
-    </div>
-    <div class="card metric-card">
-      <div class="metric-icon icon-amber"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4 5v6c0 5.5 3.4 10.7 8 12 4.6-1.3 8-6.5 8-12V5l-8-3z"/></svg></div>
-      <div class="metric-label">Crime vs State Avg</div>
-      <div class="metric-value">Around state avg</div>
-      <div class="metric-sub">Lower is safer</div>
-    </div>
-  </div>
-
   <!-- CHART ROW -->
   <div class="row chart-row">
     <div class="card">
-      <div class="label">Price Growth (Median House)</div>
+      <div class="card-header">
+        <div class="label">Price Growth (Median House)</div>
+        <span class="metric-pill pill-emerald">$960K</span>
+      </div>
       <svg viewBox="0 0 380 180" xmlns="http://www.w3.org/2000/svg" class="chart-svg">
-  <polyline fill="none" stroke="#2563eb" stroke-width="2" points="40.0,152.0 149.3,110.8 258.7,53.0 368.0,20.0"/>
-  <circle cx="40.0" cy="152.0" r="3.2" fill="#2563eb"/><circle cx="149.3" cy="110.8" r="3.2" fill="#2563eb"/><circle cx="258.7" cy="53.0" r="3.2" fill="#2563eb"/><circle cx="368.0" cy="20.0" r="3.2" fill="#2563eb"/>
+  <polyline fill="none" stroke="#2563eb" stroke-width="2" points="40.0,152.0 122.0,108.0 204.0,80.5 286.0,42.0 368.0,20.0"/>
+  <circle cx="40.0" cy="152.0" r="3.2" fill="#2563eb"/><circle cx="122.0" cy="108.0" r="3.2" fill="#2563eb"/><circle cx="204.0" cy="80.5" r="3.2" fill="#2563eb"/><circle cx="286.0" cy="42.0" r="3.2" fill="#2563eb"/><circle cx="368.0" cy="20.0" r="3.2" fill="#2563eb"/>
   <g><rect x="340.0" y="-4.0" rx="4" ry="4" width="56" height="18" fill="#2563eb"/><text x="368.0" y="9.0" font-size="11" font-weight="600" fill="white" text-anchor="middle">$960K</text></g>
-  <text x="34" y="24.0" font-size="9" fill="#94a3b8" text-anchor="end">$960K</text><text x="34" y="57.0" font-size="9" fill="#94a3b8" text-anchor="end">$920K</text><text x="34" y="90.0" font-size="9" fill="#94a3b8" text-anchor="end">$880K</text><text x="34" y="123.0" font-size="9" fill="#94a3b8" text-anchor="end">$840K</text><text x="34" y="156.0" font-size="9" fill="#94a3b8" text-anchor="end">$800K</text>
-  <text x="40.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2022</text><text x="149.3" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2023</text><text x="258.7" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2024</text><text x="368.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2025</text>
+  <text x="34" y="24.0" font-size="9" fill="#94a3b8" text-anchor="end">$960K</text><text x="34" y="57.0" font-size="9" fill="#94a3b8" text-anchor="end">$900K</text><text x="34" y="90.0" font-size="9" fill="#94a3b8" text-anchor="end">$840K</text><text x="34" y="123.0" font-size="9" fill="#94a3b8" text-anchor="end">$780K</text><text x="34" y="156.0" font-size="9" fill="#94a3b8" text-anchor="end">$720K</text>
+  <text x="40.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2021</text><text x="122.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2022</text><text x="204.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2023</text><text x="286.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2024</text><text x="368.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2025</text>
 </svg>
     </div>
     <div class="card">
-      <div class="label">Rental Yield Trends</div>
+      <div class="card-header">
+        <div class="label">Rental Yield Trends</div>
+        <span class="metric-pill pill-blue">4.5%</span>
+      </div>
       <svg viewBox="0 0 380 180" xmlns="http://www.w3.org/2000/svg" class="chart-svg">
   <rect x="49.4" y="50.1" width="28.4" height="101.9" fill="#86efac" rx="2"/><rect x="101.0" y="46.4" width="28.4" height="105.6" fill="#86efac" rx="2"/><rect x="152.7" y="42.9" width="28.4" height="109.1" fill="#86efac" rx="2"/><rect x="204.4" y="39.2" width="28.4" height="112.8" fill="#86efac" rx="2"/><rect x="256.0" y="35.7" width="28.4" height="116.3" fill="#86efac" rx="2"/><rect x="307.7" y="32.0" width="28.4" height="120.0" fill="#86efac" rx="2"/>
   <polyline fill="none" stroke="#059669" stroke-width="2" points="63.8,64.0 115.5,61.8 167.2,59.6 218.8,57.4 270.5,55.2 322.2,53.0"/>
@@ -850,7 +838,10 @@ body {
   <!-- DETAIL ROW -->
   <div class="row detail-row">
     <div class="card">
-      <div class="label">Transit &amp; Connectivity</div>
+      <div class="card-header">
+        <div class="label">Transit &amp; Connectivity</div>
+        <span class="metric-pill pill-teal">34 min CBD</span>
+      </div>
       <div class="row-list">
         
         <div class="item">
@@ -880,7 +871,10 @@ body {
       </div>
     </div>
     <div class="card">
-      <div class="label">School Catchment</div>
+      <div class="card-header">
+        <div class="label">School Catchment</div>
+        <span class="metric-pill pill-violet" style="color: #10b981; background: #10b9811a;">Strong</span>
+      </div>
       
       <div class="school-row">
         <div>
@@ -909,8 +903,10 @@ body {
       </div>
     </div>
     <div class="card crime-card">
-      <div class="label">Crime Snapshot (vs State Average)</div>
-      <div class="crime-headline">Around state average</div>
+      <div class="card-header">
+        <div class="label">Crime Snapshot (vs State Average)</div>
+        <span class="metric-pill pill-amber">Around state avg</span>
+      </div>
       <div class="crime-rows">
         
         <div class="crime-row">
@@ -1023,11 +1019,11 @@ body {
     <h2 class="section-title"><span class="section-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M3.5 17.5l5-5 4 4 7-7v4h2V6h-7.5v2h4.5l-6 6-4-4-5.5 5.5z"/></svg></span>Market Analysis</h2>
     
     <div class="body-chart"><svg viewBox="0 0 380 180" xmlns="http://www.w3.org/2000/svg" class="chart-svg">
-  <polyline fill="none" stroke="#2563eb" stroke-width="2" points="40.0,152.0 149.3,110.8 258.7,53.0 368.0,20.0"/>
-  <circle cx="40.0" cy="152.0" r="3.2" fill="#2563eb"/><circle cx="149.3" cy="110.8" r="3.2" fill="#2563eb"/><circle cx="258.7" cy="53.0" r="3.2" fill="#2563eb"/><circle cx="368.0" cy="20.0" r="3.2" fill="#2563eb"/>
+  <polyline fill="none" stroke="#2563eb" stroke-width="2" points="40.0,152.0 122.0,108.0 204.0,80.5 286.0,42.0 368.0,20.0"/>
+  <circle cx="40.0" cy="152.0" r="3.2" fill="#2563eb"/><circle cx="122.0" cy="108.0" r="3.2" fill="#2563eb"/><circle cx="204.0" cy="80.5" r="3.2" fill="#2563eb"/><circle cx="286.0" cy="42.0" r="3.2" fill="#2563eb"/><circle cx="368.0" cy="20.0" r="3.2" fill="#2563eb"/>
   <g><rect x="340.0" y="-4.0" rx="4" ry="4" width="56" height="18" fill="#2563eb"/><text x="368.0" y="9.0" font-size="11" font-weight="600" fill="white" text-anchor="middle">$960K</text></g>
-  <text x="34" y="24.0" font-size="9" fill="#94a3b8" text-anchor="end">$960K</text><text x="34" y="57.0" font-size="9" fill="#94a3b8" text-anchor="end">$920K</text><text x="34" y="90.0" font-size="9" fill="#94a3b8" text-anchor="end">$880K</text><text x="34" y="123.0" font-size="9" fill="#94a3b8" text-anchor="end">$840K</text><text x="34" y="156.0" font-size="9" fill="#94a3b8" text-anchor="end">$800K</text>
-  <text x="40.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2022</text><text x="149.3" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2023</text><text x="258.7" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2024</text><text x="368.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2025</text>
+  <text x="34" y="24.0" font-size="9" fill="#94a3b8" text-anchor="end">$960K</text><text x="34" y="57.0" font-size="9" fill="#94a3b8" text-anchor="end">$900K</text><text x="34" y="90.0" font-size="9" fill="#94a3b8" text-anchor="end">$840K</text><text x="34" y="123.0" font-size="9" fill="#94a3b8" text-anchor="end">$780K</text><text x="34" y="156.0" font-size="9" fill="#94a3b8" text-anchor="end">$720K</text>
+  <text x="40.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2021</text><text x="122.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2022</text><text x="204.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2023</text><text x="286.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2024</text><text x="368.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2025</text>
 </svg></div>
     
     

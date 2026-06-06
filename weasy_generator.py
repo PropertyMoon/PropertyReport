@@ -1593,7 +1593,7 @@ body {
 
 .dashboard {
   display: grid;
-  grid-template-rows: 82px 74px 190px 165px 84px;
+  grid-template-rows: 88px 205px 185px 88px;
   gap: 8px;
 }
 
@@ -1618,6 +1618,21 @@ body {
   text-transform: uppercase;
   margin: 0 0 6px;
 }
+.card-header {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 6px;
+}
+.card-header .label { margin-bottom: 0; }
+.metric-pill {
+  font-size: 10.5px; font-weight: 700; white-space: nowrap;
+  padding: 2px 8px; border-radius: 10px; flex-shrink: 0;
+}
+.pill-emerald { background: var(--emerald-soft); color: var(--emerald); }
+.pill-blue    { background: var(--blue-soft);    color: var(--blue); }
+.pill-violet  { background: var(--violet-soft);  color: var(--violet); }
+.pill-teal    { background: var(--teal-soft);    color: var(--teal); }
+.pill-amber   { background: var(--amber-soft);   color: var(--amber); }
+.pill-rose    { background: var(--rose-soft);    color: var(--rose); }
 
 /* ── HEADER ROW ── */
 .header-row { grid-template-columns: 3fr 1.4fr; }
@@ -1929,8 +1944,9 @@ body {
 .delta-amber { color: var(--amber); }
 .delta-red   { color: var(--rose); }
 
+.body-section ul { padding-left: 18px; margin: 4px 0 10px; }
 .lifestyle-table {
-  width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 10pt;
+  width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 10pt;
 }
 .lifestyle-table th {
   background: var(--grey-100); color: var(--slate-2); font-weight: 600;
@@ -2197,48 +2213,20 @@ body {
     </div>
   </div>
 
-  <!-- METRICS ROW -->
-  <div class="row metric-row">
-    <div class="card metric-card">
-      <div class="metric-icon icon-emerald">{{ view.metric_icons.median | safe }}</div>
-      <div class="metric-label">Median House Price</div>
-      <div class="metric-value">{{ view.metrics.median }}</div>
-      <div class="metric-sub">{{ view.suburb_name or "Suburb median" }}</div>
-    </div>
-    <div class="card metric-card">
-      <div class="metric-icon icon-blue">{{ view.metric_icons.yield | safe }}</div>
-      <div class="metric-label">Rental Yield</div>
-      <div class="metric-value">{{ view.metrics.rental_yield }}</div>
-      <div class="metric-sub">Estimate</div>
-    </div>
-    <div class="card metric-card">
-      <div class="metric-icon icon-violet">{{ view.metric_icons.schools | safe }}</div>
-      <div class="metric-label">Schools</div>
-      <div class="metric-value" style="color: {{ view.schools_quality_color }}">{{ view.metrics.schools }}</div>
-      <div class="metric-sub">Quality Rating</div>
-    </div>
-    <div class="card metric-card">
-      <div class="metric-icon icon-teal">{{ view.metric_icons.train | safe }}</div>
-      <div class="metric-label">Train to CBD</div>
-      <div class="metric-value">{{ view.metrics.train_label }}</div>
-      <div class="metric-sub">{{ view.metrics.train_station }}</div>
-    </div>
-    <div class="card metric-card">
-      <div class="metric-icon icon-amber">{{ view.metric_icons.crime | safe }}</div>
-      <div class="metric-label">Crime vs State Avg</div>
-      <div class="metric-value">{{ view.crime.short_headline or "—" }}</div>
-      <div class="metric-sub">Lower is safer</div>
-    </div>
-  </div>
-
   <!-- CHART ROW -->
   <div class="row chart-row">
     <div class="card">
-      <div class="label">Price Growth (Median House)</div>
+      <div class="card-header">
+        <div class="label">Price Growth (Median House)</div>
+        {% if view.metrics.median %}<span class="metric-pill pill-emerald">{{ view.metrics.median }}</span>{% endif %}
+      </div>
       {{ view.history | safe }}
     </div>
     <div class="card">
-      <div class="label">Rental Yield Trends</div>
+      <div class="card-header">
+        <div class="label">Rental Yield Trends</div>
+        {% if view.metrics.rental_yield %}<span class="metric-pill pill-blue">{{ view.metrics.rental_yield }}</span>{% endif %}
+      </div>
       {{ view.rental | safe }}
     </div>
     <div class="card">
@@ -2274,7 +2262,10 @@ body {
   <!-- DETAIL ROW -->
   <div class="row detail-row">
     <div class="card">
-      <div class="label">Transit &amp; Connectivity</div>
+      <div class="card-header">
+        <div class="label">Transit &amp; Connectivity</div>
+        {% if view.metrics.train_label %}<span class="metric-pill pill-teal">{{ view.metrics.train_label }} CBD</span>{% endif %}
+      </div>
       <div class="row-list">
         {% for t in view.transit %}
         <div class="item">
@@ -2288,7 +2279,10 @@ body {
       </div>
     </div>
     <div class="card">
-      <div class="label">School Catchment</div>
+      <div class="card-header">
+        <div class="label">School Catchment</div>
+        {% if view.metrics.schools %}<span class="metric-pill pill-violet" style="color: {{ view.schools_quality_color }}; background: {{ view.schools_quality_color }}1a;">{{ view.metrics.schools }}</span>{% endif %}
+      </div>
       {% for s in view.schools_rows %}
       <div class="school-row">
         <div>
@@ -2306,8 +2300,10 @@ body {
       </div>
     </div>
     <div class="card crime-card">
-      <div class="label">Crime Snapshot (vs State Average)</div>
-      {% if view.crime.headline %}<div class="crime-headline">{{ view.crime.headline }}</div>{% endif %}
+      <div class="card-header">
+        <div class="label">Crime Snapshot (vs State Average)</div>
+        {% if view.crime.short_headline %}<span class="metric-pill pill-amber">{{ view.crime.short_headline }}</span>{% endif %}
+      </div>
       <div class="crime-rows">
         {% for r in view.crime.rows %}
         <div class="crime-row">

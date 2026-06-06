@@ -73,6 +73,9 @@ ICONS: dict[str, str] = {
     "clipboard":    '<path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1S9.6 1.84 9.18 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zm-7 0a1 1 0 110 2 1 1 0 010-2z"/>',
     "building":     '<path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/>',
     "construction": '<path d="M14 4l6 6-2 2-2-2-3 3 2 2-2 2-2-2-3 3 2 2-2 2-6-6 12-12zM18 5l1.4-1.4a2 2 0 012.8 0L23 4l-2 2-3-1z"/>',
+    "tree":         '<path d="M17 12h-3V3H10v9H7l5 6 5-6zm-5 8c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2z"/>',
+    "dumbbell":     '<path d="M20.57 14.86L22 13.43 20.57 12 17 15.57 8.43 7 12 3.43 10.57 2 9.14 3.43 7.71 2 5.57 4.14 4.14 2.71 2.71 4.14l1.43 1.43L2 7.71l1.43 1.43L2 10.57 3.43 12 7 8.43 15.57 17 12 20.57 13.43 22l1.43-1.43L16.29 22l2.14-2.14-1.43-1.43L22 16.29l-1.43-1.43z"/>',
+    "cart":         '<path d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm10 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM7.16 15h10.68c.75 0 1.41-.41 1.75-1.03l3.41-6.18A1 1 0 0022.13 6H5.21L4.27 4H1v2h2l3.6 7.59L5.25 16H19v-2H7.42l-.26-.5L7.16 15z"/>',
     "bulb":         '<path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zM12 2C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17a1 1 0 001 1h6a1 1 0 001-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/>',
     "map-pin":      '<path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z"/>',
     "check-circle": '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>',
@@ -771,38 +774,107 @@ def build_view(report) -> dict:
                 "status": proj.get("status") or proj.get("timeline") or proj.get("type") or "—",
             })
 
-    # Map legend (real research data, used alongside the Google Static Map)
+    # Lifestyle amenities — 8-card row for the cover page
     def _dist(d):
         if not isinstance(d, (int, float)) or isinstance(d, bool):
             return ""
         return f"{d*1000:.0f} m" if d < 1 else f"{d:.1f} km"
 
-    map_legend = []
+    lifestyle = []
+
     nt = tr.get("nearest_train") or {}
     if isinstance(nt, dict) and nt.get("name"):
-        map_legend.append({"icon": icon("train"), "color": "blue",
-                           "label": nt["name"], "detail": _dist(nt.get("distance_km"))})
-    fwy = s.get("nearest_freeway") or {}
-    if isinstance(fwy, dict) and fwy.get("name"):
-        map_legend.append({"icon": icon("highway"), "color": "amber",
-                           "label": fwy["name"], "detail": _dist(fwy.get("distance_km"))})
+        cbd = nt.get("cbd_mins")
+        lifestyle.append({
+            "icon": icon("train"), "color": "blue", "category": "Train",
+            "label": nt["name"],
+            "distance_km": nt.get("distance_km"),
+            "distance": _dist(nt.get("distance_km")),
+            "detail": f"{cbd} min to CBD" if isinstance(cbd, (int, float)) else "",
+        })
+
     pri = (sch.get("primary_schools") or [{}])[0] or {}
     if isinstance(pri, dict) and pri.get("name"):
-        map_legend.append({"icon": icon("cap"), "color": "violet",
-                           "label": pri["name"], "detail": _dist(pri.get("distance_km"))})
-    sec = (sch.get("secondary_schools") or [{}])[0] or {}
-    if isinstance(sec, dict) and sec.get("name"):
-        map_legend.append({"icon": icon("cap"), "color": "violet",
-                           "label": sec["name"], "detail": _dist(sec.get("distance_km"))})
-    hosp = (s.get("nearby_hospitals") or [{}])[0] or {}
-    if isinstance(hosp, dict) and hosp.get("name"):
-        map_legend.append({"icon": icon("hospital"), "color": "rose",
-                           "label": hosp["name"], "detail": _dist(hosp.get("distance_km"))})
+        catchment_note = "In catchment" if pri.get("in_catchment") else "Nearby"
+        lifestyle.append({
+            "icon": icon("cap"), "color": "violet", "category": "Primary School",
+            "label": pri["name"],
+            "distance_km": pri.get("distance_km"),
+            "distance": _dist(pri.get("distance_km")),
+            "detail": catchment_note,
+        })
+
+    for sup in (s.get("nearby_supermarkets") or [])[:1]:
+        if isinstance(sup, dict) and sup.get("name"):
+            lifestyle.append({
+                "icon": icon("cart"), "color": "emerald", "category": "Supermarket",
+                "label": sup["name"],
+                "distance_km": sup.get("distance_km"),
+                "distance": _dist(sup.get("distance_km")),
+                "detail": "",
+            })
+
+    for park in (s.get("nearby_parks") or [])[:1]:
+        if isinstance(park, dict) and park.get("name"):
+            lifestyle.append({
+                "icon": icon("tree"), "color": "teal", "category": "Park",
+                "label": park["name"],
+                "distance_km": park.get("distance_km"),
+                "distance": _dist(park.get("distance_km")),
+                "detail": "",
+            })
+
     gp = (s.get("nearby_gps") or [{}])[0] or {}
     if isinstance(gp, dict) and gp.get("name"):
-        map_legend.append({"icon": icon("stethoscope"), "color": "rose",
-                           "label": gp["name"], "detail": _dist(gp.get("distance_km"))})
-    map_legend = map_legend[:2]
+        lifestyle.append({
+            "icon": icon("stethoscope"), "color": "rose", "category": "GP Clinic",
+            "label": gp["name"],
+            "distance_km": gp.get("distance_km"),
+            "distance": _dist(gp.get("distance_km")),
+            "detail": "",
+        })
+
+    hosp = (s.get("nearby_hospitals") or [{}])[0] or {}
+    if isinstance(hosp, dict) and hosp.get("name"):
+        lifestyle.append({
+            "icon": icon("hospital"), "color": "rose", "category": "Hospital",
+            "label": hosp["name"],
+            "distance_km": hosp.get("distance_km"),
+            "distance": _dist(hosp.get("distance_km")),
+            "detail": "",
+        })
+
+    for gym in (s.get("nearby_gyms") or [])[:1]:
+        if isinstance(gym, dict) and gym.get("name"):
+            wk = gym.get("weekly_cost_aud")
+            lifestyle.append({
+                "icon": icon("dumbbell"), "color": "orange", "category": "Gym",
+                "label": gym["name"],
+                "distance_km": gym.get("distance_km"),
+                "distance": _dist(gym.get("distance_km")),
+                "detail": f"~${wk}/wk" if isinstance(wk, (int, float)) else "",
+            })
+
+    fwy = s.get("nearest_freeway") or {}
+    if isinstance(fwy, dict) and fwy.get("name"):
+        lifestyle.append({
+            "icon": icon("highway"), "color": "amber", "category": "Freeway",
+            "label": fwy["name"],
+            "distance_km": fwy.get("distance_km"),
+            "distance": _dist(fwy.get("distance_km")),
+            "detail": "By car",
+        })
+
+    # Top 3 amenities for the detail card — closest non-freeway items first
+    _top_candidates = [
+        item for item in lifestyle
+        if item.get("category") != "Freeway" and item.get("distance_km") is not None
+    ]
+    _top_candidates.sort(key=lambda x: x["distance_km"])
+    top_amenities = _top_candidates[:3]
+
+    # Keep map_legend for any legacy template references
+    map_legend = lifestyle[:2]
 
     # Real Google images (returns None if key missing or image is a placeholder).
     # Static-map fetch was dropped from the cover — keeping the helper for
@@ -847,8 +919,10 @@ def build_view(report) -> dict:
             else "#f59e0b" if "average" in schools_quality.lower()
             else "#e11d48"
         ),
-        "pipeline":   pipeline,
-        "map_legend": map_legend,
+        "pipeline":     pipeline,
+        "lifestyle":    lifestyle,
+        "top_amenities": top_amenities,
+        "map_legend":   map_legend,
         "photo_uri":  photo_uri,
         "map_uri":    map_uri,
         "body_sections":      parse_body_sections(report),
@@ -1493,7 +1567,7 @@ body {
 
 .dashboard {
   display: grid;
-  grid-template-rows: 100px 90px 190px 165px 84px;
+  grid-template-rows: 100px 78px 88px 185px 160px 84px;
   gap: 8px;
 }
 
@@ -1520,7 +1594,47 @@ body {
 }
 
 /* ── HEADER ROW ── */
-.header-row { grid-template-columns: 2.2fr 1fr 2.4fr; }
+.header-row { grid-template-columns: 3fr 1.4fr; }
+
+/* ── LIFESTYLE SNAPSHOT ROW ── */
+.lifestyle-row { grid-template-columns: repeat(8, 1fr); }
+.lifestyle-card {
+  display: flex; flex-direction: column; align-items: flex-start;
+  padding: 7px 9px; gap: 1px; overflow: hidden;
+}
+.lifestyle-icon {
+  width: 22px; height: 22px; border-radius: 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0; margin-bottom: 3px;
+}
+.lifestyle-icon svg { width: 13px; height: 13px; display: block; }
+.lifestyle-category {
+  font-size: 7px; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--slate-3); font-weight: 600; line-height: 1.2;
+}
+.lifestyle-name {
+  font-size: 9px; font-weight: 700; color: var(--navy);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;
+  line-height: 1.25;
+}
+.lifestyle-distance {
+  font-size: 8px; color: var(--slate-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;
+  line-height: 1.2;
+}
+.lifestyle-detail {
+  font-size: 7.5px; color: var(--emerald); font-weight: 600; line-height: 1.2;
+}
+
+/* ── TOP AMENITIES (replaces pipeline in detail row) ── */
+.top-amenity-row {
+  display: flex; align-items: flex-start; gap: 7px;
+  padding: 5px 0; border-bottom: 1px solid var(--grey-100);
+}
+.top-amenity-row:last-child { border-bottom: none; }
+.top-amenity-body { display: flex; flex-direction: column; gap: 1px; }
+.top-amenity-body strong { font-weight: 600; color: var(--navy); font-size: 9.5px; line-height: 1.25; }
+.top-amenity-body span { color: var(--slate-3); font-size: 8.5px; }
 .title-card {
   background: linear-gradient(135deg, var(--navy) 0%, var(--slate) 100%);
   color: white;
@@ -1563,39 +1677,6 @@ body {
   letter-spacing: 0.3px;
 }
 
-.amenities-card { display: flex; flex-direction: column; overflow: hidden; }
-.amenities-grid {
-  margin-top: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  overflow: hidden;
-}
-.amenity-row {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 9px;
-  padding: 3px 0;
-  border-bottom: 1px solid var(--grey-100);
-}
-.amenity-row:last-child { border-bottom: none; }
-.amenity-icon {
-  width: 20px; height: 20px; border-radius: 4px;
-  display: inline-flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.amenity-icon svg { width: 12px; height: 12px; display: block; }
-.amenity-text {
-  display: flex; align-items: baseline; justify-content: space-between;
-  flex: 1; min-width: 0; gap: 8px;
-}
-.amenity-text strong {
-  font-weight: 600; color: var(--navy); font-size: 9.5px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  flex: 1; min-width: 0;
-}
-.amenity-text .amenity-distance {
-  color: var(--slate-3); font-size: 8.5px; flex-shrink: 0; white-space: nowrap;
-}
 
 /* ── METRIC ROW ── */
 .metric-row { grid-template-columns: repeat(5, 1fr); }
@@ -2075,20 +2156,19 @@ body {
       <div class="photo-tag">Street View unavailable for this address</div>
       {% endif %}
     </div>
-    <div class="card amenities-card">
-      <div class="label">Nearby Amenities</div>
-      <div class="amenities-grid">
-        {% for item in view.map_legend %}
-        <div class="amenity-row">
-          <span class="amenity-icon icon-{{ item.color }}">{{ item.icon | safe }}</span>
-          <span class="amenity-text">
-            <strong>{{ item.label }}</strong>
-            {% if item.detail %}<span class="amenity-distance">{{ item.detail }}</span>{% endif %}
-          </span>
-        </div>
-        {% endfor %}
-      </div>
+  </div>
+
+  <!-- LIFESTYLE SNAPSHOT ROW -->
+  <div class="row lifestyle-row">
+    {% for item in view.lifestyle %}
+    <div class="card lifestyle-card">
+      <span class="lifestyle-icon icon-{{ item.color }}">{{ item.icon | safe }}</span>
+      <span class="lifestyle-category">{{ item.category }}</span>
+      <span class="lifestyle-name">{{ item.label }}</span>
+      <span class="lifestyle-distance">{{ item.distance }}</span>
+      {% if item.detail %}<span class="lifestyle-detail">{{ item.detail }}</span>{% endif %}
     </div>
+    {% endfor %}
   </div>
 
   <!-- METRICS ROW -->
@@ -2216,12 +2296,14 @@ body {
       </div>
     </div>
     <div class="card">
-      <div class="label">Infrastructure Pipeline</div>
-      {% for p in view.pipeline %}
-      {% set lower = p.status|lower %}
-      <div class="pipeline-row {% if 'complete' in lower %}completed{% elif 'progress' in lower %}progress{% else %}planned{% endif %}">
-        <div class="left"><span class="icon-sm">{% if 'complete' in lower %}✓{% elif 'progress' in lower %}▶{% else %}○{% endif %}</span>{{ p.name }}</div>
-        <div class="status">{{ p.status }}</div>
+      <div class="label">Top Amenities</div>
+      {% for a in view.top_amenities %}
+      <div class="top-amenity-row">
+        <span class="icon-sm icon-{{ a.color }}">{{ a.icon | safe }}</span>
+        <div class="top-amenity-body">
+          <strong>{{ a.label }}</strong>
+          <span>{{ a.distance }}{% if a.detail %} · {{ a.detail }}{% endif %}</span>
+        </div>
       </div>
       {% endfor %}
     </div>

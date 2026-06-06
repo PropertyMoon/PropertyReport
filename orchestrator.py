@@ -23,6 +23,11 @@ if _RESEARCH_BACKEND == "perplexity":
 
 from domain_client import get_last_sale as _domain_get_last_sale
 
+try:
+    from da_client_nsw import get_nsw_das as _get_nsw_das
+except ImportError:
+    _get_nsw_das = None
+
 
 # Reuse state detection from pdf_generator
 _STATE_SOURCES = {
@@ -431,12 +436,18 @@ RESEARCH_TASKS = {
         "You MUST return numeric values for crime fields — derive the percentile and deltas from the actual offence "
         "rates you find (e.g. if suburb has 850 offences/100k vs state avg 1200/100k, percentile is ~70). "
         "Return null only if you find zero crime data anywhere.\n"
+        "STEP 5 — LIFESTYLE AMENITIES: Search '[address] nearest supermarket' to find the closest Coles/Woolworths/Aldi "
+        "and its walking distance. Search '[suburb] [state] gym membership cost' to find the nearest gym and its "
+        "approximate weekly membership cost. Search '[address] nearest park reserve' for the closest public park.\n"
         "Return JSON with: suburb, postcode, median_house_price, median_unit_price, "
         "price_growth_5yr, rental_yield, demographics, key_amenities, "
         "liveability_score, "
         "nearest_freeway (object: name, distance_km — closest major freeway/motorway/highway), "
         "nearby_gps (list of up to 2 objects: name, distance_km — nearest general practitioner clinics), "
         "nearby_hospitals (list of up to 3 objects: name, distance_km — only if within 10km), "
+        "nearby_supermarkets (list of up to 2 objects: name, distance_km — nearest Coles/Woolworths/Aldi by walking distance), "
+        "nearby_parks (list of up to 2 objects: name, distance_km — nearest public park or recreation reserve), "
+        "nearby_gyms (list of up to 2 objects: name, distance_km, weekly_cost_aud (integer approximate weekly membership cost in AUD; null if unknown)), "
         "crime_safety_percentile (integer 0-100 where 100 = safest in the state — "
         "calculate from actual offence rates found relative to state average; "
         "null only if zero crime data found anywhere), "
@@ -1184,9 +1195,16 @@ def research_property(address: str, api_key: str = None) -> PropertyReport:
 
     # Run all research tasks + Domain API last-sale lookup in parallel
     research_data = {}
+    state_abbrev  = _get_state_abbrev(address)
+    suburb_name   = _extract_suburb(address)
 
-    with ThreadPoolExecutor(max_workers=len(RESEARCH_TASKS) + 1) as executor:
+    with ThreadPoolExecutor(max_workers=len(RESEARCH_TASKS) + 2) as executor:
         domain_future = executor.submit(_domain_get_last_sale, address)
+
+        # NSW DA lookup — runs in parallel, overrides nearby_das after research
+        da_future = None
+        if state_abbrev == "NSW" and _get_nsw_das and suburb_name:
+            da_future = executor.submit(_get_nsw_das, suburb_name)
 
         task_futures = {
             executor.submit(run_research_task, client, task_name, address): task_name
@@ -1212,6 +1230,34 @@ def research_property(address: str, api_key: str = None) -> PropertyReport:
                 print("  ✅ [Domain API] Last sale injected into property_market")
         except Exception as e:
             print(f"  ⚠️  [Domain API] Result unavailable: {e}")
+
+        # Inject historical NSW DA planning character into government_projects
+        if da_future is not None:
+            try:
+                da_result = da_future.result(timeout=30)
+                if da_result.get("coverage") == "available":
+                    gp = research_data.get("government_projects")
+                    if not isinstance(gp, dict):
+                        research_data["government_projects"] = {}
+                        gp = research_data["government_projects"]
+                    # Store as planning_character — historical data, not current DA status
+                    gp["planning_character_2018_2023"] = {
+                        "total_das_lodged":     da_result.get("total_records", 0),
+                        "multi_dwelling_das":   da_result.get("multi_dwelling_count", 0),
+                        "large_projects":       da_result.get("large_project_count", 0),
+                        "notable_projects":     da_result.get("notable_projects", []),
+                        "data_period":          da_result.get("data_period", "2018–2023"),
+                    }
+                    print(
+                        f"  ✅ [NSW DA] Historical: {da_result['total_records']} DAs lodged, "
+                        f"{da_result.get('multi_dwelling_count', 0)} multi-dwelling"
+                    )
+                elif da_result.get("coverage") == "no_data":
+                    print(f"  ℹ️  [NSW DA] No historical DA records for '{suburb_name}'")
+                else:
+                    print(f"  ⚠️  [NSW DA] Error: {da_result.get('error', 'unknown')}")
+            except Exception as e:
+                print(f"  ⚠️  [NSW DA] Result unavailable: {e}")
 
     print("\n📝 All research complete. Synthesising...")
     print("=" * 60)

@@ -1697,6 +1697,7 @@ body {
   flex-direction: column;
   justify-content: center;
   overflow: hidden;
+  max-height: 88px;
 }
 .title-card .addr {
   font-size: 17px;
@@ -1712,6 +1713,7 @@ body {
   position: relative;
   overflow: hidden;
   padding: 0;
+  max-height: 88px;
 }
 .photo-card img {
   width: 100%; height: 100%;
@@ -2231,7 +2233,7 @@ body {
       <div class="card-header">
         <div class="card-header-left">
           <span class="card-icon icon-emerald">{{ view.metric_icons.median | safe }}</span>
-          <div class="label">Price Growth (Median House)</div>
+          <div class="label">Price Growth</div>
         </div>
         {% if view.metrics.median %}<span class="metric-pill pill-emerald">{{ view.metrics.median }}</span>{% endif %}
       </div>
@@ -2241,7 +2243,7 @@ body {
       <div class="card-header">
         <div class="card-header-left">
           <span class="card-icon icon-blue">{{ view.metric_icons.yield | safe }}</span>
-          <div class="label">Rental Yield Trends</div>
+          <div class="label">Rental Yield</div>
         </div>
         {% if view.metrics.rental_yield %}<span class="metric-pill pill-blue">{{ view.metrics.rental_yield }}</span>{% endif %}
       </div>
@@ -2251,7 +2253,7 @@ body {
       <div class="card-header">
         <div class="card-header-left">
           <span class="card-icon icon-violet">{{ view.metric_icons.comparables | safe }}</span>
-          <div class="label">Recent Comparable Sales</div>
+          <div class="label">Comparable Sales</div>
         </div>
       </div>
       <table class="comp-table">
@@ -2268,7 +2270,7 @@ body {
     <div class="card">
       <div class="card-header">
         <div class="card-header-left">
-          <span class="card-icon icon-amber">{{ view.metric_icons.scorecard | safe }}</span>
+          <span class="card-icon icon-rose">{{ view.metric_icons.scorecard | safe }}</span>
           <div class="label">Suburb Scorecard</div>
         </div>
       </div>
@@ -2337,7 +2339,7 @@ body {
       <div class="card-header">
         <div class="card-header-left">
           <span class="card-icon icon-amber">{{ view.metric_icons.crime | safe }}</span>
-          <div class="label">Crime Snapshot (vs State Average)</div>
+          <div class="label">Crime Snapshot</div>
         </div>
         {% if view.crime.short_headline %}<span class="metric-pill pill-amber">{{ view.crime.short_headline }}</span>{% endif %}
       </div>

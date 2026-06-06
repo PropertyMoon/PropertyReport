@@ -467,16 +467,28 @@ RESEARCH_TASKS = {
 
     "government_projects": (
         "Property: {address}\nState: {state}\n"
-        "SEARCH STEPS (use all searches): "
-        "(1) Search '[suburb] infrastructure projects {state}' and '[suburb] council development plan'. "
-        "(2) Search '[LGA or council name] capital works budget' or '[suburb] state government investment'. "
-        "(3) Check {planning_url} for any zoning or development overlays near this address.\n"
+        "STEP 1 — Search '[suburb] [state] infrastructure projects' and '[suburb] council capital works'. "
+        "Find road upgrades, rail extensions, park works, school builds, community facilities planned or underway nearby.\n"
+        "STEP 2 — Search '[LGA or council name] development applications [suburb]' to find recently lodged or approved DAs near this address. "
+        "Also search '[suburb] [state] major development approved' for larger projects.\n"
+        "STEP 3 — State-specific DA sources: "
+        "NSW: search 'site:planningportal.nsw.gov.au [suburb] development application' for lodged DAs. "
+        "VIC: search '[council name] planning permits [suburb] site:planning.vic.gov.au OR council website'. "
+        "QLD: search '[council name] development applications [suburb]'. "
+        "SA: search 'site:plan.sa.gov.au [suburb] development application'. "
+        "WA: search '[council name] planning applications [suburb]'. "
+        "Record any significant DAs (multi-unit residential, commercial, subdivision, demolition) within 1 km.\n"
+        "STEP 4 — Check {planning_url} for zoning changes or overlays affecting this address.\n"
         "Return JSON with: "
         "infrastructure_projects (list of up to 5 objects — REQUIRED, never return empty list; "
         "every suburb has road upgrades, park works, school builds, rail projects, or community facilities nearby; "
         "each object: name (string), type (one of: Road/Rail/Community/School/Park/Council/Federal), "
         "status (e.g. 'Under Construction', 'Funded – 2026', 'Planned – 2027', 'Proposed'), "
         "description (one short sentence on what it is and how far from the property)), "
+        "nearby_das (list of up to 4 objects — development applications lodged near the property: "
+        "address (string), description (string — what is being built/changed), "
+        "status (string — e.g. 'Approved', 'Pending', 'Under Assessment'), "
+        "lodged_date (string or null), impact (one of: 'Positive', 'Neutral', 'Negative')), "
         "zoning_changes (string or null), "
         "impact_on_value (one of: 'Positive', 'Neutral', 'Negative'), "
         "impact_reason (one short sentence)."
@@ -824,6 +836,9 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
         result["crime_violent_vs_state_avg_pct"] = crime_data.get("crime_violent_vs_state_avg_pct")
         result["crime_property_vs_state_avg_pct"]= crime_data.get("crime_property_vs_state_avg_pct")
         result["crime_data_source"]              = crime_data.get("data_source")
+        if crime_data.get("crime_trend_3yr"):
+            result["crime_trend_3yr"]   = crime_data["crime_trend_3yr"]
+            result["crime_trend_years"] = crime_data.get("crime_trend_years")
 
     return result
 

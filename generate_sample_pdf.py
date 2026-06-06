@@ -193,6 +193,12 @@ report = PropertyReport(
         "nearest_freeway":  {"name": "M80 Ring Road", "distance_km": 5.2},
         "nearby_gps":       [{"name": "Watergardens Medical", "distance_km": 1.0}],
         "nearby_hospitals": [{"name": "Sunshine Hospital", "distance_km": 8.5}],
+        "crime_trend_3yr": [
+            {"assault": 45, "break_enter": 120, "vehicle_theft": 85, "theft": 210},
+            {"assault": 48, "break_enter": 115, "vehicle_theft": 80, "theft": 195},
+            {"assault": 42, "break_enter": 108, "vehicle_theft": 72, "theft": 185},
+        ],
+        "crime_trend_years": [2023, 2024, 2025],
     },
     schools={
         "primary_schools":   [{"name": "Taylors Lakes Primary School",    "icsea": 1050, "distance_km": 0.9}],

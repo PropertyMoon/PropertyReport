@@ -908,11 +908,14 @@ def build_view(report) -> dict:
         "schools_rows": schools_rows,
         "crime":       _crime_summary(s),
         "metric_icons": {
-            "median":  icon("home"),
-            "yield":   icon("trending-up"),
-            "schools": icon("cap"),
-            "train":   icon("train"),
-            "crime":   icon("shield"),
+            "median":      icon("home"),
+            "yield":       icon("trending-up"),
+            "schools":     icon("cap"),
+            "train":       icon("train"),
+            "crime":       icon("shield"),
+            "comparables": icon("chart-bar"),
+            "scorecard":   icon("clipboard"),
+            "lifestyle":   icon("tree"),
         },
         "schools_rating_icon": icon(schools_icon_name, size=22, fill="#10b981" if _school_above_avg else "#f43f5e"),
         "schools_quality_color": (
@@ -1600,6 +1603,8 @@ body {
 .row {
   display: grid;
   gap: 8px;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .card {
@@ -1619,10 +1624,17 @@ body {
   margin: 0 0 6px;
 }
 .card-header {
-  display: flex; align-items: baseline; justify-content: space-between;
+  display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 6px;
 }
 .card-header .label { margin-bottom: 0; }
+.card-header-left { display: flex; align-items: center; gap: 6px; }
+.card-icon {
+  width: 22px; height: 22px; border-radius: 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.card-icon svg { width: 12px; height: 12px; display: block; }
 .metric-pill {
   font-size: 10.5px; font-weight: 700; white-space: nowrap;
   padding: 2px 8px; border-radius: 10px; flex-shrink: 0;
@@ -1635,7 +1647,7 @@ body {
 .pill-rose    { background: var(--rose-soft);    color: var(--rose); }
 
 /* ── HEADER ROW ── */
-.header-row { grid-template-columns: 3fr 1.4fr; }
+.header-row { grid-template-columns: 3fr 1.4fr; height: 88px; overflow: hidden; }
 
 /* ── LIFESTYLE SNAPSHOT ROW ── */
 .lifestyle-row { grid-template-columns: repeat(8, 1fr); }
@@ -1793,7 +1805,7 @@ body {
 }
 
 /* ── CHART ROW ── */
-.chart-row { grid-template-columns: 1.2fr 1.2fr 1.2fr 1.1fr; }
+.chart-row { grid-template-columns: 1.2fr 1.2fr 1.2fr 1.1fr; height: 205px; overflow: hidden; }
 .chart-svg { width: 100%; height: 120px; }
 .chart-stats { display: flex; gap: 12px; margin-top: 4px; font-size: 9px; }
 .chart-stats .key {
@@ -1876,7 +1888,7 @@ body {
 }
 
 /* ── DETAIL ROW ── */
-.detail-row { grid-template-columns: 1.3fr 1.2fr 1.2fr 1.3fr; }
+.detail-row { grid-template-columns: 1.3fr 1.2fr 1.2fr 1.3fr; height: 185px; overflow: hidden; }
 .row-list .item {
   display: flex;
   align-items: center;
@@ -1998,7 +2010,7 @@ body {
 .pipeline-row.planned .icon-sm   { background: var(--orange-soft);  color: var(--orange); }
 
 /* ── VERDICT BAND ── */
-.verdict-row { grid-template-columns: 1.4fr 1fr 1fr 1fr 1.2fr; gap: 8px; }
+.verdict-row { grid-template-columns: 1.4fr 1fr 1fr 1fr 1.2fr; gap: 8px; height: 88px; overflow: hidden; }
 .verdict-band {
   background: var(--navy);
   color: white;
@@ -2217,20 +2229,31 @@ body {
   <div class="row chart-row">
     <div class="card">
       <div class="card-header">
-        <div class="label">Price Growth (Median House)</div>
+        <div class="card-header-left">
+          <span class="card-icon icon-emerald">{{ view.metric_icons.median | safe }}</span>
+          <div class="label">Price Growth (Median House)</div>
+        </div>
         {% if view.metrics.median %}<span class="metric-pill pill-emerald">{{ view.metrics.median }}</span>{% endif %}
       </div>
       {{ view.history | safe }}
     </div>
     <div class="card">
       <div class="card-header">
-        <div class="label">Rental Yield Trends</div>
+        <div class="card-header-left">
+          <span class="card-icon icon-blue">{{ view.metric_icons.yield | safe }}</span>
+          <div class="label">Rental Yield Trends</div>
+        </div>
         {% if view.metrics.rental_yield %}<span class="metric-pill pill-blue">{{ view.metrics.rental_yield }}</span>{% endif %}
       </div>
       {{ view.rental | safe }}
     </div>
     <div class="card">
-      <div class="label">Recent Comparable Sales</div>
+      <div class="card-header">
+        <div class="card-header-left">
+          <span class="card-icon icon-violet">{{ view.metric_icons.comparables | safe }}</span>
+          <div class="label">Recent Comparable Sales</div>
+        </div>
+      </div>
       <table class="comp-table">
         <tr><th>Address</th><th>Sale Date</th><th>Sale Price</th></tr>
         {% for c in view.comparables %}
@@ -2243,7 +2266,12 @@ body {
       </div>
     </div>
     <div class="card">
-      <div class="label">Suburb Scorecard</div>
+      <div class="card-header">
+        <div class="card-header-left">
+          <span class="card-icon icon-amber">{{ view.metric_icons.scorecard | safe }}</span>
+          <div class="label">Suburb Scorecard</div>
+        </div>
+      </div>
       {% for s in view.scorecard %}
       <div class="scorecard-row">
         <span>{{ s.label }}</span>
@@ -2263,7 +2291,10 @@ body {
   <div class="row detail-row">
     <div class="card">
       <div class="card-header">
-        <div class="label">Transit &amp; Connectivity</div>
+        <div class="card-header-left">
+          <span class="card-icon icon-teal">{{ view.metric_icons.train | safe }}</span>
+          <div class="label">Transit &amp; Connectivity</div>
+        </div>
         {% if view.metrics.train_label %}<span class="metric-pill pill-teal">{{ view.metrics.train_label }} CBD</span>{% endif %}
       </div>
       <div class="row-list">
@@ -2280,7 +2311,10 @@ body {
     </div>
     <div class="card">
       <div class="card-header">
-        <div class="label">School Catchment</div>
+        <div class="card-header-left">
+          <span class="card-icon icon-violet">{{ view.metric_icons.schools | safe }}</span>
+          <div class="label">School Catchment</div>
+        </div>
         {% if view.metrics.schools %}<span class="metric-pill pill-violet" style="color: {{ view.schools_quality_color }}; background: {{ view.schools_quality_color }}1a;">{{ view.metrics.schools }}</span>{% endif %}
       </div>
       {% for s in view.schools_rows %}
@@ -2301,7 +2335,10 @@ body {
     </div>
     <div class="card crime-card">
       <div class="card-header">
-        <div class="label">Crime Snapshot (vs State Average)</div>
+        <div class="card-header-left">
+          <span class="card-icon icon-amber">{{ view.metric_icons.crime | safe }}</span>
+          <div class="label">Crime Snapshot (vs State Average)</div>
+        </div>
         {% if view.crime.short_headline %}<span class="metric-pill pill-amber">{{ view.crime.short_headline }}</span>{% endif %}
       </div>
       <div class="crime-rows">
@@ -2318,7 +2355,12 @@ body {
       </div>
     </div>
     <div class="card">
-      <div class="label">Lifestyle</div>
+      <div class="card-header">
+        <div class="card-header-left">
+          <span class="card-icon icon-teal">{{ view.metric_icons.lifestyle | safe }}</span>
+          <div class="label">Lifestyle</div>
+        </div>
+      </div>
       {% for a in view.top_amenities %}
       <div class="top-amenity-row">
         <span class="icon-sm icon-{{ a.color }}">{{ a.icon | safe }}</span>

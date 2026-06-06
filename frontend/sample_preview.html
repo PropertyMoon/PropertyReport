@@ -144,6 +144,8 @@ body {
 .row {
   display: grid;
   gap: 8px;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .card {
@@ -163,10 +165,17 @@ body {
   margin: 0 0 6px;
 }
 .card-header {
-  display: flex; align-items: baseline; justify-content: space-between;
+  display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 6px;
 }
 .card-header .label { margin-bottom: 0; }
+.card-header-left { display: flex; align-items: center; gap: 6px; }
+.card-icon {
+  width: 22px; height: 22px; border-radius: 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.card-icon svg { width: 12px; height: 12px; display: block; }
 .metric-pill {
   font-size: 10.5px; font-weight: 700; white-space: nowrap;
   padding: 2px 8px; border-radius: 10px; flex-shrink: 0;
@@ -179,7 +188,7 @@ body {
 .pill-rose    { background: var(--rose-soft);    color: var(--rose); }
 
 /* ── HEADER ROW ── */
-.header-row { grid-template-columns: 3fr 1.4fr; }
+.header-row { grid-template-columns: 3fr 1.4fr; height: 88px; overflow: hidden; }
 
 /* ── LIFESTYLE SNAPSHOT ROW ── */
 .lifestyle-row { grid-template-columns: repeat(8, 1fr); }
@@ -337,7 +346,7 @@ body {
 }
 
 /* ── CHART ROW ── */
-.chart-row { grid-template-columns: 1.2fr 1.2fr 1.2fr 1.1fr; }
+.chart-row { grid-template-columns: 1.2fr 1.2fr 1.2fr 1.1fr; height: 205px; overflow: hidden; }
 .chart-svg { width: 100%; height: 120px; }
 .chart-stats { display: flex; gap: 12px; margin-top: 4px; font-size: 9px; }
 .chart-stats .key {
@@ -420,7 +429,7 @@ body {
 }
 
 /* ── DETAIL ROW ── */
-.detail-row { grid-template-columns: 1.3fr 1.2fr 1.2fr 1.3fr; }
+.detail-row { grid-template-columns: 1.3fr 1.2fr 1.2fr 1.3fr; height: 185px; overflow: hidden; }
 .row-list .item {
   display: flex;
   align-items: center;
@@ -542,7 +551,7 @@ body {
 .pipeline-row.planned .icon-sm   { background: var(--orange-soft);  color: var(--orange); }
 
 /* ── VERDICT BAND ── */
-.verdict-row { grid-template-columns: 1.4fr 1fr 1fr 1fr 1.2fr; gap: 8px; }
+.verdict-row { grid-template-columns: 1.4fr 1fr 1fr 1fr 1.2fr; gap: 8px; height: 88px; overflow: hidden; }
 .verdict-band {
   background: var(--navy);
   color: white;
@@ -758,20 +767,26 @@ body {
   <div class="row chart-row">
     <div class="card">
       <div class="card-header">
-        <div class="label">Price Growth (Median House)</div>
+        <div class="card-header-left">
+          <span class="card-icon icon-emerald"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 8h-3v9h-5v-6h-2v6H6v-9H3l9-8z"/></svg></span>
+          <div class="label">Price Growth (Median House)</div>
+        </div>
         <span class="metric-pill pill-emerald">$960K</span>
       </div>
       <svg viewBox="0 0 380 180" xmlns="http://www.w3.org/2000/svg" class="chart-svg">
-  <polyline fill="none" stroke="#2563eb" stroke-width="2" points="40.0,152.0 122.0,108.0 204.0,80.5 286.0,42.0 368.0,20.0"/>
-  <circle cx="40.0" cy="152.0" r="3.2" fill="#2563eb"/><circle cx="122.0" cy="108.0" r="3.2" fill="#2563eb"/><circle cx="204.0" cy="80.5" r="3.2" fill="#2563eb"/><circle cx="286.0" cy="42.0" r="3.2" fill="#2563eb"/><circle cx="368.0" cy="20.0" r="3.2" fill="#2563eb"/>
+  <polyline fill="none" stroke="#2563eb" stroke-width="2" points="40.0,152.0 81.0,138.8 122.0,130.9 163.0,117.7 204.0,83.4 245.0,62.2 286.0,49.0 327.0,30.6 368.0,20.0"/>
+  <circle cx="40.0" cy="152.0" r="3.2" fill="#2563eb"/><circle cx="81.0" cy="138.8" r="3.2" fill="#2563eb"/><circle cx="122.0" cy="130.9" r="3.2" fill="#2563eb"/><circle cx="163.0" cy="117.7" r="3.2" fill="#2563eb"/><circle cx="204.0" cy="83.4" r="3.2" fill="#2563eb"/><circle cx="245.0" cy="62.2" r="3.2" fill="#2563eb"/><circle cx="286.0" cy="49.0" r="3.2" fill="#2563eb"/><circle cx="327.0" cy="30.6" r="3.2" fill="#2563eb"/><circle cx="368.0" cy="20.0" r="3.2" fill="#2563eb"/>
   <g><rect x="340.0" y="-4.0" rx="4" ry="4" width="56" height="18" fill="#2563eb"/><text x="368.0" y="9.0" font-size="11" font-weight="600" fill="white" text-anchor="middle">$960K</text></g>
-  <text x="34" y="24.0" font-size="9" fill="#94a3b8" text-anchor="end">$960K</text><text x="34" y="57.0" font-size="9" fill="#94a3b8" text-anchor="end">$900K</text><text x="34" y="90.0" font-size="9" fill="#94a3b8" text-anchor="end">$840K</text><text x="34" y="123.0" font-size="9" fill="#94a3b8" text-anchor="end">$780K</text><text x="34" y="156.0" font-size="9" fill="#94a3b8" text-anchor="end">$720K</text>
-  <text x="40.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2021</text><text x="122.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2022</text><text x="204.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2023</text><text x="286.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2024</text><text x="368.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2025</text>
+  <text x="34" y="24.0" font-size="9" fill="#94a3b8" text-anchor="end">$960K</text><text x="34" y="57.0" font-size="9" fill="#94a3b8" text-anchor="end">$835K</text><text x="34" y="90.0" font-size="9" fill="#94a3b8" text-anchor="end">$710K</text><text x="34" y="123.0" font-size="9" fill="#94a3b8" text-anchor="end">$585K</text><text x="34" y="156.0" font-size="9" fill="#94a3b8" text-anchor="end">$460K</text>
+  <text x="40.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2017</text><text x="81.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2018</text><text x="122.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2019</text><text x="163.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2020</text><text x="204.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2021</text><text x="245.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2022</text><text x="286.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2023</text><text x="327.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2024</text><text x="368.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2025</text>
 </svg>
     </div>
     <div class="card">
       <div class="card-header">
-        <div class="label">Rental Yield Trends</div>
+        <div class="card-header-left">
+          <span class="card-icon icon-blue"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M3.5 17.5l5-5 4 4 7-7v4h2V6h-7.5v2h4.5l-6 6-4-4-5.5 5.5z"/></svg></span>
+          <div class="label">Rental Yield Trends</div>
+        </div>
         <span class="metric-pill pill-blue">4.5%</span>
       </div>
       <svg viewBox="0 0 380 180" xmlns="http://www.w3.org/2000/svg" class="chart-svg">
@@ -784,13 +799,22 @@ body {
 </svg>
     </div>
     <div class="card">
-      <div class="label">Recent Comparable Sales</div>
+      <div class="card-header">
+        <div class="card-header-left">
+          <span class="card-icon icon-violet"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="11" width="3" height="8" rx="1"/><rect x="10" y="5" width="3" height="14" rx="1"/><rect x="16" y="8" width="3" height="11" rx="1"/></svg></span>
+          <div class="label">Recent Comparable Sales</div>
+        </div>
+      </div>
       <table class="comp-table">
         <tr><th>Address</th><th>Sale Date</th><th>Sale Price</th></tr>
         
-        <tr><td>13 Pindari Ave</td><td>May 2026</td><td>$775K</td></tr>
+        <tr><td>13 Pindari Ave</td><td>May 2024</td><td>$775K</td></tr>
         
-        <tr><td>28 Cloudburst Ave</td><td>April 2026</td><td>$942K</td></tr>
+        <tr><td>28 Cloudburst Ave</td><td>Feb 2025</td><td>$942K</td></tr>
+        
+        <tr><td>7 Windrow Cres</td><td>Jan 2025</td><td>$900K</td></tr>
+        
+        <tr><td>42 Pindari Ave</td><td>Nov 2024</td><td>$820K</td></tr>
         
       </table>
       <div class="last-sale-box">
@@ -799,7 +823,12 @@ body {
       </div>
     </div>
     <div class="card">
-      <div class="label">Suburb Scorecard</div>
+      <div class="card-header">
+        <div class="card-header-left">
+          <span class="card-icon icon-amber"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1S9.6 1.84 9.18 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zm-7 0a1 1 0 110 2 1 1 0 010-2z"/></svg></span>
+          <div class="label">Suburb Scorecard</div>
+        </div>
+      </div>
       
       <div class="scorecard-row">
         <span>Growth Potential</span>
@@ -839,7 +868,10 @@ body {
   <div class="row detail-row">
     <div class="card">
       <div class="card-header">
-        <div class="label">Transit &amp; Connectivity</div>
+        <div class="card-header-left">
+          <span class="card-icon icon-teal"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c-4 0-8 .5-8 4v9.5C4 17.4 5.6 19 7.5 19L6 20.5v.5h12v-.5L16.5 19c1.9 0 3.5-1.6 3.5-3.5V6c0-3.5-4-4-8-4zM7.5 17a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm3.5-7H6V6h5v4zm6.5 7a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM18 10h-5V6h5v4z"/></svg></span>
+          <div class="label">Transit &amp; Connectivity</div>
+        </div>
         <span class="metric-pill pill-teal">34 min CBD</span>
       </div>
       <div class="row-list">
@@ -872,7 +904,10 @@ body {
     </div>
     <div class="card">
       <div class="card-header">
-        <div class="label">School Catchment</div>
+        <div class="card-header-left">
+          <span class="card-icon icon-violet"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3zm0 13L5 12v3l7 4 7-4v-3l-7 4z"/></svg></span>
+          <div class="label">School Catchment</div>
+        </div>
         <span class="metric-pill pill-violet" style="color: #10b981; background: #10b9811a;">Strong</span>
       </div>
       
@@ -904,8 +939,11 @@ body {
     </div>
     <div class="card crime-card">
       <div class="card-header">
-        <div class="label">Crime Snapshot (vs State Average)</div>
-        <span class="metric-pill pill-amber">Around state avg</span>
+        <div class="card-header-left">
+          <span class="card-icon icon-amber"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4 5v6c0 5.5 3.4 10.7 8 12 4.6-1.3 8-6.5 8-12V5l-8-3z"/></svg></span>
+          <div class="label">Crime Snapshot (vs State Average)</div>
+        </div>
+        <span class="metric-pill pill-amber">Below state avg</span>
       </div>
       <div class="crime-rows">
         
@@ -919,14 +957,19 @@ body {
         <div class="crime-row">
           <span class="crime-label">Property crime</span>
           
-          <span class="crime-delta delta-amber">8% higher</span>
+          <span class="crime-delta delta-green">8% lower</span>
           
         </div>
         
       </div>
     </div>
     <div class="card">
-      <div class="label">Lifestyle</div>
+      <div class="card-header">
+        <div class="card-header-left">
+          <span class="card-icon icon-teal"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M17 12h-3V3H10v9H7l5 6 5-6zm-5 8c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2z"/></svg></span>
+          <div class="label">Lifestyle</div>
+        </div>
+      </div>
       
       <div class="top-amenity-row">
         <span class="icon-sm icon-blue"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c-4 0-8 .5-8 4v9.5C4 17.4 5.6 19 7.5 19L6 20.5v.5h12v-.5L16.5 19c1.9 0 3.5-1.6 3.5-3.5V6c0-3.5-4-4-8-4zM7.5 17a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm3.5-7H6V6h5v4zm6.5 7a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM18 10h-5V6h5v4z"/></svg></span>
@@ -937,18 +980,18 @@ body {
       </div>
       
       <div class="top-amenity-row">
-        <span class="icon-sm icon-emerald"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm10 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM7.16 15h10.68c.75 0 1.41-.41 1.75-1.03l3.41-6.18A1 1 0 0022.13 6H5.21L4.27 4H1v2h2l3.6 7.59L5.25 16H19v-2H7.42l-.26-.5L7.16 15z"/></svg></span>
+        <span class="icon-sm icon-violet"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3zm0 13L5 12v3l7 4 7-4v-3l-7 4z"/></svg></span>
         <div class="top-amenity-body">
-          <strong>Woolworths Watergardens</strong>
-          <span>400 m</span>
+          <strong>Taylors Lakes Primary School</strong>
+          <span>900 m · In catchment</span>
         </div>
       </div>
       
       <div class="top-amenity-row">
-        <span class="icon-sm icon-teal"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M17 12h-3V3H10v9H7l5 6 5-6zm-5 8c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2z"/></svg></span>
+        <span class="icon-sm icon-rose"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3v6a4 4 0 008 0V3h-2v6a2 2 0 11-4 0V3H5zm-2 0h2v2H3V3zm8 0h2v2h-2V3zm0 11a5 5 0 0010 0v-3h-2v3a3 3 0 11-6 0v-1a6 6 0 01-2 .87V14z"/><circle cx="19" cy="9" r="2"/></svg></span>
         <div class="top-amenity-body">
-          <strong>Taylors Lakes Reserve</strong>
-          <span>700 m</span>
+          <strong>Watergardens Medical</strong>
+          <span>1.0 km</span>
         </div>
       </div>
       
@@ -1000,18 +1043,41 @@ body {
     
     
     
-    <p>35 Pindari Ave, Taylors Lakes VIC 3038 is a 4-bedroom, 2-bathroom house.</p>
+    <p>35 Pindari Ave sits 120 m from Watergardens Station on the Sunbury Line, 34 minutes to the CBD by train.</p>
+<p>The suburb median is $960K with stable growth, and the dominant family demographic anchors long-term value.</p>
+<h3>Key Highlights</h3>
+<ul>
+<li>Walk to a major train station — strongest single value driver on the address</li>
+<li>Established family suburb with 86% owner-occupancy and quality school options</li>
+<li>5-year history shows steady appreciation without speculative spikes</li>
+</ul>
+<h3>Primary Concerns</h3>
+<ul>
+<li>Below-median safety percentile — property crime is the main category to weigh</li>
+<li>Modest rental yield limits cash-flow appeal for pure-investor buyers</li>
+</ul>
+<h3>Indicative Suitability</h3>
+<ul>
+<li>Owner-occupiers: <strong>HIGH</strong> — transit, schools, family character</li>
+<li>Investors: <strong>MODERATE</strong> — long-hold capital growth thesis, not yield</li>
+</ul>
     
   </section>
   
   <section class="body-section">
     <h2 class="section-title"><span class="section-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M12 3l9 8h-3v9h-5v-6h-2v6H6v-9H3l9-8z"/></svg></span>Property Snapshot</h2>
-    <table class="snapshot-table"><tr><th>Land Size</th><td>612 m²</td></tr><tr><th>Configuration</th><td>4br · 2ba</td></tr><tr><th>Zoning</th><td>GRZ1</td></tr></table>
+    <table class="snapshot-table"><tr><th>Land Size</th><td>612 m²</td></tr><tr><th>Dwelling Type</th><td>House</td></tr><tr><th>Frontage</th><td>17.4 m</td></tr><tr><th>Configuration</th><td>4br · 2ba · 2c</td></tr><tr><th>Year Built</th><td>1995</td></tr><tr><th>Zoning</th><td>GRZ1 — General Residential — neighbourhood-scale dwellings, up to 2 storeys</td></tr><tr><th>Subdivision Potential</th><td><strong>Moderate</strong> — 612 m² lot supports a battle-axe subdivision subject to council approval</td></tr><tr><th>Development Feasibility</th><td><strong>Moderate</strong> — Two-dwelling development achievable on this lot size</td></tr><tr><th>Renovation Potential</th><td><strong>High</strong> — 1990s build benefits from kitchen / bathroom updates</td></tr><tr><th>Knockdown / Rebuild</th><td><strong>High</strong> — Land value supports rebuild economics in this pocket</td></tr><tr><th>Street Position</th><td>7 / 10</td></tr></table>
     
     
     
     
-    <p>612 m2 GRZ1 lot.</p>
+    <p>The subject property is on a 612 m² GRZ1 lot with strong infill potential and renovation upside on a 1990s build. Development options sit at the moderate end given lot dimensions; renovation is the most direct value-add path.</p>
+<h3>Development Outlook</h3>
+<ul>
+<li>Battle-axe subdivision possible subject to Brimbank council approval and stormwater feasibility</li>
+<li>Two-dwelling development achievable but tight on frontage — front/rear split most likely configuration</li>
+<li>Renovation pathway is the most efficient ROI given the 1990s build vintage and finishes</li>
+</ul>
     
   </section>
   
@@ -1019,23 +1085,26 @@ body {
     <h2 class="section-title"><span class="section-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M3.5 17.5l5-5 4 4 7-7v4h2V6h-7.5v2h4.5l-6 6-4-4-5.5 5.5z"/></svg></span>Market Analysis</h2>
     
     <div class="body-chart"><svg viewBox="0 0 380 180" xmlns="http://www.w3.org/2000/svg" class="chart-svg">
-  <polyline fill="none" stroke="#2563eb" stroke-width="2" points="40.0,152.0 122.0,108.0 204.0,80.5 286.0,42.0 368.0,20.0"/>
-  <circle cx="40.0" cy="152.0" r="3.2" fill="#2563eb"/><circle cx="122.0" cy="108.0" r="3.2" fill="#2563eb"/><circle cx="204.0" cy="80.5" r="3.2" fill="#2563eb"/><circle cx="286.0" cy="42.0" r="3.2" fill="#2563eb"/><circle cx="368.0" cy="20.0" r="3.2" fill="#2563eb"/>
+  <polyline fill="none" stroke="#2563eb" stroke-width="2" points="40.0,152.0 81.0,138.8 122.0,130.9 163.0,117.7 204.0,83.4 245.0,62.2 286.0,49.0 327.0,30.6 368.0,20.0"/>
+  <circle cx="40.0" cy="152.0" r="3.2" fill="#2563eb"/><circle cx="81.0" cy="138.8" r="3.2" fill="#2563eb"/><circle cx="122.0" cy="130.9" r="3.2" fill="#2563eb"/><circle cx="163.0" cy="117.7" r="3.2" fill="#2563eb"/><circle cx="204.0" cy="83.4" r="3.2" fill="#2563eb"/><circle cx="245.0" cy="62.2" r="3.2" fill="#2563eb"/><circle cx="286.0" cy="49.0" r="3.2" fill="#2563eb"/><circle cx="327.0" cy="30.6" r="3.2" fill="#2563eb"/><circle cx="368.0" cy="20.0" r="3.2" fill="#2563eb"/>
   <g><rect x="340.0" y="-4.0" rx="4" ry="4" width="56" height="18" fill="#2563eb"/><text x="368.0" y="9.0" font-size="11" font-weight="600" fill="white" text-anchor="middle">$960K</text></g>
-  <text x="34" y="24.0" font-size="9" fill="#94a3b8" text-anchor="end">$960K</text><text x="34" y="57.0" font-size="9" fill="#94a3b8" text-anchor="end">$900K</text><text x="34" y="90.0" font-size="9" fill="#94a3b8" text-anchor="end">$840K</text><text x="34" y="123.0" font-size="9" fill="#94a3b8" text-anchor="end">$780K</text><text x="34" y="156.0" font-size="9" fill="#94a3b8" text-anchor="end">$720K</text>
-  <text x="40.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2021</text><text x="122.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2022</text><text x="204.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2023</text><text x="286.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2024</text><text x="368.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2025</text>
+  <text x="34" y="24.0" font-size="9" fill="#94a3b8" text-anchor="end">$960K</text><text x="34" y="57.0" font-size="9" fill="#94a3b8" text-anchor="end">$835K</text><text x="34" y="90.0" font-size="9" fill="#94a3b8" text-anchor="end">$710K</text><text x="34" y="123.0" font-size="9" fill="#94a3b8" text-anchor="end">$585K</text><text x="34" y="156.0" font-size="9" fill="#94a3b8" text-anchor="end">$460K</text>
+  <text x="40.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2017</text><text x="81.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2018</text><text x="122.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2019</text><text x="163.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2020</text><text x="204.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2021</text><text x="245.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2022</text><text x="286.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2023</text><text x="327.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2024</text><text x="368.0" y="172" font-size="9" fill="#94a3b8" text-anchor="middle">2025</text>
 </svg></div>
     
     
     
-    <p>Median $960K.</p>
+    <p>Taylors Lakes has tracked a steady upward path over five years; the price-history bar chart on the cover shows the trajectory and the comparable sales table benchmarks the address.</p>
 <h3>Pricing & Rental</h3>
 <ul>
-<li>Suburb median: $960K</li>
+<li>Suburb median sits around $960K with consistent year-on-year gains, no major spikes or corrections</li>
+<li>Gross house yield in the high 2% range; unit yield meaningfully stronger if a smaller-dwelling investment is preferred</li>
+<li>Vacancy is tight thanks to station proximity and owner-occupier dominance</li>
 </ul>
 <h3>5-Year Outlook</h3>
 <ul>
-<li>Steady growth expected.</li>
+<li>Continued moderate growth supported by western-corridor infrastructure spend</li>
+<li>Watergardens activity centre densification a long-term tailwind, not a short-term catalyst</li>
 </ul>
     
   </section>
@@ -1047,29 +1116,63 @@ body {
     
     
     
-    <p>Taylors Lakes is a mature, low-density suburb 23 km north-west of Melbourne.</p>
+    <p>Taylors Lakes is a mature, low-density suburb in Melbourne's north-west — 23 km from the CBD, 15,000 residents, predominantly couples-with-children households on professional incomes.</p>
 <h3>Who's Moving Here</h3>
-<p>Professional families and older couples are the primary inbound cohort.</p>
+<p>Professional families and older couples are the dominant inbound cohort, drawn by relative value versus inner-ring alternatives, the school catchment, and the Sunbury Line commute. Indian-Australian households are the fastest-growing cultural segment in the suburb.</p>
 <h3>What This Suburb Is Becoming</h3>
-<p>Consolidating as a family destination with measured densification near the station.</p>
-<h3>Lifestyle</h3>
+<p>Taylors Lakes is consolidating rather than transforming — it is absorbing population pressure from Melbourne's western growth corridor as households trade lot size for accessibility. The Robertsons Road infill and Melton Highway upgrades signal measured densification.</p>
+<h3>Household & Amenities</h3>
 <ul>
-<li>86% owner-occupancy rate — one of the highest in Melbourne's outer west</li>
-<li>Active community anchored by Watergardens Town Centre retail and dining precinct</li>
-<li>Taylors Lakes shared-use path improving cycling and walking infrastructure</li>
-<li>Predominantly professional families; median household income above outer-suburban average</li>
+<li>Predominant household type: couples with children; primary occupation class: professional</li>
+<li>Median household income comfortably above outer-suburban average</li>
+<li>Watergardens Town Centre anchors retail, with the Taylors Lakes shared-use path improving active transport</li>
 </ul>
-    <table class="lifestyle-table"><thead><tr><th>Category</th><th>Name</th><th>Distance</th><th>Detail</th></tr></thead><tbody><tr><td><div class='lt-cat'><span class="icon-sm icon-blue"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c-4 0-8 .5-8 4v9.5C4 17.4 5.6 19 7.5 19L6 20.5v.5h12v-.5L16.5 19c1.9 0 3.5-1.6 3.5-3.5V6c0-3.5-4-4-8-4zM7.5 17a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm3.5-7H6V6h5v4zm6.5 7a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM18 10h-5V6h5v4z"/></svg></span> Train</div></td><td><strong>Watergardens Station</strong></td><td>120 m</td><td>34 min to CBD</td></tr><tr><td><div class='lt-cat'><span class="icon-sm icon-violet"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3zm0 13L5 12v3l7 4 7-4v-3l-7 4z"/></svg></span> Primary School</div></td><td><strong>Taylors Lakes Primary School</strong></td><td>900 m</td><td>In catchment</td></tr><tr><td><div class='lt-cat'><span class="icon-sm icon-emerald"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm10 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM7.16 15h10.68c.75 0 1.41-.41 1.75-1.03l3.41-6.18A1 1 0 0022.13 6H5.21L4.27 4H1v2h2l3.6 7.59L5.25 16H19v-2H7.42l-.26-.5L7.16 15z"/></svg></span> Supermarket</div></td><td><strong>Woolworths Watergardens</strong></td><td>400 m</td><td>—</td></tr><tr><td><div class='lt-cat'><span class="icon-sm icon-teal"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M17 12h-3V3H10v9H7l5 6 5-6zm-5 8c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2z"/></svg></span> Park</div></td><td><strong>Taylors Lakes Reserve</strong></td><td>700 m</td><td>—</td></tr><tr><td><div class='lt-cat'><span class="icon-sm icon-rose"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3v6a4 4 0 008 0V3h-2v6a2 2 0 11-4 0V3H5zm-2 0h2v2H3V3zm8 0h2v2h-2V3zm0 11a5 5 0 0010 0v-3h-2v3a3 3 0 11-6 0v-1a6 6 0 01-2 .87V14z"/><circle cx="19" cy="9" r="2"/></svg></span> GP Clinic</div></td><td><strong>Watergardens Medical Centre</strong></td><td>1.0 km</td><td>—</td></tr><tr><td><div class='lt-cat'><span class="icon-sm icon-rose"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-4 11h-2v2h-2v-2H9v-2h2V9h2v3h2v2z"/></svg></span> Hospital</div></td><td><strong>Sunshine Hospital</strong></td><td>8.5 km</td><td>—</td></tr><tr><td><div class='lt-cat'><span class="icon-sm icon-orange"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M20.57 14.86L22 13.43 20.57 12 17 15.57 8.43 7 12 3.43 10.57 2 9.14 3.43 7.71 2 5.57 4.14 4.14 2.71 2.71 4.14l1.43 1.43L2 7.71l1.43 1.43L2 10.57 3.43 12 7 8.43 15.57 17 12 20.57 13.43 22l1.43-1.43L16.29 22l2.14-2.14-1.43-1.43L22 16.29l-1.43-1.43z"/></svg></span> Gym</div></td><td><strong>Genesis Gym</strong></td><td>900 m</td><td>~$15/wk</td></tr><tr><td><div class='lt-cat'><span class="icon-sm icon-amber"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M11 5h2v3h-2V5zm0 5h2v3h-2v-3zm0 5h2v3h-2v-3zM7 5h2v3H7V5zm0 5h2v3H7v-3zm0 5h2v3H7v-3zm8-10h2v3h-2V5zm0 5h2v3h-2v-3zm0 5h2v3h-2v-3z"/></svg></span> Freeway</div></td><td><strong>M80 Ring Road</strong></td><td>5.2 km</td><td>By car</td></tr></tbody></table>
+    <table class="lifestyle-table"><thead><tr><th>Category</th><th>Name</th><th>Distance</th><th>Detail</th></tr></thead><tbody><tr><td><div class='lt-cat'><span class="icon-sm icon-blue"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c-4 0-8 .5-8 4v9.5C4 17.4 5.6 19 7.5 19L6 20.5v.5h12v-.5L16.5 19c1.9 0 3.5-1.6 3.5-3.5V6c0-3.5-4-4-8-4zM7.5 17a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm3.5-7H6V6h5v4zm6.5 7a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM18 10h-5V6h5v4z"/></svg></span> Train</div></td><td><strong>Watergardens Station</strong></td><td>120 m</td><td>34 min to CBD</td></tr><tr><td><div class='lt-cat'><span class="icon-sm icon-violet"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3zm0 13L5 12v3l7 4 7-4v-3l-7 4z"/></svg></span> Primary School</div></td><td><strong>Taylors Lakes Primary School</strong></td><td>900 m</td><td>In catchment</td></tr><tr><td><div class='lt-cat'><span class="icon-sm icon-rose"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3v6a4 4 0 008 0V3h-2v6a2 2 0 11-4 0V3H5zm-2 0h2v2H3V3zm8 0h2v2h-2V3zm0 11a5 5 0 0010 0v-3h-2v3a3 3 0 11-6 0v-1a6 6 0 01-2 .87V14z"/><circle cx="19" cy="9" r="2"/></svg></span> GP Clinic</div></td><td><strong>Watergardens Medical</strong></td><td>1.0 km</td><td>—</td></tr><tr><td><div class='lt-cat'><span class="icon-sm icon-rose"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-4 11h-2v2h-2v-2H9v-2h2V9h2v3h2v2z"/></svg></span> Hospital</div></td><td><strong>Sunshine Hospital</strong></td><td>8.5 km</td><td>—</td></tr><tr><td><div class='lt-cat'><span class="icon-sm icon-amber"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M11 5h2v3h-2V5zm0 5h2v3h-2v-3zm0 5h2v3h-2v-3zM7 5h2v3H7V5zm0 5h2v3H7v-3zm0 5h2v3H7v-3zm8-10h2v3h-2V5zm0 5h2v3h-2v-3zm0 5h2v3h-2v-3z"/></svg></span> Freeway</div></td><td><strong>M80 Ring Road</strong></td><td>5.2 km</td><td>By car</td></tr></tbody></table>
   </section>
   
   <section class="body-section">
     <h2 class="section-title"><span class="section-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3zm0 13L5 12v3l7 4 7-4v-3l-7 4z"/></svg></span>Schools Catchment</h2>
     
     
-    <table class="sch-detail-table"><tr><th class="sch-th">School</th><th class="sch-th">Catchment</th><th class="sch-th sch-center">ICSEA</th><th class="sch-th sch-center">Reading</th><th class="sch-th sch-center">Numeracy</th><th class="sch-th">Proximity</th></tr><tr><td class="sch-td"><strong class="sch-name">Taylors Lakes Primary School</strong><br><span class="sch-sub" style="color:#7c3aed">Primary</span></td><td class="sch-td"><span class="sch-badge sch-badge-in">&#10003; In-catchment</span></td><td class="sch-td sch-center"><span class="sch-icsea">1050</span></td><td class="sch-td sch-center"><span class="sch-pct" style="color:#10b981">74th</span></td><td class="sch-td sch-center"><span class="sch-pct" style="color:#10b981">71th</span></td><td class="sch-td">11 min walk</td></tr><tr><td class="sch-td"><strong class="sch-name">Taylors Lakes Secondary College</strong><br><span class="sch-sub" style="color:#2563eb">Secondary</span></td><td class="sch-td"><span class="sch-badge sch-badge-in">&#10003; In-catchment</span></td><td class="sch-td sch-center"><span class="sch-icsea">1015</span></td><td class="sch-td sch-center"><span style="color:#94a3b8">—</span></td><td class="sch-td sch-center"><span style="color:#94a3b8">—</span></td><td class="sch-td">1.2 km</td></tr></table><p class="sch-note">NAPLAN percentile = rank vs national average from myschool.edu.au. Catchment zones should be confirmed at <a href="https://findmyschool.vic.gov.au">findmyschool.vic.gov.au</a>.</p>
+    <table class="sch-detail-table"><tr><th class="sch-th">School</th><th class="sch-th">Catchment</th><th class="sch-th sch-center">ICSEA</th><th class="sch-th sch-center">Reading</th><th class="sch-th sch-center">Numeracy</th><th class="sch-th">Proximity</th></tr><tr><td class="sch-td"><strong class="sch-name">Taylors Lakes Primary School</strong><br><span class="sch-sub" style="color:#7c3aed">Primary</span></td><td class="sch-td"><span class="sch-badge sch-badge-in">&#10003; In-catchment</span></td><td class="sch-td sch-center"><span class="sch-icsea">1050</span></td><td class="sch-td sch-center"><span class="sch-pct" style="color:#10b981">74th</span></td><td class="sch-td sch-center"><span class="sch-pct" style="color:#10b981">71th</span></td><td class="sch-td">11 min walk</td></tr><tr><td class="sch-td"><strong class="sch-name">Taylors Lakes Secondary College</strong><br><span class="sch-sub" style="color:#2563eb">Secondary</span></td><td class="sch-td"><span class="sch-badge sch-badge-in">&#10003; In-catchment</span></td><td class="sch-td sch-center"><span class="sch-icsea">1015</span></td><td class="sch-td sch-center"><span class="sch-pct" style="color:#10b981">66th</span></td><td class="sch-td sch-center"><span class="sch-pct" style="color:#10b981">63th</span></td><td class="sch-td">1.2 km</td></tr><tr><td class="sch-td"><strong class="sch-name">Overnewton Anglican Community College</strong><br><span class="sch-sub" style="color:#0891b2">Private · $12,000/yr</span></td><td class="sch-td"><span class="sch-badge sch-badge-private">Anglican</span></td><td class="sch-td sch-center"><span class="sch-icsea">1075</span></td><td class="sch-td sch-center"><span class="sch-pct" style="color:#10b981">78th</span></td><td class="sch-td sch-center"><span class="sch-pct" style="color:#10b981">75th</span></td><td class="sch-td">4.5 km</td></tr></table><p class="sch-note">NAPLAN percentile = rank vs national average from myschool.edu.au. Catchment zones should be confirmed at <a href="https://findmyschool.vic.gov.au">findmyschool.vic.gov.au</a>.</p>
     
     
-    <p>Strong school catchment.</p>
+    <p>Local primary and secondary catchment schools both sit at or above the state average ICSEA band — the cover ICSEA chart shows the individual scores. The professional-family demographic correlates with stable school performance.</p>
+    
+  </section>
+  
+  <section class="body-section">
+    <h2 class="section-title"><span class="section-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M14 4l6 6-2 2-2-2-3 3 2 2-2 2-2-2-3 3 2 2-2 2-6-6 12-12zM18 5l1.4-1.4a2 2 0 012.8 0L23 4l-2 2-3-1z"/></svg></span>Infrastructure &amp; Development</h2>
+    
+    
+    
+    
+    
+    <ul>
+<li>Sunshine Avenue intersection upgrades (part of a $117M state program) currently in progress</li>
+<li>Brimbank Planning Scheme Amendment GC51 enables the Robertsons Road / McCubbin Drive infill (~175 lots)</li>
+<li>Taylors Lakes shared-user path Stage 1 complete, Stage 2 underway</li>
+</ul>
+    
+  </section>
+  
+  <section class="body-section">
+    <h2 class="section-title"><span class="section-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M12 2c-4 0-8 .5-8 4v9.5C4 17.4 5.6 19 7.5 19L6 20.5v.5h12v-.5L16.5 19c1.9 0 3.5-1.6 3.5-3.5V6c0-3.5-4-4-8-4zM7.5 17a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm3.5-7H6V6h5v4zm6.5 7a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM18 10h-5V6h5v4z"/></svg></span>Transport Connectivity</h2>
+    
+    
+    
+    
+    
+    <h3>Public Transport</h3>
+<ul>
+<li>Watergardens Station 120 m from the property; 34-minute CBD train commute on the Sunbury Line</li>
+<li>Five bus routes through the Watergardens interchange connect Keilor, St Albans, Caroline Springs</li>
+</ul>
+<h3>Car Travel</h3>
+<ul>
+<li>CBD drive 20 min off-peak / ~48 min peak via Calder Freeway and the Western Ring Road</li>
+<li>M80 Ring Road accessible within 8 minutes by car</li>
+</ul>
     
   </section>
   
@@ -1080,7 +1183,7 @@ body {
     
     
     <div class="body-crime">
-      <div class="body-crime-headline">Around state average</div>
+      <div class="body-crime-headline">Lower than state average</div>
       
       <div class="body-crime-row">
         <span>Violent crime</span>
@@ -1089,19 +1192,38 @@ body {
       
       <div class="body-crime-row">
         <span>Property crime</span>
-        <span class="crime-delta delta-amber">8% higher</span>
+        <span class="crime-delta delta-green">8% lower</span>
       </div>
       
     </div>
     
     <div class="body-chart" style="margin-top:12px">
       <p class="label" style="margin-bottom:6px">Crime Category Trend — Last 3 Years</p>
-      <svg viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg" class="chart-svg chart-body"><text x="45" y="24.0" font-size="9" fill="#94a3b8" text-anchor="end">241</text><line x1="50" y1="51.2" x2="580" y2="51.2" stroke="#f1f5f9" stroke-width="1"/><text x="45" y="55.2" font-size="9" fill="#94a3b8" text-anchor="end">181</text><line x1="50" y1="82.5" x2="580" y2="82.5" stroke="#f1f5f9" stroke-width="1"/><text x="45" y="86.5" font-size="9" fill="#94a3b8" text-anchor="end">120</text><line x1="50" y1="113.8" x2="580" y2="113.8" stroke="#f1f5f9" stroke-width="1"/><text x="45" y="117.8" font-size="9" fill="#94a3b8" text-anchor="end">60</text><line x1="50" y1="145.0" x2="580" y2="145.0" stroke="#f1f5f9" stroke-width="1"/><text x="45" y="149.0" font-size="9" fill="#94a3b8" text-anchor="end">0</text><line x1="50" y1="145" x2="580" y2="145" stroke="#e2e8f0" stroke-width="1"/><rect x="79.1" y="121.7" width="49.4" height="23.3" fill="#e11d48" rx="2" opacity="0.9"/><rect x="131.6" y="82.9" width="49.4" height="62.1" fill="#f59e0b" rx="2" opacity="0.9"/><rect x="184.0" y="101.0" width="49.4" height="44.0" fill="#7c3aed" rx="2" opacity="0.9"/><rect x="236.4" y="36.3" width="49.4" height="108.7" fill="#2563eb" rx="2" opacity="0.9"/><text x="182.5" y="159" font-size="11" fill="#334155" text-anchor="middle" font-weight="600">2024</text><rect x="344.1" y="123.3" width="49.4" height="21.7" fill="#e11d48" rx="2" opacity="0.9"/><rect x="396.6" y="89.1" width="49.4" height="55.9" fill="#f59e0b" rx="2" opacity="0.9"/><rect x="449.0" y="107.7" width="49.4" height="37.3" fill="#7c3aed" rx="2" opacity="0.9"/><rect x="501.4" y="49.2" width="49.4" height="95.8" fill="#2563eb" rx="2" opacity="0.9"/><text x="447.5" y="159" font-size="11" fill="#334155" text-anchor="middle" font-weight="600">2025</text><rect x="60.0" y="175" width="10" height="10" fill="#e11d48" rx="2"/><text x="74.0" y="184" font-size="10" fill="#475569">Assault</text><rect x="180.0" y="175" width="10" height="10" fill="#f59e0b" rx="2"/><text x="194.0" y="184" font-size="10" fill="#475569">Break & Enter</text><rect x="300.0" y="175" width="10" height="10" fill="#7c3aed" rx="2"/><text x="314.0" y="184" font-size="10" fill="#475569">Vehicle Theft</text><rect x="420.0" y="175" width="10" height="10" fill="#2563eb" rx="2"/><text x="434.0" y="184" font-size="10" fill="#475569">Theft</text></svg>
+      <svg viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg" class="chart-svg chart-body"><text x="45" y="24.0" font-size="9" fill="#94a3b8" text-anchor="end">241</text><line x1="50" y1="51.2" x2="580" y2="51.2" stroke="#f1f5f9" stroke-width="1"/><text x="45" y="55.2" font-size="9" fill="#94a3b8" text-anchor="end">181</text><line x1="50" y1="82.5" x2="580" y2="82.5" stroke="#f1f5f9" stroke-width="1"/><text x="45" y="86.5" font-size="9" fill="#94a3b8" text-anchor="end">120</text><line x1="50" y1="113.8" x2="580" y2="113.8" stroke="#f1f5f9" stroke-width="1"/><text x="45" y="117.8" font-size="9" fill="#94a3b8" text-anchor="end">60</text><line x1="50" y1="145.0" x2="580" y2="145.0" stroke="#f1f5f9" stroke-width="1"/><text x="45" y="149.0" font-size="9" fill="#94a3b8" text-anchor="end">0</text><line x1="50" y1="145" x2="580" y2="145" stroke="#e2e8f0" stroke-width="1"/><rect x="69.4" y="121.7" width="32.2" height="23.3" fill="#e11d48" rx="2" opacity="0.9"/><rect x="104.6" y="82.9" width="32.2" height="62.1" fill="#f59e0b" rx="2" opacity="0.9"/><rect x="139.8" y="101.0" width="32.2" height="44.0" fill="#7c3aed" rx="2" opacity="0.9"/><rect x="175.0" y="36.3" width="32.2" height="108.7" fill="#2563eb" rx="2" opacity="0.9"/><text x="138.3" y="159" font-size="11" fill="#334155" text-anchor="middle" font-weight="600">2023</text><rect x="246.1" y="120.2" width="32.2" height="24.8" fill="#e11d48" rx="2" opacity="0.9"/><rect x="281.3" y="85.5" width="32.2" height="59.5" fill="#f59e0b" rx="2" opacity="0.9"/><rect x="316.5" y="103.6" width="32.2" height="41.4" fill="#7c3aed" rx="2" opacity="0.9"/><rect x="351.7" y="44.1" width="32.2" height="100.9" fill="#2563eb" rx="2" opacity="0.9"/><text x="315.0" y="159" font-size="11" fill="#334155" text-anchor="middle" font-weight="600">2024</text><rect x="422.8" y="123.3" width="32.2" height="21.7" fill="#e11d48" rx="2" opacity="0.9"/><rect x="458.0" y="89.1" width="32.2" height="55.9" fill="#f59e0b" rx="2" opacity="0.9"/><rect x="493.2" y="107.7" width="32.2" height="37.3" fill="#7c3aed" rx="2" opacity="0.9"/><rect x="528.4" y="49.2" width="32.2" height="95.8" fill="#2563eb" rx="2" opacity="0.9"/><text x="491.7" y="159" font-size="11" fill="#334155" text-anchor="middle" font-weight="600">2025</text><rect x="60.0" y="175" width="10" height="10" fill="#e11d48" rx="2"/><text x="74.0" y="184" font-size="10" fill="#475569">Assault</text><rect x="180.0" y="175" width="10" height="10" fill="#f59e0b" rx="2"/><text x="194.0" y="184" font-size="10" fill="#475569">Break & Enter</text><rect x="300.0" y="175" width="10" height="10" fill="#7c3aed" rx="2"/><text x="314.0" y="184" font-size="10" fill="#475569">Vehicle Theft</text><rect x="420.0" y="175" width="10" height="10" fill="#2563eb" rx="2"/><text x="434.0" y="184" font-size="10" fill="#475569">Theft</text></svg>
     </div>
     
     
     
-    <p>Moderate crime risk.</p>
+    <h3>Crime & Safety</h3>
+<p>Taylors Lakes sits at the 32nd safety percentile in Victoria; violent crime tracks 17% below the state average. The cover crime gauge renders the percentile and category deltas.</p>
+<h3>Environmental & Planning</h3>
+<ul>
+<li>Melbourne Airport Environs Overlay applies to this precinct — confirm specific noise-contour schedule via VicPlan</li>
+<li>Verification recommended for: flood overlay status (vicfloodmap.com.au / Brimbank Council property report)</li>
+<li>Verification recommended for: heritage overlay applicability (planning.vic.gov.au)</li>
+</ul>
+<h3>Market Risks</h3>
+<ul>
+<li>Outer-suburban markets are more sensitive to interest-rate moves than inner-ring comparables</li>
+<li>New Robertsons Road infill supply could moderate land-value gains short term</li>
+</ul>
+<h3>Verification Checklist</h3>
+<ul>
+<li>Flood overlay status (vicfloodmap.com.au or Brimbank Section 32)</li>
+<li>Airport Environs noise contour for this address (VicPlan)</li>
+<li>School catchment confirmation (findmyschool.vic.gov.au)</li>
+<li>Lot dimensions and subdivision rules (Brimbank Council direct)</li>
+</ul>
     
   </section>
   
@@ -1114,9 +1236,27 @@ body {
     <div class="body-chart"><svg viewBox="0 0 600 180" xmlns="http://www.w3.org/2000/svg" class="chart-svg chart-body"><text x="600" y="22" text-anchor="end" font-size="22" font-weight="700" fill="#0f172a">6.5<tspan font-size="12" fill="#94a3b8"> / 10</tspan></text><text x="600" y="36" text-anchor="end" font-size="9" fill="#94a3b8">Overall Score</text><text x="0" y="60" font-size="11" fill="#334155">Growth Potential</text><rect x="200" y="50" width="330" height="12" fill="#f1f5f9" rx="2"/><rect x="200" y="50" width="231.0" height="12" fill="#10b981" rx="2"/><text x="600" y="60" text-anchor="end" font-size="11" font-weight="600" fill="#0f172a">7.0</text><text x="0" y="88" font-size="11" fill="#334155">Rental Demand</text><rect x="200" y="78" width="330" height="12" fill="#f1f5f9" rx="2"/><rect x="200" y="78" width="198.0" height="12" fill="#f59e0b" rx="2"/><text x="600" y="88" text-anchor="end" font-size="11" font-weight="600" fill="#0f172a">6.0</text><text x="0" y="116" font-size="11" fill="#334155">Infrastructure</text><rect x="200" y="106" width="330" height="12" fill="#f1f5f9" rx="2"/><rect x="200" y="106" width="264.0" height="12" fill="#10b981" rx="2"/><text x="600" y="116" text-anchor="end" font-size="11" font-weight="600" fill="#0f172a">8.0</text><text x="0" y="144" font-size="11" fill="#334155">Safety</text><rect x="200" y="134" width="330" height="12" fill="#f1f5f9" rx="2"/><rect x="200" y="134" width="132.0" height="12" fill="#ef4444" rx="2"/><text x="600" y="144" text-anchor="end" font-size="11" font-weight="600" fill="#0f172a">4.0</text><text x="0" y="172" font-size="11" fill="#334155">Family Suitability</text><rect x="200" y="162" width="330" height="12" fill="#f1f5f9" rx="2"/><rect x="200" y="162" width="264.0" height="12" fill="#10b981" rx="2"/><text x="600" y="172" text-anchor="end" font-size="11" font-weight="600" fill="#0f172a">8.0</text></svg></div>
     <h3>Score Breakdown</h3>
 <ul>
-<li>Growth Potential: <strong>7.0 / 10</strong></li>
-<li>Overall Score: <strong>6.5 / 10</strong></li>
+<li>Growth Potential: <strong>7.0</strong> — steady western corridor demand</li>
+<li>Rental Demand: <strong>6.0</strong> — tight vacancy offsets modest yield</li>
+<li>Infrastructure: <strong>8.0</strong> — exceptional rail access and active road investment</li>
+<li>Safety: <strong>4.0</strong> — property crime moderately above state median</li>
+<li>Family Suitability: <strong>8.0</strong> — schools, owner-occupancy, family character</li>
 </ul>
+<p><strong>Overall Score: 6.5 / 10</strong></p>
+<h3>Overall Assessment</h3>
+<p>Good long-term prospect for owner-occupiers; selective buy for long-hold investors.</p>
+<h3>Strengths</h3>
+<p>1. Watergardens Station at 120 m — top-tier transit position for outer western Melbourne</p>
+<p>2. High owner-occupancy and dominant family demographic underpin stable values</p>
+<h3>Weaknesses</h3>
+<p>1. Safety percentile in the lower third — property crime is the main category</p>
+<p>2. Modest rental yield limits cash-flow appeal for pure-investor strategies</p>
+<h3>Buyer Suitability</h3>
+<p><strong>Owner-Occupiers:</strong> Strong fit for professional families prioritising train commute and school catchment.</p>
+<p><strong>Investors:</strong> Long-hold capital growth thesis only; not a yield play.</p>
+<p><strong>Developers:</strong> Battle-axe or front/rear two-dwelling worth modelling against actual lot dimensions.</p>
+<h3>Price Guidance</h3>
+<p>Align expectations with the $1.4M–$1.5M median for comparable houses; the subject lot's land size and 120 m station distance support a premium within that band.</p>
     
   </section>
   

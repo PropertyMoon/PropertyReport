@@ -458,6 +458,7 @@ _SECTION_ICON_KEYS = {
     "property snapshot": "home",
     "market analysis":   "trending-up",
     "suburb profile":    "building",
+    "lifestyle":         "tree",
     "schools":           "cap",
     "infrastructure":    "construction",
     "transport":         "train",
@@ -929,6 +930,7 @@ def build_view(report) -> dict:
         "property_snapshot_html": render_property_snapshot_html(report),
         "school_chart_svg":         _school_chart_svg(sch),
         "school_detail_table_html": _school_detail_table_html(sch),
+        "lifestyle_table_html":     _lifestyle_table_html(lifestyle),
         "score_chart_svg":          _score_chart_svg(sc),
         "crime_trend_chart_svg":    _crime_trend_chart_svg(s),
         "disclaimer": (
@@ -1320,6 +1322,30 @@ def _school_detail_table_html(schools: dict) -> str:
     return f'<table class="sch-detail-table">{header}{"".join(data_rows)}</table>{note}'
 
 
+def _lifestyle_table_html(lifestyle: list) -> str:
+    """HTML table of all lifestyle amenities for the Lifestyle body section."""
+    if not lifestyle:
+        return ""
+    rows = []
+    for item in lifestyle:
+        icon_cell = f'<span class="icon-sm icon-{item["color"]}">{item["icon"]}</span>'
+        detail = item.get("detail") or "—"
+        rows.append(
+            f"<tr>"
+            f"<td><div class='lt-cat'>{icon_cell} {item['category']}</div></td>"
+            f"<td><strong>{item['label']}</strong></td>"
+            f"<td>{item['distance'] or '—'}</td>"
+            f"<td>{detail}</td>"
+            f"</tr>"
+        )
+    return (
+        '<table class="lifestyle-table">'
+        "<thead><tr><th>Category</th><th>Name</th><th>Distance</th><th>Detail</th></tr></thead>"
+        "<tbody>" + "".join(rows) + "</tbody>"
+        "</table>"
+    )
+
+
 def _crime_trend_chart_svg(suburb: dict) -> str:
     """Grouped bar chart: 4 crime categories × 3 annual periods, oldest → newest."""
     trend = suburb.get("crime_trend_3yr")
@@ -1567,7 +1593,7 @@ body {
 
 .dashboard {
   display: grid;
-  grid-template-rows: 100px 78px 88px 185px 160px 84px;
+  grid-template-rows: 100px 90px 190px 165px 84px;
   gap: 8px;
 }
 
@@ -1903,6 +1929,19 @@ body {
 .delta-amber { color: var(--amber); }
 .delta-red   { color: var(--rose); }
 
+.lifestyle-table {
+  width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 10pt;
+}
+.lifestyle-table th {
+  background: var(--grey-100); color: var(--slate-2); font-weight: 600;
+  text-align: left; padding: 6px 10px; font-size: 9pt; letter-spacing: 0.3px;
+}
+.lifestyle-table td {
+  padding: 7px 10px; border-bottom: 1px solid var(--grey-100); vertical-align: middle;
+}
+.lifestyle-table tr:last-child td { border-bottom: none; }
+.lt-cat { display: flex; align-items: center; gap: 6px; }
+
 .body-crime {
   margin: 8px 0 14px 0;
   padding: 10px 14px;
@@ -2158,19 +2197,6 @@ body {
     </div>
   </div>
 
-  <!-- LIFESTYLE SNAPSHOT ROW -->
-  <div class="row lifestyle-row">
-    {% for item in view.lifestyle %}
-    <div class="card lifestyle-card">
-      <span class="lifestyle-icon icon-{{ item.color }}">{{ item.icon | safe }}</span>
-      <span class="lifestyle-category">{{ item.category }}</span>
-      <span class="lifestyle-name">{{ item.label }}</span>
-      <span class="lifestyle-distance">{{ item.distance }}</span>
-      {% if item.detail %}<span class="lifestyle-detail">{{ item.detail }}</span>{% endif %}
-    </div>
-    {% endfor %}
-  </div>
-
   <!-- METRICS ROW -->
   <div class="row metric-row">
     <div class="card metric-card">
@@ -2296,7 +2322,7 @@ body {
       </div>
     </div>
     <div class="card">
-      <div class="label">Top Amenities</div>
+      <div class="label">Lifestyle</div>
       {% for a in view.top_amenities %}
       <div class="top-amenity-row">
         <span class="icon-sm icon-{{ a.color }}">{{ a.icon | safe }}</span>
@@ -2352,6 +2378,7 @@ body {
     {% if sec.anchor == 'property-snapshot' and view.property_snapshot_html %}{{ view.property_snapshot_html | safe }}{% endif %}
     {% if sec.anchor == 'market-analysis' and view.history %}<div class="body-chart">{{ view.history | safe }}</div>{% endif %}
     {% if sec.anchor == 'schools-catchment' %}{% if view.school_detail_table_html %}{{ view.school_detail_table_html | safe }}{% elif view.school_chart_svg %}<div class="body-chart">{{ view.school_chart_svg | safe }}</div>{% endif %}{% endif %}
+    {% if sec.anchor in ('lifestyle', 'household-amenities', 'suburb-profile') and view.lifestyle_table_html %}{{ view.lifestyle_table_html | safe }}{% endif %}
     {% if sec.anchor == 'risk-assessment' and view.crime.rows %}
     <div class="body-crime">
       {% if view.crime.headline %}<div class="body-crime-headline">{{ view.crime.headline }}</div>{% endif %}

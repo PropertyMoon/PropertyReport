@@ -437,8 +437,8 @@ RESEARCH_TASKS = {
         "rates you find (e.g. if suburb has 850 offences/100k vs state avg 1200/100k, percentile is ~70). "
         "Return null only if you find zero crime data anywhere.\n"
         "STEP 5 — LIFESTYLE AMENITIES: Search '[address] nearest supermarket' to find the closest Coles/Woolworths/Aldi "
-        "and its walking distance. Search '[suburb] [state] gym membership cost' to find the nearest gym and its "
-        "approximate weekly membership cost. Search '[address] nearest park reserve' for the closest public park.\n"
+        "and its walking distance. Search 'nearest gym to [address]' to find the geographically closest gym regardless "
+        "of brand and its approximate weekly membership cost. Search '[address] nearest park reserve' for the closest public park.\n"
         "Return JSON with: suburb, postcode, median_house_price, median_unit_price, "
         "price_growth_5yr, rental_yield, demographics, key_amenities, "
         "liveability_score, "
@@ -959,8 +959,8 @@ SECTIONS TO WRITE:
 ### What This Suburb Is Becoming
 [MAX 2 sentences — forward-looking but grounded.]
 
-### Household & Amenities
-- [MAX 4 bullets covering household type, income, employment, key amenities. DO NOT list freeway / GPs / hospitals — the Amenities panel renders those.]
+### Lifestyle
+- [MAX 4 bullets covering household type, income, employment, and community character. DO NOT list supermarkets / gyms / parks / freeway / GPs / hospitals — the Lifestyle table in the body renders those.]
 
 After completing every section above, output exactly this token on its own line and STOP:
 

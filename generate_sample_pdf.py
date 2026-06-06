@@ -68,12 +68,11 @@ Taylors Lakes is a mature, low-density suburb 23 km north-west of Melbourne's CB
 ### Who's Moving Here
 Professional families and older couples are the primary inbound cohort, attracted by the train commute, relative affordability versus inner-ring alternatives, and established school catchments. The suburb is also a destination for Indian-Australian households, the fastest-growing cultural segment in the precinct.
 
-### Household & Amenities
-- Watergardens Town Centre (400 m): major retail, dining, cinema, gym
-- Watergardens Medical Centre (1.0 km): GP, allied health
-- Sunshine Hospital (8.5 km): nearest major public hospital
-- Taylors Lakes shared-use path (Stage 1 complete): cycling and walking infrastructure improving
+### Lifestyle
+- Predominantly professional families and couples; median household income above the outer-suburban average
 - 86% owner-occupancy rate — one of the highest in Melbourne's outer west
+- Taylors Lakes shared-use path (Stage 1 complete): cycling and walking infrastructure improving
+- Active community hub anchored by Watergardens Town Centre retail and dining precinct
 
 ## SCHOOLS CATCHMENT
 Catchment schools sit at or above the state ICSEA average, reflecting the professional-family demographic that anchors demand in Taylors Lakes.

@@ -1141,6 +1141,22 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
 
     result = _parse_json(full_text, task_name)
 
+    if task_name == "suburb":
+        print(f"  📄 [DEBUG suburb] raw output (first 1000):\n{full_text[:1000]}")
+        print(f"  📊 [DEBUG suburb] price_history_5yr = {result.get('price_history_5yr')}")
+        print(f"  📊 [DEBUG suburb] nearby_supermarkets = {result.get('nearby_supermarkets')}")
+        print(f"  📊 [DEBUG suburb] nearby_parks = {result.get('nearby_parks')}")
+        print(f"  📊 [DEBUG suburb] nearby_gyms = {result.get('nearby_gyms')}")
+        print(f"  📊 [DEBUG suburb] nearby_gps = {result.get('nearby_gps')}")
+        print(f"  📊 [DEBUG suburb] top-level keys = {list(result.keys())[:20]}")
+
+    if task_name == "transport":
+        print(f"  📄 [DEBUG transport] raw output (first 1000):\n{full_text[:1000]}")
+        print(f"  📊 [DEBUG transport] nearest_train = {result.get('nearest_train')}")
+        print(f"  📊 [DEBUG transport] bus_routes = {result.get('bus_routes')}")
+        print(f"  📊 [DEBUG transport] drive_to_cbd_offpeak_mins = {result.get('drive_to_cbd_offpeak_mins')}")
+        print(f"  📊 [DEBUG transport] top-level keys = {list(result.keys())}")
+
     # Overwrite crime fields with authoritative MCP values (belt-and-suspenders —
     # ensures the AI didn't alter or ignore the injected values).
     if crime_data and crime_data.get("coverage") == "available":

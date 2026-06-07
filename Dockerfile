@@ -34,8 +34,7 @@ WORKDIR /app
 # Install Python deps first so we get good Docker layer caching when the
 # application source changes but the deps don't.
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip \
- && pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Build-time verification: if WeasyPrint can't load its system libs from
 # this image, fail the build NOW rather than shipping a broken container.

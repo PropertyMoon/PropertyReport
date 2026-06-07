@@ -89,18 +89,22 @@ def _fetch_crime_data(suburb: str, state: str) -> dict | None:
 
 
 def _inject_crime_into_suburb_prompt(prompt: str, crime: dict) -> str:
-    """Replace STEP 4 crime search block with pre-fetched authoritative values."""
+    """Replace the CRIME step with pre-fetched authoritative values.
+    Handles both 'STEP 4 — CRIME' (Claude prompts) and 'STEP 5 — CRIME' (Perplexity prompts)."""
     source = crime.get("data_source", "authoritative state source")
+    # Detect which step number is used so the injected label matches
+    step_label = "STEP 4 — CRIME"
+    step4_start = prompt.find("STEP 4 — CRIME")
+    if step4_start < 0:
+        step4_start = prompt.find("STEP 5 — CRIME")
+        step_label  = "STEP 5 — CRIME"
     injected = (
-        f"STEP 4 — CRIME: Data pre-fetched from {source}. "
+        f"{step_label}: Data pre-fetched from {source}. "
         f"Use these exact values — do NOT search for crime:\n"
         f"  crime_safety_percentile = {crime.get('crime_safety_percentile')}\n"
         f"  crime_violent_vs_state_avg_pct = {crime.get('crime_violent_vs_state_avg_pct')}\n"
         f"  crime_property_vs_state_avg_pct = {crime.get('crime_property_vs_state_avg_pct')}\n"
     )
-    step4_start = prompt.find("STEP 4 — CRIME:")
-    if step4_start < 0:
-        step4_start = prompt.find("STEP 4 — CRIME")
     return_json_start = -1
     for _sentinel in ("Return JSON with:", "RETURN JSON WITH THESE KEYS"):
         _pos = prompt.find(_sentinel, step4_start if step4_start >= 0 else 0)
@@ -670,16 +674,13 @@ RESEARCH_TASKS_PERPLEXITY = {
         "(rent × 52 / median_house_price × 100). Round to 1 decimal place. "
         "If either value cannot be verified, return null.\n\n"
         "STEP 3 — PRICE HISTORY\n"
-        "Search '[suburb] [state] median house price history site:realestate.com.au OR site:domain.com.au'.\n"
-        "Return up to 6 yearly median house prices for 2021 to 2026 if verifiable.\n"
-        "Only include a year if the value is explicitly supported.\n\n"
-        "STEP 4 — CRIME\n"
-        "Use {crime_url} first if it contains suburb-level crime data.\n"
-        "If {crime_url} is unavailable or lacks suburb-level data, use state police, ABS, or another official authority.\n"
-        "Do not estimate crime unless actual offence rates are available.\n"
-        "crime_safety_percentile must be derived from the suburb's offence rate versus the state average, where 100 = safest.\n"
-        "crime_violent_vs_state_avg_pct and crime_property_vs_state_avg_pct must be calculated from actual rates if available; otherwise null.\n\n"
-        "STEP 5 — LIFESTYLE AMENITIES\n"
+        "Identify the suburb name and state from {address}. "
+        "Search '[suburb] [state] median house price history site:realestate.com.au OR site:domain.com.au' "
+        "replacing [suburb] and [state] with the actual suburb and state from the address above. "
+        "Also try searching '[suburb] suburb profile median house price 2021 2022 2023 2024 2025'.\n"
+        "Return up to 6 yearly median house prices for 2021 to 2026. "
+        "Only include a year if the figure is explicitly stated in a source.\n\n"
+        "STEP 4 — LIFESTYLE AMENITIES\n"
         "Find the nearest train station, supermarket, GP, park, gym, freeway, and hospital to {address}.\n"
         "Use map-based lookup and return the exact place name and walking distance from the property.\n"
         "Do not use suburb-level averages or generic suburb suggestions.\n"
@@ -688,6 +689,12 @@ RESEARCH_TASKS_PERPLEXITY = {
         "If a distance cannot be verified, return null for that item.\n"
         "For gyms, include approximate weekly membership cost in AUD if publicly listed; otherwise null.\n"
         "For hospitals, only include if within 10 km.\n\n"
+        "STEP 5 — CRIME\n"
+        "Use {crime_url} first if it contains suburb-level crime data.\n"
+        "If {crime_url} is unavailable or lacks suburb-level data, use state police, ABS, or another official authority.\n"
+        "Do not estimate crime unless actual offence rates are available.\n"
+        "crime_safety_percentile must be derived from the suburb's offence rate versus the state average, where 100 = safest.\n"
+        "crime_violent_vs_state_avg_pct and crime_property_vs_state_avg_pct must be calculated from actual rates if available; otherwise null.\n\n"
         "RETURN JSON WITH THESE KEYS\n"
         "suburb, postcode, median_house_price, median_unit_price, price_growth_5yr, rental_yield, demographics, key_amenities, liveability_score, "
         "nearest_freeway (object: name, distance_km), "
@@ -780,17 +787,20 @@ RESEARCH_TASKS_PERPLEXITY = {
         "2. Street-level map results for walking distance.\n"
         "3. Commercial property pages only if needed for distance confirmation.\n\n"
         "STEP 1 — TRAIN\n"
-        "Find the nearest train station to {address} using map-based lookup.\n"
-        "Return the station name, line, and walking distance from THIS specific address to the station.\n"
-        "Do not assume the suburb's namesake station is the nearest — confirm the actual street-level walking distance.\n"
-        "Also return CBD travel time using the official transport authority timetable.\n\n"
+        "Search '[suburb] [state] nearest train station' — identify the suburb and state from {address} "
+        "and use them in the search — to find the station name, line, and CBD travel time.\n"
+        "Then search 'walking distance {address} to [station name]' to find the actual walking distance "
+        "from THIS specific address. Do not assume short proximity just because the suburb shares a name "
+        "with the station — many suburbs are 1–4 km from their nearest station.\n"
+        "Use map results, real estate listings, or any source giving a street-level distance. "
+        "Return distance_km rounded to 2 decimal places.\n\n"
         "STEP 2 — BUS\n"
-        "Identify bus routes serving the suburb or property area using official transport sources.\n"
+        "Search '[suburb] [state] bus routes' using {transport_url} or equivalent official transport source.\n"
         "List only routes that plausibly stop within 1 km of the address.\n\n"
         "STEP 3 — TRAM\n"
         "Confirm tram access only if a tram stop is within 500m of the property.\n\n"
         "STEP 4 — DRIVE\n"
-        "Estimate peak and off-peak drive times to the CBD only if a reliable source is available.\n"
+        "Search '[suburb] [state] drive time CBD' for realistic peak and off-peak estimates.\n"
         "If either value cannot be verified, return null.\n\n"
         "RETURN JSON WITH THESE KEYS\n"
         "nearest_train (object: name, distance_km, line, cbd_mins), "

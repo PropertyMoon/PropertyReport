@@ -71,6 +71,8 @@ No test suite exists. Manual testing via the dev endpoint or CLI is the primary 
 | `SERP_API_KEY` | SerpAPI key (serpapi.com) — used to discover propertyvalue.com.au URL for last-sale scraping. 100 free searches/month on free plan. |
 | `RESEARCH_BACKEND` | `claude` (default) or `perplexity` — selects the AI backend for all 6 research tasks. |
 | `PERPLEXITY_API_KEY` | Required when `RESEARCH_BACKEND=perplexity`. Uses `sonar-pro` model with built-in web search. |
+| `SYNTHESIS_BACKEND` | `claude` (default) or `deepseek` — selects the AI backend for narrative synthesis. `deepseek` uses `deepseek-chat` (DeepSeek-V3) via the OpenAI-compatible API; research backend is unaffected. |
+| `DEEPSEEK_API_KEY` | Required when `SYNTHESIS_BACKEND=deepseek`. Get from platform.deepseek.com. |
 | `CRIME_MCP_URL` | URL for the au-crime-mcp `/suburb-crime` REST endpoint. Default: `https://au-crime-mcp-production.up.railway.app/suburb-crime`. On Railway, set to `http://au-crime-mcp.railway.internal:8080/suburb-crime` to use private networking. |
 
 ## Deployment

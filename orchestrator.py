@@ -14,11 +14,12 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 
 # ─── Backend selection ────────────────────────────────────────────────────────
-# Set RESEARCH_BACKEND=perplexity to route all research tasks through Perplexity
-# sonar-pro (built-in web search). Default is claude (Anthropic web_search tool).
-_RESEARCH_BACKEND = os.getenv("RESEARCH_BACKEND", "claude").lower()
+# RESEARCH_BACKEND: claude (default) or perplexity — AI backend for all 6 research tasks.
+# SYNTHESIS_BACKEND: claude (default) or deepseek — AI backend for narrative synthesis.
+_RESEARCH_BACKEND  = os.getenv("RESEARCH_BACKEND",  "claude").lower()
+_SYNTHESIS_BACKEND = os.getenv("SYNTHESIS_BACKEND", "claude").lower()
 
-if _RESEARCH_BACKEND == "perplexity":
+if _RESEARCH_BACKEND == "perplexity" or _SYNTHESIS_BACKEND == "deepseek":
     from openai import OpenAI as _OpenAI
 
 from domain_client import get_last_sale as _domain_get_last_sale
@@ -1057,7 +1058,8 @@ Do not write anything else after the sentinel.
 """
 
 
-_SYNTHESIS_MODEL = "claude-sonnet-4-6"
+_SYNTHESIS_MODEL         = "claude-sonnet-4-6"
+_SYNTHESIS_MODEL_DEEPSEEK = "deepseek-chat"
 
 
 def _data_sources_section(address: str, research_data: dict) -> str:
@@ -1109,6 +1111,37 @@ def _synth_chunk(
             time.sleep(wait)
 
 
+def _synth_chunk_deepseek(
+    user_prompt: str,
+    system_text: str,
+    max_tok: int,
+    label: str,
+) -> str:
+    deepseek_client = _OpenAI(
+        api_key=os.environ["DEEPSEEK_API_KEY"],
+        base_url="https://api.deepseek.com",
+    )
+    for attempt in range(4):
+        try:
+            response = deepseek_client.chat.completions.create(
+                model=_SYNTHESIS_MODEL_DEEPSEEK,
+                max_tokens=max_tok,
+                messages=[
+                    {"role": "system", "content": system_text},
+                    {"role": "user",   "content": user_prompt},
+                ],
+                timeout=120,
+            )
+            return response.choices[0].message.content or ""
+        except Exception as e:
+            if attempt == 3:
+                raise
+            wait = 30 * (attempt + 1)
+            print(f"  ⏳ DeepSeek error on {label} ({e}), retrying in {wait}s...")
+            time.sleep(wait)
+    return ""
+
+
 def _trim_at_sentinel(text: str, sentinel: str) -> str:
     """Cut off everything from the sentinel onward — guards against the model
     overrunning into sections that belong to the other chunk."""
@@ -1119,7 +1152,8 @@ def _trim_at_sentinel(text: str, sentinel: str) -> str:
 def synthesise_report(client: anthropic.Anthropic, address: str, research_data: dict) -> str:
     """Synthesise all research data into a buyer-friendly narrative report."""
 
-    print("  ✍️  Synthesising report (2 parallel chunks on Sonnet 4.6)...")
+    backend_label = "DeepSeek deepseek-chat" if _SYNTHESIS_BACKEND == "deepseek" else "Sonnet 4.6"
+    print(f"  ✍️  Synthesising report (2 parallel chunks on {backend_label})...")
 
     today_str   = datetime.datetime.now().strftime("%B %Y")
     user_prompt = (
@@ -1132,8 +1166,12 @@ def synthesise_report(client: anthropic.Anthropic, address: str, research_data: 
     )
 
     with ThreadPoolExecutor(max_workers=2) as executor:
-        f_a = executor.submit(_synth_chunk, client, user_prompt, _SYNTHESIS_SYSTEM_A, 2500, "synthesis-A")
-        f_b = executor.submit(_synth_chunk, client, user_prompt, _SYNTHESIS_SYSTEM_B, 2500, "synthesis-B")
+        if _SYNTHESIS_BACKEND == "deepseek":
+            f_a = executor.submit(_synth_chunk_deepseek, user_prompt, _SYNTHESIS_SYSTEM_A, 4096, "synthesis-A")
+            f_b = executor.submit(_synth_chunk_deepseek, user_prompt, _SYNTHESIS_SYSTEM_B, 4096, "synthesis-B")
+        else:
+            f_a = executor.submit(_synth_chunk, client, user_prompt, _SYNTHESIS_SYSTEM_A, 2500, "synthesis-A")
+            f_b = executor.submit(_synth_chunk, client, user_prompt, _SYNTHESIS_SYSTEM_B, 2500, "synthesis-B")
         part_a = _trim_at_sentinel(f_a.result(), "<<END_A>>")
         part_b = _trim_at_sentinel(f_b.result(), "<<END_B>>")
 

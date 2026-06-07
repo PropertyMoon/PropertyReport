@@ -73,6 +73,9 @@ ICONS: dict[str, str] = {
     "clipboard":    '<path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1S9.6 1.84 9.18 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zm-7 0a1 1 0 110 2 1 1 0 010-2z"/>',
     "building":     '<path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/>',
     "construction": '<path d="M14 4l6 6-2 2-2-2-3 3 2 2-2 2-2-2-3 3 2 2-2 2-6-6 12-12zM18 5l1.4-1.4a2 2 0 012.8 0L23 4l-2 2-3-1z"/>',
+    "tree":         '<path d="M17 12h-3V3H10v9H7l5 6 5-6zm-5 8c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2z"/>',
+    "dumbbell":     '<path d="M20.57 14.86L22 13.43 20.57 12 17 15.57 8.43 7 12 3.43 10.57 2 9.14 3.43 7.71 2 5.57 4.14 4.14 2.71 2.71 4.14l1.43 1.43L2 7.71l1.43 1.43L2 10.57 3.43 12 7 8.43 15.57 17 12 20.57 13.43 22l1.43-1.43L16.29 22l2.14-2.14-1.43-1.43L22 16.29l-1.43-1.43z"/>',
+    "cart":         '<path d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm10 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM7.16 15h10.68c.75 0 1.41-.41 1.75-1.03l3.41-6.18A1 1 0 0022.13 6H5.21L4.27 4H1v2h2l3.6 7.59L5.25 16H19v-2H7.42l-.26-.5L7.16 15z"/>',
     "bulb":         '<path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zM12 2C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17a1 1 0 001 1h6a1 1 0 001-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/>',
     "map-pin":      '<path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z"/>',
     "check-circle": '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>',
@@ -249,10 +252,32 @@ def sample_report() -> StubReport:
             "nearest_freeway": {"name": "M80 Ring Road", "distance_km": 5.2},
             "nearby_gps":      [{"name": "Watergardens Medical", "distance_km": 1.0}],
             "nearby_hospitals":[{"name": "Sunshine Hospital", "distance_km": 8.5}],
+            "crime_trend_3yr": [
+                {"assault": 45, "break_enter": 120, "vehicle_theft": 85, "theft": 210},
+                {"assault": 48, "break_enter": 115, "vehicle_theft": 80, "theft": 195},
+                {"assault": 42, "break_enter": 108, "vehicle_theft": 72, "theft": 185},
+            ],
+            "crime_trend_years": [2023, 2024, 2025],
         },
         schools={
-            "primary_schools":   [{"name": "Taylors Lakes Primary School", "icsea": 1050, "distance_km": 0.9}],
-            "secondary_schools": [{"name": "Taylors Lakes Secondary College", "icsea": 1015, "distance_km": 1.2}],
+            "primary_schools": [{
+                "name": "Taylors Lakes Primary School",
+                "icsea": 1050, "distance_km": 0.9,
+                "in_catchment": True, "walk_mins": 11,
+                "naplan_reading_pct": 74, "naplan_numeracy_pct": 71,
+            }],
+            "secondary_schools": [{
+                "name": "Taylors Lakes Secondary College",
+                "icsea": 1015, "distance_km": 1.2,
+                "in_catchment": True, "walk_mins": None,
+                "naplan_reading_pct": 66, "naplan_numeracy_pct": 63,
+            }],
+            "private_schools": [{
+                "name": "Overnewton Anglican Community College",
+                "icsea": 1075, "distance_km": 4.5,
+                "school_type": "Anglican", "fees_annual_aud": 12000,
+                "naplan_reading_pct": 78, "naplan_numeracy_pct": 75,
+            }],
             "school_quality_summary": "Strong",
         },
         transport={
@@ -433,6 +458,7 @@ _SECTION_ICON_KEYS = {
     "property snapshot": "home",
     "market analysis":   "trending-up",
     "suburb profile":    "building",
+    "lifestyle":         "tree",
     "schools":           "cap",
     "infrastructure":    "construction",
     "transport":         "train",
@@ -712,20 +738,24 @@ def build_view(report) -> dict:
 
     # Schools
     schools_rows = []
-    for entry in (sch.get("primary_schools") or [])[:1]:
-        if isinstance(entry, dict) and entry.get("name"):
-            schools_rows.append({
-                "name": entry["name"], "tier": "Primary",
-                "distance": f"{entry.get('distance_km','—')} km",
-                "icsea": entry.get("icsea") or "—",
-            })
-    for entry in (sch.get("secondary_schools") or [])[:1]:
-        if isinstance(entry, dict) and entry.get("name"):
-            schools_rows.append({
-                "name": entry["name"], "tier": "Secondary",
-                "distance": f"{entry.get('distance_km','—')} km",
-                "icsea": entry.get("icsea") or "—",
-            })
+    for tier_label, key in [("Primary", "primary_schools"), ("Secondary", "secondary_schools")]:
+        for entry in (sch.get(key) or [])[:1]:
+            if isinstance(entry, dict) and entry.get("name"):
+                walk_m  = entry.get("walk_mins")
+                dist_km = entry.get("distance_km")
+                if isinstance(walk_m, (int, float)) and not isinstance(walk_m, bool):
+                    proximity = f"{int(walk_m)} min walk"
+                elif isinstance(dist_km, (int, float)) and not isinstance(dist_km, bool):
+                    proximity = f"{float(dist_km):.1f} km"
+                else:
+                    proximity = "—"
+                schools_rows.append({
+                    "name": entry["name"],
+                    "tier": tier_label,
+                    "distance": proximity,
+                    "icsea": entry.get("icsea") or "—",
+                    "in_catchment": entry.get("in_catchment"),
+                })
 
     # Infrastructure pipeline — check all possible field names the AI may use
     pipeline = []
@@ -745,38 +775,107 @@ def build_view(report) -> dict:
                 "status": proj.get("status") or proj.get("timeline") or proj.get("type") or "—",
             })
 
-    # Map legend (real research data, used alongside the Google Static Map)
+    # Lifestyle amenities — 8-card row for the cover page
     def _dist(d):
         if not isinstance(d, (int, float)) or isinstance(d, bool):
             return ""
         return f"{d*1000:.0f} m" if d < 1 else f"{d:.1f} km"
 
-    map_legend = []
+    lifestyle = []
+
     nt = tr.get("nearest_train") or {}
     if isinstance(nt, dict) and nt.get("name"):
-        map_legend.append({"icon": icon("train"), "color": "blue",
-                           "label": nt["name"], "detail": _dist(nt.get("distance_km"))})
-    fwy = s.get("nearest_freeway") or {}
-    if isinstance(fwy, dict) and fwy.get("name"):
-        map_legend.append({"icon": icon("highway"), "color": "amber",
-                           "label": fwy["name"], "detail": _dist(fwy.get("distance_km"))})
+        cbd = nt.get("cbd_mins")
+        lifestyle.append({
+            "icon": icon("train"), "color": "blue", "category": "Train",
+            "label": nt["name"],
+            "distance_km": nt.get("distance_km"),
+            "distance": _dist(nt.get("distance_km")),
+            "detail": f"{cbd} min to CBD" if isinstance(cbd, (int, float)) else "",
+        })
+
     pri = (sch.get("primary_schools") or [{}])[0] or {}
     if isinstance(pri, dict) and pri.get("name"):
-        map_legend.append({"icon": icon("cap"), "color": "violet",
-                           "label": pri["name"], "detail": _dist(pri.get("distance_km"))})
-    sec = (sch.get("secondary_schools") or [{}])[0] or {}
-    if isinstance(sec, dict) and sec.get("name"):
-        map_legend.append({"icon": icon("cap"), "color": "violet",
-                           "label": sec["name"], "detail": _dist(sec.get("distance_km"))})
-    hosp = (s.get("nearby_hospitals") or [{}])[0] or {}
-    if isinstance(hosp, dict) and hosp.get("name"):
-        map_legend.append({"icon": icon("hospital"), "color": "rose",
-                           "label": hosp["name"], "detail": _dist(hosp.get("distance_km"))})
+        catchment_note = "In catchment" if pri.get("in_catchment") else "Nearby"
+        lifestyle.append({
+            "icon": icon("cap"), "color": "violet", "category": "Primary School",
+            "label": pri["name"],
+            "distance_km": pri.get("distance_km"),
+            "distance": _dist(pri.get("distance_km")),
+            "detail": catchment_note,
+        })
+
+    for sup in (s.get("nearby_supermarkets") or [])[:1]:
+        if isinstance(sup, dict) and sup.get("name"):
+            lifestyle.append({
+                "icon": icon("cart"), "color": "emerald", "category": "Supermarket",
+                "label": sup["name"],
+                "distance_km": sup.get("distance_km"),
+                "distance": _dist(sup.get("distance_km")),
+                "detail": "",
+            })
+
+    for park in (s.get("nearby_parks") or [])[:1]:
+        if isinstance(park, dict) and park.get("name"):
+            lifestyle.append({
+                "icon": icon("tree"), "color": "teal", "category": "Park",
+                "label": park["name"],
+                "distance_km": park.get("distance_km"),
+                "distance": _dist(park.get("distance_km")),
+                "detail": "",
+            })
+
     gp = (s.get("nearby_gps") or [{}])[0] or {}
     if isinstance(gp, dict) and gp.get("name"):
-        map_legend.append({"icon": icon("stethoscope"), "color": "rose",
-                           "label": gp["name"], "detail": _dist(gp.get("distance_km"))})
-    map_legend = map_legend[:2]
+        lifestyle.append({
+            "icon": icon("stethoscope"), "color": "rose", "category": "GP Clinic",
+            "label": gp["name"],
+            "distance_km": gp.get("distance_km"),
+            "distance": _dist(gp.get("distance_km")),
+            "detail": "",
+        })
+
+    hosp = (s.get("nearby_hospitals") or [{}])[0] or {}
+    if isinstance(hosp, dict) and hosp.get("name"):
+        lifestyle.append({
+            "icon": icon("hospital"), "color": "rose", "category": "Hospital",
+            "label": hosp["name"],
+            "distance_km": hosp.get("distance_km"),
+            "distance": _dist(hosp.get("distance_km")),
+            "detail": "",
+        })
+
+    for gym in (s.get("nearby_gyms") or [])[:1]:
+        if isinstance(gym, dict) and gym.get("name"):
+            wk = gym.get("weekly_cost_aud")
+            lifestyle.append({
+                "icon": icon("dumbbell"), "color": "orange", "category": "Gym",
+                "label": gym["name"],
+                "distance_km": gym.get("distance_km"),
+                "distance": _dist(gym.get("distance_km")),
+                "detail": f"~${wk}/wk" if isinstance(wk, (int, float)) else "",
+            })
+
+    fwy = s.get("nearest_freeway") or {}
+    if isinstance(fwy, dict) and fwy.get("name"):
+        lifestyle.append({
+            "icon": icon("highway"), "color": "amber", "category": "Freeway",
+            "label": fwy["name"],
+            "distance_km": fwy.get("distance_km"),
+            "distance": _dist(fwy.get("distance_km")),
+            "detail": "By car",
+        })
+
+    # Top 3 amenities for the detail card — closest non-freeway items first
+    _top_candidates = [
+        item for item in lifestyle
+        if item.get("category") != "Freeway" and item.get("distance_km") is not None
+    ]
+    _top_candidates.sort(key=lambda x: x["distance_km"])
+    top_amenities = _top_candidates[:3]
+
+    # Keep map_legend for any legacy template references
+    map_legend = lifestyle[:2]
 
     # Real Google images (returns None if key missing or image is a placeholder).
     # Static-map fetch was dropped from the cover — keeping the helper for
@@ -809,21 +908,34 @@ def build_view(report) -> dict:
         "schools_rows": schools_rows,
         "crime":       _crime_summary(s),
         "metric_icons": {
-            "median":  icon("home"),
-            "yield":   icon("trending-up"),
-            "schools": icon("cap"),
-            "train":   icon("train"),
-            "crime":   icon("shield"),
+            "median":      icon("home"),
+            "yield":       icon("trending-up"),
+            "schools":     icon("cap"),
+            "train":       icon("train"),
+            "crime":       icon("shield"),
+            "comparables": icon("chart-bar"),
+            "scorecard":   icon("clipboard"),
+            "lifestyle":   icon("tree"),
         },
         "schools_rating_icon": icon(schools_icon_name, size=22, fill="#10b981" if _school_above_avg else "#f43f5e"),
-        "pipeline":   pipeline,
-        "map_legend": map_legend,
+        "schools_quality_color": (
+            "#10b981" if any(w in schools_quality.lower() for w in ("excellent", "strong"))
+            else "#f59e0b" if "average" in schools_quality.lower()
+            else "#e11d48"
+        ),
+        "pipeline":     pipeline,
+        "lifestyle":    lifestyle,
+        "top_amenities": top_amenities,
+        "map_legend":   map_legend,
         "photo_uri":  photo_uri,
         "map_uri":    map_uri,
         "body_sections":      parse_body_sections(report),
         "property_snapshot_html": render_property_snapshot_html(report),
-        "school_chart_svg":   _school_chart_svg(sch),
-        "score_chart_svg":    _score_chart_svg(sc),
+        "school_chart_svg":         _school_chart_svg(sch),
+        "school_detail_table_html": _school_detail_table_html(sch),
+        "lifestyle_table_html":     _lifestyle_table_html(lifestyle),
+        "score_chart_svg":          _score_chart_svg(sc),
+        "crime_trend_chart_svg":    _crime_trend_chart_svg(s),
         "disclaimer": (
             "This report was generated by artificial intelligence using publicly available "
             "Australian data sources. It is a research aid only and does not constitute "
@@ -1113,6 +1225,236 @@ def _score_chart_svg(scores: dict) -> str:
     )
 
 
+def _school_detail_table_html(schools: dict) -> str:
+    """Rich per-school comparison table for the body Schools section."""
+    rows = []
+    for tier_label, key in [("Primary", "primary_schools"), ("Secondary", "secondary_schools")]:
+        for s in (schools.get(key) or []):
+            if not isinstance(s, dict) or not s.get("name"):
+                continue
+            rows.append({
+                "name":      s["name"],
+                "tier":      tier_label,
+                "sector":    "Public",
+                "in_catchment": s.get("in_catchment"),
+                "icsea":     s.get("icsea"),
+                "walk_mins": s.get("walk_mins"),
+                "dist_km":   s.get("distance_km"),
+                "read_pct":  s.get("naplan_reading_pct"),
+                "num_pct":   s.get("naplan_numeracy_pct"),
+                "fees":      None,
+            })
+    for s in (schools.get("private_schools") or []):
+        if not isinstance(s, dict) or not s.get("name"):
+            continue
+        rows.append({
+            "name":      s["name"],
+            "tier":      "Private",
+            "sector":    s.get("school_type") or "Independent",
+            "in_catchment": None,
+            "icsea":     s.get("icsea"),
+            "walk_mins": None,
+            "dist_km":   s.get("distance_km"),
+            "read_pct":  s.get("naplan_reading_pct"),
+            "num_pct":   s.get("naplan_numeracy_pct"),
+            "fees":      s.get("fees_annual_aud"),
+        })
+
+    if not rows:
+        return ""
+
+    def _catchment_cell(in_catchment, sector):
+        if sector != "Public":
+            return f'<span class="sch-badge sch-badge-private">{sector}</span>'
+        if in_catchment is True:
+            return '<span class="sch-badge sch-badge-in">&#10003; In-catchment</span>'
+        if in_catchment is False:
+            return '<span class="sch-badge sch-badge-out">Out of catchment</span>'
+        return '<span style="color:#94a3b8">—</span>'
+
+    def _pct_cell(pct):
+        if not isinstance(pct, (int, float)) or isinstance(pct, bool):
+            return '<span style="color:#94a3b8">—</span>'
+        p = int(pct)
+        color = "#10b981" if p >= 60 else "#f59e0b" if p >= 40 else "#ef4444"
+        return f'<span class="sch-pct" style="color:{color}">{p}th</span>'
+
+    def _proximity(walk_mins, dist_km):
+        if isinstance(walk_mins, (int, float)) and not isinstance(walk_mins, bool):
+            return f"{int(walk_mins)} min walk"
+        if isinstance(dist_km, (int, float)) and not isinstance(dist_km, bool):
+            return f"{float(dist_km):.1f} km"
+        return "—"
+
+    tier_colors = {"Primary": "#7c3aed", "Secondary": "#2563eb", "Private": "#0891b2"}
+    header = (
+        "<tr>"
+        '<th class="sch-th">School</th>'
+        '<th class="sch-th">Catchment</th>'
+        '<th class="sch-th sch-center">ICSEA</th>'
+        '<th class="sch-th sch-center">Reading</th>'
+        '<th class="sch-th sch-center">Numeracy</th>'
+        '<th class="sch-th">Proximity</th>'
+        "</tr>"
+    )
+    data_rows = []
+    for row in rows:
+        tc = tier_colors.get(row["tier"], "#475569")
+        fees_str = (
+            f' · ${int(row["fees"]):,}/yr'
+            if isinstance(row.get("fees"), (int, float)) and row["fees"]
+            else ""
+        )
+        data_rows.append(
+            "<tr>"
+            f'<td class="sch-td"><strong class="sch-name">{row["name"]}</strong>'
+            f'<br><span class="sch-sub" style="color:{tc}">{row["tier"]}{fees_str}</span></td>'
+            f'<td class="sch-td">{_catchment_cell(row["in_catchment"], row["sector"])}</td>'
+            f'<td class="sch-td sch-center"><span class="sch-icsea">{row["icsea"] or "—"}</span></td>'
+            f'<td class="sch-td sch-center">{_pct_cell(row["read_pct"])}</td>'
+            f'<td class="sch-td sch-center">{_pct_cell(row["num_pct"])}</td>'
+            f'<td class="sch-td">{_proximity(row["walk_mins"], row["dist_km"])}</td>'
+            "</tr>"
+        )
+
+    note = (
+        '<p class="sch-note">NAPLAN percentile = rank vs national average from myschool.edu.au. '
+        'Catchment zones should be confirmed at '
+        '<a href="https://findmyschool.vic.gov.au">findmyschool.vic.gov.au</a>.</p>'
+    )
+    return f'<table class="sch-detail-table">{header}{"".join(data_rows)}</table>{note}'
+
+
+def _lifestyle_table_html(lifestyle: list) -> str:
+    """HTML table of all lifestyle amenities for the Lifestyle body section."""
+    if not lifestyle:
+        return ""
+    rows = []
+    for item in lifestyle:
+        icon_cell = f'<span class="icon-sm icon-{item["color"]}">{item["icon"]}</span>'
+        detail = item.get("detail") or "—"
+        rows.append(
+            f"<tr>"
+            f"<td><div class='lt-cat'>{icon_cell} {item['category']}</div></td>"
+            f"<td><strong>{item['label']}</strong></td>"
+            f"<td>{item['distance'] or '—'}</td>"
+            f"<td>{detail}</td>"
+            f"</tr>"
+        )
+    return (
+        '<table class="lifestyle-table">'
+        "<thead><tr><th>Category</th><th>Name</th><th>Distance</th><th>Detail</th></tr></thead>"
+        "<tbody>" + "".join(rows) + "</tbody>"
+        "</table>"
+    )
+
+
+def _crime_trend_chart_svg(suburb: dict) -> str:
+    """Grouped bar chart: 4 crime categories × 3 annual periods, oldest → newest."""
+    trend = suburb.get("crime_trend_3yr")
+    years = suburb.get("crime_trend_years")
+
+    if not trend or not isinstance(trend, list) or len(trend) < 2:
+        return ""
+
+    # VIC supplies crime_trend_years (oldest→newest); NSW doesn't (newest→oldest)
+    if years and isinstance(years, list):
+        data = list(trend)
+        yr_labels = [str(y) for y in years[:len(data)]]
+    else:
+        data = list(reversed(trend))
+        cur = datetime.now().year
+        yr_labels = [str(cur - len(data) + 1 + i) for i in range(len(data))]
+
+    data = [e if isinstance(e, dict) else {} for e in data]
+
+    categories = [
+        ("assault",       "Assault",       "#e11d48"),
+        ("break_enter",   "Break & Enter", "#f59e0b"),
+        ("vehicle_theft", "Vehicle Theft", "#7c3aed"),
+        ("theft",         "Theft",         "#2563eb"),
+    ]
+
+    W, H = 600, 220
+    PAD_L, PAD_R, PAD_T = 50, 20, 20
+    chart_h = 125
+    chart_bottom = PAD_T + chart_h
+
+    n_groups = len(data)
+    avail_w = W - PAD_L - PAD_R
+    group_w = avail_w / n_groups
+    bar_gap = 3
+    bars_total_w = group_w * 0.78
+    bar_w = (bars_total_w - bar_gap * (len(categories) - 1)) / len(categories)
+    group_margin = (group_w - bars_total_w) / 2
+
+    all_vals = [
+        float(entry.get(cat_key, 0) or 0)
+        for entry in data
+        for cat_key, _, _ in categories
+    ]
+    val_max = max(max(all_vals) * 1.15, 1) if all_vals else 1
+
+    parts: list[str] = []
+
+    # Gridlines + Y labels
+    for i in range(5):
+        yv = val_max * (4 - i) / 4
+        yy = PAD_T + chart_h * i / 4
+        if i > 0:
+            parts.append(
+                f'<line x1="{PAD_L}" y1="{yy:.1f}" x2="{W - PAD_R}" y2="{yy:.1f}" '
+                f'stroke="#f1f5f9" stroke-width="1"/>'
+            )
+        parts.append(
+            f'<text x="{PAD_L - 5}" y="{yy + 4:.1f}" font-size="9" '
+            f'fill="#94a3b8" text-anchor="end">{int(yv)}</text>'
+        )
+    # Baseline
+    parts.append(
+        f'<line x1="{PAD_L}" y1="{chart_bottom}" x2="{W - PAD_R}" y2="{chart_bottom}" '
+        f'stroke="#e2e8f0" stroke-width="1"/>'
+    )
+
+    # Bars + year labels
+    for gi, entry in enumerate(data):
+        group_x = PAD_L + gi * group_w + group_margin
+        for bi, (cat_key, _, cat_color) in enumerate(categories):
+            v = float(entry.get(cat_key, 0) or 0)
+            bx = group_x + bi * (bar_w + bar_gap)
+            bh = chart_h * v / val_max
+            by = chart_bottom - bh
+            parts.append(
+                f'<rect x="{bx:.1f}" y="{by:.1f}" width="{bar_w:.1f}" height="{bh:.1f}" '
+                f'fill="{cat_color}" rx="2" opacity="0.9"/>'
+            )
+        label_x = PAD_L + gi * group_w + group_w / 2
+        yr_label = yr_labels[gi] if gi < len(yr_labels) else ""
+        parts.append(
+            f'<text x="{label_x:.1f}" y="{chart_bottom + 14}" font-size="11" '
+            f'fill="#334155" text-anchor="middle" font-weight="600">{yr_label}</text>'
+        )
+
+    # Legend (centred, single row)
+    leg_item_w = 120
+    leg_total = len(categories) * leg_item_w
+    leg_x0 = (W - leg_total) / 2
+    leg_y = chart_bottom + 30
+    for bi, (_, cat_label, cat_color) in enumerate(categories):
+        lx = leg_x0 + bi * leg_item_w
+        parts.append(
+            f'<rect x="{lx:.1f}" y="{leg_y}" width="10" height="10" fill="{cat_color}" rx="2"/>'
+        )
+        parts.append(
+            f'<text x="{lx + 14:.1f}" y="{leg_y + 9}" font-size="10" fill="#475569">{cat_label}</text>'
+        )
+
+    return (
+        f'<svg viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg" '
+        f'class="chart-svg chart-body">{"".join(parts)}</svg>'
+    )
+
+
 # ─── HTML template ────────────────────────────────────────────────────────────
 
 HTML_TEMPLATE = r"""<!doctype html>
@@ -1120,17 +1462,14 @@ HTML_TEMPLATE = r"""<!doctype html>
 <head>
 <meta charset="utf-8">
 <title>{{ view.address }} — PropertyReport</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 @page title { size: A4 portrait;  margin: 0; }
 @page cover { size: A4 landscape; margin: 8mm; }
 @page body  {
   size: A4 portrait;
   margin: 14mm 14mm 16mm 14mm;
-  @bottom-left  { content: "PropertyReport"; font-size: 7.5pt; color: #94a3b8; font-family: 'Inter', sans-serif; letter-spacing: 0.6px; }
-  @bottom-right { content: "Page " counter(page); font-size: 7.5pt; color: #94a3b8; font-family: 'Inter', sans-serif; }
+  @bottom-left  { content: "PropertyReport"; font-size: 7.5pt; color: #94a3b8; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.6px; }
+  @bottom-right { content: "Page " counter(page); font-size: 7.5pt; color: #94a3b8; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
 }
 .title-page { page: title; page-break-after: always; }
 .cover-page { page: cover; page-break-before: always; }
@@ -1163,7 +1502,7 @@ HTML_TEMPLATE = r"""<!doctype html>
 
 * { box-sizing: border-box; }
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
   color: var(--slate);
   background: white;
   margin: 0;
@@ -1202,7 +1541,7 @@ body {
 }
 .title-page > * { position: relative; z-index: 1; }
 .title-brand {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
   font-size: 18pt;
   font-weight: 700;
   letter-spacing: -0.3px;
@@ -1224,7 +1563,7 @@ body {
   border-radius: 999px;
 }
 .title-headline {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
   font-size: 48pt;
   font-weight: 800;
   color: white;
@@ -1247,7 +1586,7 @@ body {
   margin-bottom: 16px;
 }
 .title-address {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
   font-size: 16pt;
   font-weight: 600;
   color: white;
@@ -1257,13 +1596,15 @@ body {
 
 .dashboard {
   display: grid;
-  grid-template-rows: 100px 90px 190px 165px 84px;
+  grid-template-rows: 88px 205px 185px 110px;
   gap: 8px;
 }
 
 .row {
   display: grid;
   gap: 8px;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .card {
@@ -1282,9 +1623,71 @@ body {
   text-transform: uppercase;
   margin: 0 0 6px;
 }
+.card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 6px;
+}
+.card-header .label { margin-bottom: 0; }
+.card-header-left { display: flex; align-items: center; gap: 6px; }
+.card-icon {
+  width: 22px; height: 22px; border-radius: 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.card-icon svg { width: 12px; height: 12px; display: block; }
+.metric-pill {
+  font-size: 10.5px; font-weight: 700; white-space: nowrap;
+  padding: 2px 8px; border-radius: 10px; flex-shrink: 0;
+}
+.pill-emerald { background: var(--emerald-soft); color: var(--emerald); }
+.pill-blue    { background: var(--blue-soft);    color: var(--blue); }
+.pill-violet  { background: var(--violet-soft);  color: var(--violet); }
+.pill-teal    { background: var(--teal-soft);    color: var(--teal); }
+.pill-amber   { background: var(--amber-soft);   color: var(--amber); }
+.pill-rose    { background: var(--rose-soft);    color: var(--rose); }
 
 /* ── HEADER ROW ── */
-.header-row { grid-template-columns: 2.2fr 1fr 2.4fr; }
+.header-row { grid-template-columns: 3fr 1.4fr; height: 88px; overflow: hidden; }
+
+/* ── LIFESTYLE SNAPSHOT ROW ── */
+.lifestyle-row { grid-template-columns: repeat(8, 1fr); }
+.lifestyle-card {
+  display: flex; flex-direction: column; align-items: flex-start;
+  padding: 7px 9px; gap: 1px; overflow: hidden;
+}
+.lifestyle-icon {
+  width: 22px; height: 22px; border-radius: 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0; margin-bottom: 3px;
+}
+.lifestyle-icon svg { width: 13px; height: 13px; display: block; }
+.lifestyle-category {
+  font-size: 7px; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--slate-3); font-weight: 600; line-height: 1.2;
+}
+.lifestyle-name {
+  font-size: 9px; font-weight: 700; color: var(--navy);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;
+  line-height: 1.25;
+}
+.lifestyle-distance {
+  font-size: 8px; color: var(--slate-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;
+  line-height: 1.2;
+}
+.lifestyle-detail {
+  font-size: 7.5px; color: var(--emerald); font-weight: 600; line-height: 1.2;
+}
+
+/* ── TOP AMENITIES (replaces pipeline in detail row) ── */
+.top-amenity-row {
+  display: flex; align-items: flex-start; gap: 7px;
+  padding: 5px 0; border-bottom: 1px solid var(--grey-100);
+}
+.top-amenity-row:last-child { border-bottom: none; }
+.top-amenity-body { display: flex; flex-direction: column; gap: 1px; }
+.top-amenity-body strong { font-weight: 600; color: var(--navy); font-size: 9.5px; line-height: 1.25; }
+.top-amenity-body span { color: var(--slate-3); font-size: 8.5px; }
 .title-card {
   background: linear-gradient(135deg, var(--navy) 0%, var(--slate) 100%);
   color: white;
@@ -1294,6 +1697,7 @@ body {
   flex-direction: column;
   justify-content: center;
   overflow: hidden;
+  max-height: 88px;
 }
 .title-card .addr {
   font-size: 17px;
@@ -1309,6 +1713,7 @@ body {
   position: relative;
   overflow: hidden;
   padding: 0;
+  max-height: 88px;
 }
 .photo-card img {
   width: 100%; height: 100%;
@@ -1327,39 +1732,6 @@ body {
   letter-spacing: 0.3px;
 }
 
-.amenities-card { display: flex; flex-direction: column; overflow: hidden; }
-.amenities-grid {
-  margin-top: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  overflow: hidden;
-}
-.amenity-row {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 9px;
-  padding: 3px 0;
-  border-bottom: 1px solid var(--grey-100);
-}
-.amenity-row:last-child { border-bottom: none; }
-.amenity-icon {
-  width: 20px; height: 20px; border-radius: 4px;
-  display: inline-flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.amenity-icon svg { width: 12px; height: 12px; display: block; }
-.amenity-text {
-  display: flex; align-items: baseline; justify-content: space-between;
-  flex: 1; min-width: 0; gap: 8px;
-}
-.amenity-text strong {
-  font-weight: 600; color: var(--navy); font-size: 9.5px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  flex: 1; min-width: 0;
-}
-.amenity-text .amenity-distance {
-  color: var(--slate-3); font-size: 8.5px; flex-shrink: 0; white-space: nowrap;
-}
 
 /* ── METRIC ROW ── */
 .metric-row { grid-template-columns: repeat(5, 1fr); }
@@ -1435,7 +1807,7 @@ body {
 }
 
 /* ── CHART ROW ── */
-.chart-row { grid-template-columns: 1.2fr 1.2fr 1.2fr 1.1fr; }
+.chart-row { grid-template-columns: 1.2fr 1.2fr 1.2fr 1.1fr; height: 205px; overflow: hidden; }
 .chart-svg { width: 100%; height: 120px; }
 .chart-stats { display: flex; gap: 12px; margin-top: 4px; font-size: 9px; }
 .chart-stats .key {
@@ -1518,7 +1890,7 @@ body {
 }
 
 /* ── DETAIL ROW ── */
-.detail-row { grid-template-columns: 1.3fr 1.2fr 1.2fr 1.3fr; }
+.detail-row { grid-template-columns: 1.3fr 1.2fr 1.2fr 1.3fr; height: 185px; overflow: hidden; }
 .row-list .item {
   display: flex;
   align-items: center;
@@ -1586,6 +1958,20 @@ body {
 .delta-amber { color: var(--amber); }
 .delta-red   { color: var(--rose); }
 
+.body-section ul { padding-left: 18px; margin: 4px 0 10px; }
+.lifestyle-table {
+  width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 10pt;
+}
+.lifestyle-table th {
+  background: var(--grey-100); color: var(--slate-2); font-weight: 600;
+  text-align: left; padding: 6px 10px; font-size: 9pt; letter-spacing: 0.3px;
+}
+.lifestyle-table td {
+  padding: 7px 10px; border-bottom: 1px solid var(--grey-100); vertical-align: middle;
+}
+.lifestyle-table tr:last-child td { border-bottom: none; }
+.lt-cat { display: flex; align-items: center; gap: 6px; }
+
 .body-crime {
   margin: 8px 0 14px 0;
   padding: 10px 14px;
@@ -1626,7 +2012,7 @@ body {
 .pipeline-row.planned .icon-sm   { background: var(--orange-soft);  color: var(--orange); }
 
 /* ── VERDICT BAND ── */
-.verdict-row { grid-template-columns: 1.4fr 1fr 1fr 1fr 1.2fr; gap: 8px; }
+.verdict-row { grid-template-columns: 1.4fr 1fr 1fr 1fr 1.2fr; gap: 8px; height: 110px; overflow: hidden; }
 .verdict-band {
   background: var(--navy);
   color: white;
@@ -1694,7 +2080,7 @@ body {
 .body-section { margin-bottom: 16px; }
 .body-section + .body-section { padding-top: 4px; }
 .body-section h2.section-title {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
   font-size: 14.5pt;
   font-weight: 700;
   color: white;
@@ -1777,6 +2163,37 @@ body {
   color: var(--slate-3);
   line-height: 1.5;
 }
+
+/* ── SCHOOL DETAIL TABLE (body pages) ── */
+.sch-detail-table { width: 100%; border-collapse: collapse; font-size: 10pt; margin: 8px 0 6px; }
+.sch-th {
+  text-align: left; font-size: 8pt; font-weight: 700;
+  color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;
+  padding: 6px 10px; border-bottom: 2px solid #e2e8f0;
+}
+.sch-td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.sch-center { text-align: center; }
+.sch-name { color: #0f172a; font-size: 10.5pt; }
+.sch-sub  { font-size: 8.5pt; }
+.sch-icsea { font-weight: 700; color: #0f172a; font-size: 11pt; }
+.sch-pct   { font-weight: 700; font-size: 11pt; }
+.sch-badge {
+  display: inline-block; font-size: 8pt; font-weight: 600;
+  padding: 2px 7px; border-radius: 4px; white-space: nowrap;
+}
+.sch-badge-in      { background: #d1fae5; color: #065f46; }
+.sch-badge-out     { background: #fef3c7; color: #92400e; }
+.sch-badge-private { background: #ede9fe; color: #5b21b6; }
+.sch-note { font-size: 8.5pt; color: #94a3b8; margin-top: 4px; line-height: 1.4; }
+.sch-note a { color: #2563eb; text-decoration: none; }
+
+/* Cover school catchment badge */
+.catchment-badge {
+  display: inline-block; font-size: 7.5px; font-weight: 700;
+  padding: 2px 5px; border-radius: 3px;
+}
+.badge-in  { background: #d1fae5; color: #065f46; }
+.badge-out { background: #fef3c7; color: #92400e; }
 </style>
 </head>
 <body>
@@ -1808,68 +2225,37 @@ body {
       <div class="photo-tag">Street View unavailable for this address</div>
       {% endif %}
     </div>
-    <div class="card amenities-card">
-      <div class="label">Nearby Amenities</div>
-      <div class="amenities-grid">
-        {% for item in view.map_legend %}
-        <div class="amenity-row">
-          <span class="amenity-icon icon-{{ item.color }}">{{ item.icon | safe }}</span>
-          <span class="amenity-text">
-            <strong>{{ item.label }}</strong>
-            {% if item.detail %}<span class="amenity-distance">{{ item.detail }}</span>{% endif %}
-          </span>
-        </div>
-        {% endfor %}
-      </div>
-    </div>
-  </div>
-
-  <!-- METRICS ROW -->
-  <div class="row metric-row">
-    <div class="card metric-card">
-      <div class="metric-icon icon-emerald">{{ view.metric_icons.median | safe }}</div>
-      <div class="metric-label">Median House Price</div>
-      <div class="metric-value">{{ view.metrics.median }}</div>
-      <div class="metric-sub">{{ view.suburb_name or "Suburb median" }}</div>
-    </div>
-    <div class="card metric-card">
-      <div class="metric-icon icon-blue">{{ view.metric_icons.yield | safe }}</div>
-      <div class="metric-label">Rental Yield</div>
-      <div class="metric-value">{{ view.metrics.rental_yield }}</div>
-      <div class="metric-sub">Estimate</div>
-    </div>
-    <div class="card metric-card">
-      <div class="metric-icon icon-violet">{{ view.metric_icons.schools | safe }}</div>
-      <div class="metric-label">Schools</div>
-      <div class="metric-value schools-rating">{{ view.schools_rating_icon | safe }}</div>
-      <div class="metric-sub">Quality</div>
-    </div>
-    <div class="card metric-card">
-      <div class="metric-icon icon-teal">{{ view.metric_icons.train | safe }}</div>
-      <div class="metric-label">Train to CBD</div>
-      <div class="metric-value">{{ view.metrics.train_label }}</div>
-      <div class="metric-sub">{{ view.metrics.train_station }}</div>
-    </div>
-    <div class="card metric-card">
-      <div class="metric-icon icon-amber">{{ view.metric_icons.crime | safe }}</div>
-      <div class="metric-label">Crime vs State Avg</div>
-      <div class="metric-value">{{ view.crime.short_headline or "—" }}</div>
-      <div class="metric-sub">Lower is safer</div>
-    </div>
   </div>
 
   <!-- CHART ROW -->
   <div class="row chart-row">
     <div class="card">
-      <div class="label">Price Growth (Median House)</div>
+      <div class="card-header">
+        <div class="card-header-left">
+          <span class="card-icon icon-emerald">{{ view.metric_icons.median | safe }}</span>
+          <div class="label">Price Growth</div>
+        </div>
+        {% if view.metrics.median %}<span class="metric-pill pill-emerald">{{ view.metrics.median }}</span>{% endif %}
+      </div>
       {{ view.history | safe }}
     </div>
     <div class="card">
-      <div class="label">Rental Yield Trends</div>
+      <div class="card-header">
+        <div class="card-header-left">
+          <span class="card-icon icon-blue">{{ view.metric_icons.yield | safe }}</span>
+          <div class="label">Rental Yield</div>
+        </div>
+        {% if view.metrics.rental_yield %}<span class="metric-pill pill-blue">{{ view.metrics.rental_yield }}</span>{% endif %}
+      </div>
       {{ view.rental | safe }}
     </div>
     <div class="card">
-      <div class="label">Recent Comparable Sales</div>
+      <div class="card-header">
+        <div class="card-header-left">
+          <span class="card-icon icon-violet">{{ view.metric_icons.comparables | safe }}</span>
+          <div class="label">Comparable Sales</div>
+        </div>
+      </div>
       <table class="comp-table">
         <tr><th>Address</th><th>Sale Date</th><th>Sale Price</th></tr>
         {% for c in view.comparables %}
@@ -1882,7 +2268,12 @@ body {
       </div>
     </div>
     <div class="card">
-      <div class="label">Suburb Scorecard</div>
+      <div class="card-header">
+        <div class="card-header-left">
+          <span class="card-icon icon-rose">{{ view.metric_icons.scorecard | safe }}</span>
+          <div class="label">Suburb Scorecard</div>
+        </div>
+      </div>
       {% for s in view.scorecard %}
       <div class="scorecard-row">
         <span>{{ s.label }}</span>
@@ -1901,7 +2292,13 @@ body {
   <!-- DETAIL ROW -->
   <div class="row detail-row">
     <div class="card">
-      <div class="label">Transit &amp; Connectivity</div>
+      <div class="card-header">
+        <div class="card-header-left">
+          <span class="card-icon icon-teal">{{ view.metric_icons.train | safe }}</span>
+          <div class="label">Transit &amp; Connectivity</div>
+        </div>
+        {% if view.metrics.train_label %}<span class="metric-pill pill-teal">{{ view.metrics.train_label }} CBD</span>{% endif %}
+      </div>
       <div class="row-list">
         {% for t in view.transit %}
         <div class="item">
@@ -1915,23 +2312,37 @@ body {
       </div>
     </div>
     <div class="card">
-      <div class="label">School Catchment (Likely)</div>
+      <div class="card-header">
+        <div class="card-header-left">
+          <span class="card-icon icon-violet">{{ view.metric_icons.schools | safe }}</span>
+          <div class="label">School Catchment</div>
+        </div>
+        {% if view.metrics.schools %}<span class="metric-pill pill-violet" style="color: {{ view.schools_quality_color }}; background: {{ view.schools_quality_color }}1a;">{{ view.metrics.schools }}</span>{% endif %}
+      </div>
       {% for s in view.schools_rows %}
       <div class="school-row">
         <div>
           <strong style="color: var(--navy)">{{ s.name }}</strong><br>
-          <span style="color: var(--slate-3); font-size: 8.5px">{{ s.tier }} ({{ s.distance }})</span>
+          <span style="color: var(--slate-3); font-size: 8.5px">{{ s.tier }} · {{ s.distance }}</span>
         </div>
-        <div class="icsea">ICSEA {{ s.icsea }}</div>
+        <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
+          {% if s.in_catchment is not none %}<span class="catchment-badge {% if s.in_catchment %}badge-in{% else %}badge-out{% endif %}">{% if s.in_catchment %}✓{% else %}✗{% endif %}</span>{% endif %}
+          <span class="icsea">ICSEA {{ s.icsea }}</span>
+        </div>
       </div>
       {% endfor %}
       <div class="verify-note">
-        Catchment zones should be verified at <a href="https://findmyschool.vic.gov.au">findmyschool.vic.gov.au</a>
+        Verify at <a href="https://findmyschool.vic.gov.au">findmyschool.vic.gov.au</a>
       </div>
     </div>
     <div class="card crime-card">
-      <div class="label">Crime Snapshot (vs State Average)</div>
-      {% if view.crime.headline %}<div class="crime-headline">{{ view.crime.headline }}</div>{% endif %}
+      <div class="card-header">
+        <div class="card-header-left">
+          <span class="card-icon icon-amber">{{ view.metric_icons.crime | safe }}</span>
+          <div class="label">Crime Snapshot</div>
+        </div>
+        {% if view.crime.short_headline %}<span class="metric-pill pill-amber">{{ view.crime.short_headline }}</span>{% endif %}
+      </div>
       <div class="crime-rows">
         {% for r in view.crime.rows %}
         <div class="crime-row">
@@ -1946,12 +2357,19 @@ body {
       </div>
     </div>
     <div class="card">
-      <div class="label">Infrastructure Pipeline</div>
-      {% for p in view.pipeline %}
-      {% set lower = p.status|lower %}
-      <div class="pipeline-row {% if 'complete' in lower %}completed{% elif 'progress' in lower %}progress{% else %}planned{% endif %}">
-        <div class="left"><span class="icon-sm">{% if 'complete' in lower %}✓{% elif 'progress' in lower %}▶{% else %}○{% endif %}</span>{{ p.name }}</div>
-        <div class="status">{{ p.status }}</div>
+      <div class="card-header">
+        <div class="card-header-left">
+          <span class="card-icon icon-teal">{{ view.metric_icons.lifestyle | safe }}</span>
+          <div class="label">Lifestyle</div>
+        </div>
+      </div>
+      {% for a in view.top_amenities %}
+      <div class="top-amenity-row">
+        <span class="icon-sm icon-{{ a.color }}">{{ a.icon | safe }}</span>
+        <div class="top-amenity-body">
+          <strong>{{ a.label }}</strong>
+          <span>{{ a.distance }}{% if a.detail %} · {{ a.detail }}{% endif %}</span>
+        </div>
       </div>
       {% endfor %}
     </div>
@@ -1999,7 +2417,7 @@ body {
     <h2 class="section-title"><span class="section-icon">{{ sec.icon | safe }}</span>{{ sec.title }}</h2>
     {% if sec.anchor == 'property-snapshot' and view.property_snapshot_html %}{{ view.property_snapshot_html | safe }}{% endif %}
     {% if sec.anchor == 'market-analysis' and view.history %}<div class="body-chart">{{ view.history | safe }}</div>{% endif %}
-    {% if sec.anchor == 'schools-catchment' and view.school_chart_svg %}<div class="body-chart">{{ view.school_chart_svg | safe }}</div>{% endif %}
+    {% if sec.anchor == 'schools-catchment' %}{% if view.school_detail_table_html %}{{ view.school_detail_table_html | safe }}{% elif view.school_chart_svg %}<div class="body-chart">{{ view.school_chart_svg | safe }}</div>{% endif %}{% endif %}
     {% if sec.anchor == 'risk-assessment' and view.crime.rows %}
     <div class="body-crime">
       {% if view.crime.headline %}<div class="body-crime-headline">{{ view.crime.headline }}</div>{% endif %}
@@ -2010,9 +2428,16 @@ body {
       </div>
       {% endfor %}
     </div>
+    {% if view.crime_trend_chart_svg %}
+    <div class="body-chart" style="margin-top:12px">
+      <p class="label" style="margin-bottom:6px">Crime Category Trend — Last 3 Years</p>
+      {{ view.crime_trend_chart_svg | safe }}
+    </div>
+    {% endif %}
     {% endif %}
     {% if sec.anchor == 'verdict' and view.score_chart_svg %}<div class="body-chart">{{ view.score_chart_svg | safe }}</div>{% endif %}
     {{ sec.body_html | safe }}
+    {% if sec.anchor in ('lifestyle', 'household-amenities', 'suburb-profile') and view.lifestyle_table_html %}{{ view.lifestyle_table_html | safe }}{% endif %}
   </section>
   {% endfor %}
   <div class="body-disclaimer">{{ view.disclaimer }}</div>

@@ -14,14 +14,20 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 
 # ─── Backend selection ────────────────────────────────────────────────────────
-# Set RESEARCH_BACKEND=perplexity to route all research tasks through Perplexity
-# sonar-pro (built-in web search). Default is claude (Anthropic web_search tool).
-_RESEARCH_BACKEND = os.getenv("RESEARCH_BACKEND", "claude").lower()
+# RESEARCH_BACKEND: claude (default) or perplexity — AI backend for all 6 research tasks.
+# SYNTHESIS_BACKEND: claude (default) or deepseek — AI backend for narrative synthesis.
+_RESEARCH_BACKEND  = os.getenv("RESEARCH_BACKEND",  "claude").lower()
+_SYNTHESIS_BACKEND = os.getenv("SYNTHESIS_BACKEND", "claude").lower()
 
-if _RESEARCH_BACKEND == "perplexity":
+if _RESEARCH_BACKEND == "perplexity" or _SYNTHESIS_BACKEND == "deepseek":
     from openai import OpenAI as _OpenAI
 
 from domain_client import get_last_sale as _domain_get_last_sale
+
+try:
+    from da_client_nsw import get_nsw_das as _get_nsw_das
+except ImportError:
+    _get_nsw_das = None
 
 
 # Reuse state detection from pdf_generator
@@ -83,17 +89,28 @@ def _fetch_crime_data(suburb: str, state: str) -> dict | None:
 
 
 def _inject_crime_into_suburb_prompt(prompt: str, crime: dict) -> str:
-    """Replace STEP 4 crime search block with pre-fetched authoritative values."""
+    """Replace the CRIME step with pre-fetched authoritative values.
+    Handles both 'STEP 4 — CRIME' (Claude prompts) and 'STEP 5 — CRIME' (Perplexity prompts)."""
     source = crime.get("data_source", "authoritative state source")
+    # Detect which step number is used so the injected label matches
+    step_label = "STEP 4 — CRIME"
+    step4_start = prompt.find("STEP 4 — CRIME")
+    if step4_start < 0:
+        step4_start = prompt.find("STEP 5 — CRIME")
+        step_label  = "STEP 5 — CRIME"
     injected = (
-        f"STEP 4 — CRIME: Data pre-fetched from {source}. "
+        f"{step_label}: Data pre-fetched from {source}. "
         f"Use these exact values — do NOT search for crime:\n"
         f"  crime_safety_percentile = {crime.get('crime_safety_percentile')}\n"
         f"  crime_violent_vs_state_avg_pct = {crime.get('crime_violent_vs_state_avg_pct')}\n"
         f"  crime_property_vs_state_avg_pct = {crime.get('crime_property_vs_state_avg_pct')}\n"
     )
-    step4_start = prompt.find("STEP 4 — CRIME:")
-    return_json_start = prompt.find("Return JSON with:", step4_start if step4_start >= 0 else 0)
+    return_json_start = -1
+    for _sentinel in ("Return JSON with:", "RETURN JSON WITH THESE KEYS"):
+        _pos = prompt.find(_sentinel, step4_start if step4_start >= 0 else 0)
+        if _pos >= 0:
+            return_json_start = _pos
+            break
     if step4_start >= 0 and return_json_start >= 0:
         return prompt[:step4_start] + injected + "\n" + prompt[return_json_start:]
     return prompt
@@ -431,12 +448,18 @@ RESEARCH_TASKS = {
         "You MUST return numeric values for crime fields — derive the percentile and deltas from the actual offence "
         "rates you find (e.g. if suburb has 850 offences/100k vs state avg 1200/100k, percentile is ~70). "
         "Return null only if you find zero crime data anywhere.\n"
+        "STEP 5 — LIFESTYLE AMENITIES: Search '[address] nearest supermarket' to find the closest Coles/Woolworths/Aldi "
+        "and its walking distance. Search 'nearest gym to [address]' to find the geographically closest gym regardless "
+        "of brand and its approximate weekly membership cost. Search '[address] nearest park reserve' for the closest public park.\n"
         "Return JSON with: suburb, postcode, median_house_price, median_unit_price, "
         "price_growth_5yr, rental_yield, demographics, key_amenities, "
         "liveability_score, "
         "nearest_freeway (object: name, distance_km — closest major freeway/motorway/highway), "
         "nearby_gps (list of up to 2 objects: name, distance_km — nearest general practitioner clinics), "
         "nearby_hospitals (list of up to 3 objects: name, distance_km — only if within 10km), "
+        "nearby_supermarkets (list of up to 2 objects: name, distance_km — nearest Coles/Woolworths/Aldi by walking distance), "
+        "nearby_parks (list of up to 2 objects: name, distance_km — nearest public park or recreation reserve), "
+        "nearby_gyms (list of up to 2 objects: name, distance_km, weekly_cost_aud (integer approximate weekly membership cost in AUD; null if unknown)), "
         "crime_safety_percentile (integer 0-100 where 100 = safest in the state — "
         "calculate from actual offence rates found relative to state average; "
         "null only if zero crime data found anywhere), "
@@ -449,29 +472,58 @@ RESEARCH_TASKS = {
 
     "schools": (
         "Property: {address}\n"
-        "Use myschool.edu.au to look up schools. "
+        "STEP 1 — Search '[suburb] [state] primary school catchment zone' to identify the in-catchment government primary school. "
+        "Confirm whether THIS specific address falls inside that school's boundary (in_catchment = true/false). "
+        "Fetch its myschool.edu.au profile for ICSEA and latest NAPLAN results (reading/numeracy percentile vs national average). "
+        "Estimate the walk time in minutes from the property to the school. "
+        "Also note 1-2 other nearby primary schools within 2 km.\n"
+        "STEP 2 — Search '[suburb] [state] secondary school catchment zone' to identify the in-catchment secondary school. "
+        "Confirm catchment status for this address. Fetch myschool.edu.au for ICSEA and NAPLAN. "
+        "Estimate walk time. Note 1-2 other nearby secondary schools.\n"
+        "STEP 3 — Search '[suburb] [state] private schools' for independent/Catholic/Anglican/selective options within 5 km. "
+        "For each: fetch myschool.edu.au ICSEA where available, identify school_type (Catholic / Independent / Anglican / Selective / Other), "
+        "and estimate annual tuition fees from the school's website if findable.\n"
+        "STEP 4 — Review ICSEA scores. Assign school_quality_summary based on the in-catchment schools' average ICSEA.\n"
         "Return JSON with: "
-        "primary_schools (list of objects: name, distance_km, icsea — icsea MUST be an integer from MySchool; null only if the school is genuinely absent from MySchool), "
-        "secondary_schools (same fields), "
-        "private_schools (same fields), "
-        "in_catchment_zone (string), "
+        "primary_schools (list of objects: name, distance_km, icsea (int or null), "
+        "in_catchment (boolean — true if this address is inside the school's catchment zone), "
+        "walk_mins (int — estimated walk time in minutes; null if more than 25 min or walk not practical), "
+        "naplan_reading_pct (int 1–100 — NAPLAN reading percentile rank vs national average from myschool.edu.au; null if not found), "
+        "naplan_numeracy_pct (int 1–100 — same for numeracy; null if not found)), "
+        "secondary_schools (same fields as primary_schools), "
+        "private_schools (list: name, distance_km, icsea (int or null), "
+        "school_type (string — 'Catholic', 'Independent', 'Anglican', 'Selective', or 'Other'), "
+        "fees_annual_aud (int — approximate annual tuition fees AUD; null if unknown), "
+        "naplan_reading_pct (int or null), naplan_numeracy_pct (int or null)), "
+        "in_catchment_zone (one sentence describing the catchment boundary for this address), "
         "school_quality_summary (MUST be exactly one of: 'Excellent', 'Strong', 'Average', 'Below Average', 'Limited' — "
-        "base this on the ICSEA scores of in-catchment schools relative to the national average of 1000: "
-        "≥1080 = Excellent, 1040–1079 = Strong, 1000–1039 = Average, 960–999 = Below Average, <960 = Limited)."
+        "≥1080 avg ICSEA = Excellent, 1040–1079 = Strong, 1000–1039 = Average, 960–999 = Below Average, <960 = Limited)."
     ),
 
     "government_projects": (
         "Property: {address}\nState: {state}\n"
-        "SEARCH STEPS (use all searches): "
-        "(1) Search '[suburb] infrastructure projects {state}' and '[suburb] council development plan'. "
-        "(2) Search '[LGA or council name] capital works budget' or '[suburb] state government investment'. "
-        "(3) Check {planning_url} for any zoning or development overlays near this address.\n"
+        "STEP 1 — Search '[suburb] [state] infrastructure projects' and '[suburb] council capital works'. "
+        "Find road upgrades, rail extensions, park works, school builds, community facilities planned or underway nearby.\n"
+        "STEP 2 — Search '[LGA or council name] development applications [suburb]' to find recently lodged or approved DAs near this address. "
+        "Also search '[suburb] [state] major development approved' for larger projects.\n"
+        "STEP 3 — State-specific DA sources: "
+        "NSW: search 'site:planningportal.nsw.gov.au [suburb] development application' for lodged DAs. "
+        "VIC: search '[council name] planning permits [suburb] site:planning.vic.gov.au OR council website'. "
+        "QLD: search '[council name] development applications [suburb]'. "
+        "SA: search 'site:plan.sa.gov.au [suburb] development application'. "
+        "WA: search '[council name] planning applications [suburb]'. "
+        "Record any significant DAs (multi-unit residential, commercial, subdivision, demolition) within 1 km.\n"
+        "STEP 4 — Check {planning_url} for zoning changes or overlays affecting this address.\n"
         "Return JSON with: "
         "infrastructure_projects (list of up to 5 objects — REQUIRED, never return empty list; "
         "every suburb has road upgrades, park works, school builds, rail projects, or community facilities nearby; "
         "each object: name (string), type (one of: Road/Rail/Community/School/Park/Council/Federal), "
         "status (e.g. 'Under Construction', 'Funded – 2026', 'Planned – 2027', 'Proposed'), "
         "description (one short sentence on what it is and how far from the property)), "
+        "nearby_das (list of up to 4 objects — development applications lodged near the property: "
+        "address (string), description (string — what is being built/changed), "
+        "status (string — e.g. 'Approved', 'Pending', 'Under Assessment'), "
+        "lodged_date (string or null), impact (one of: 'Positive', 'Neutral', 'Negative')), "
         "zoning_changes (string or null), "
         "impact_on_value (one of: 'Positive', 'Neutral', 'Negative'), "
         "impact_reason (one short sentence)."
@@ -480,8 +532,12 @@ RESEARCH_TASKS = {
     "transport": (
         "Property: {address}\nState: {state}\n"
         "SEARCH STEPS — use all searches, in order:\n"
-        "(1) Search '[suburb] [state] train station' to find the nearest train station, line name, and CBD travel time. "
-        "Prefer results from {transport_url} but accept any authoritative source.\n"
+        "(1) Search '[suburb] [state] train station' to identify the nearest station name, line, and CBD travel time. "
+        "Then search 'walking distance {address} to [station name]' to find the actual walking distance "
+        "from THIS specific address to the station — do NOT assume short proximity just because the suburb "
+        "shares a name with the station; many suburbs are 1–4 km from their nearest station. "
+        "Use any source that gives a street-level distance (Google Maps snippet, real estate listing, PTV). "
+        "Return this as distance_km rounded to 2 decimal places.\n"
         "(2) Search '[suburb] [state] bus routes' to find route numbers serving the suburb. "
         "Prefer {transport_url} results; if unavailable use any transit authority, council, or suburb profile page. "
         "List only routes that plausibly stop within 1km of the address — do not list every route in the LGA.\n"
@@ -531,12 +587,39 @@ RESEARCH_TASKS = {
         "days_on_market, auction_clearance_rate, price_per_sqm, best_pockets, market_outlook."
     ),
 
-    "risk_overlays": "Property: {address}\nState: {state}\nReturn JSON with: flood_risk, bushfire_bal_rating, heritage_overlay, landscape_overlay, subdivision_potential, noise_concerns, contamination_flags. Use {planning_url} and {flood_url}.",
+    "risk_overlays": (
+        "Property: {address}\nState: {state}\n"
+        "STEP 1 — FLOOD: Search '[address] flood risk' and check {flood_url} — determine if the property is in a flood zone "
+        "(high/medium/low/negligible) and whether it is in a 1-in-100 year flood area.\n"
+        "STEP 2 — BUSHFIRE & BAL: Search '[suburb] [state] bushfire attack level BAL rating' — find the BAL rating for this address "
+        "(BAL-FZ, BAL-40, BAL-29, BAL-19, BAL-12.5, BAL-Low, or N/A for urban areas). Use any state fire authority source.\n"
+        "STEP 3 — PLANNING OVERLAYS: Check {planning_url} for this address — identify any heritage overlay, vegetation/landscape overlay, "
+        "airport/flight path overlay, environmental significance overlay, or development contribution overlay that applies.\n"
+        "STEP 4 — NOISE & OTHER: Search '[suburb] noise concerns airport train' to flag any aircraft noise, freeway noise, or rail noise. "
+        "Also note any known contamination or EPA issues for the address if found.\n"
+        "Return JSON with: "
+        "flood_risk (string: 'High', 'Medium', 'Low', or 'Negligible' — with one sentence of context), "
+        "bushfire_bal_rating (string e.g. 'BAL-Low', 'BAL-12.5', 'N/A — urban area'), "
+        "heritage_overlay (string or null — overlay code and what it restricts), "
+        "landscape_overlay (string or null), "
+        "airport_overlay (string or null — flight path or building height restriction), "
+        "noise_concerns (string or null — source and severity), "
+        "contamination_flags (string or null), "
+        "subdivision_potential (string: 'High', 'Moderate', 'Low' — one sentence reason)."
+    ),
 
     "property_intel": (
         "Property: {address}\nState: {state}\n"
-        "Return JSON with property-specific details for THIS exact address "
-        "(use realestate.com.au, domain.com.au, council records, {planning_url}). "
+        "SEARCH STEPS — execute in order, stop fetching once you have bedrooms/land size confirmed:\n"
+        "STEP 1 — Construct the realestate.com.au URL: "
+        "https://www.realestate.com.au/property/[type]-[number]-[street]-[suburb]-[state]-[postcode]/ "
+        "(lowercase, spaces→hyphens; street type abbreviations: Street→st, Road→rd, Avenue→ave, Drive→dr, "
+        "Court→ct, Place→pl, Crescent→cres, Close→cl, Boulevard→bvd, Terrace→tce, Lane→ln, Way→wy, Grove→gr). "
+        "Try 'house' first, then 'townhouse', then 'unit'. Fetch the page and extract bedrooms, bathrooms, "
+        "parking, land_sqm, and any sold/listing history.\n"
+        "STEP 2 — Search 'site:domain.com.au {address}' and fetch the top result. Extract the same fields.\n"
+        "STEP 3 — Search '{address} bedrooms bathrooms land size' — read any real estate snippet that gives specs.\n"
+        "STEP 4 — Check {planning_url} for the zoning code that applies to this address.\n"
         "All numeric fields must be numbers (not strings). "
         "STRICT RULE: use null for any field you cannot confirm from an authoritative source for THIS specific address. "
         "Do NOT estimate, infer, approximate, or extrapolate from the suburb's typical age / lot size / configuration. "
@@ -555,6 +638,252 @@ RESEARCH_TASKS = {
         "renovation_potential (object: rating, reason — value-add upside from renovation), "
         "knockdown_rebuild_viability (object: rating, reason), "
         "street_position_quality (int 1-10 — only if you can reason from real local context; otherwise null)."
+    ),
+}
+
+
+# ─── Perplexity Research Prompts ─────────────────────────────────────────────
+# Goal-based prompts suited to Perplexity sonar-pro's built-in search.
+# Claude prompts (RESEARCH_TASKS above) use explicit step-by-step URL construction
+# because Claude must direct its own web_search tool. Perplexity handles search
+# strategy internally, so simpler goal + source-order instructions work better.
+
+RESEARCH_TASKS_PERPLEXITY = {
+    "suburb": (
+        "Research the property at {address}, {state}.\n"
+        "Prefer official government and council sources first; use commercial property sites if official sources are unavailable.\n"
+        "For proximity and amenity fields, use any credible source and return approximate distances where exact figures are unavailable.\n\n"
+        "Goal: return suburb-level market, amenity, crime, and livability data for this property area.\n\n"
+        "SOURCE ORDER\n"
+        "1. Government, council, or official state open-data sources.\n"
+        "2. Official school, planning, transport, crime, and property datasets.\n"
+        "3. Major property portals only if no official source exists.\n"
+        "4. Other property profile sites only as last resort.\n\n"
+        "STEP 1 — MARKET DATA\n"
+        "Search '[suburb] [state] median house price 2025' — read the median house price, "
+        "median unit price, and 5-year price growth from whichever source appears "
+        "(realestate.com.au, domain.com.au, or any suburb profile site). "
+        "Accept the first credible figure you find. If multiple sources conflict, prefer the most recent. "
+        "If no reliable figure is found, return null.\n\n"
+        "STEP 2 — RENTAL YIELD\n"
+        "Search '[suburb] [postcode] gross rental yield 2025'. "
+        "If no yield figure is found, search '[suburb] [state] median weekly rent' and calculate: "
+        "(rent × 52 / median_house_price × 100). Round to 1 decimal place. "
+        "If either value cannot be verified, return null.\n\n"
+        "STEP 3 — PRICE HISTORY\n"
+        "Search '[suburb] [state] median house price history' using the suburb and state from {address}. "
+        "Try realestate.com.au suburb profile, domain.com.au suburb insights, or any property report showing year-by-year data. "
+        "Also try '[suburb] [state] median house price 2021 2022 2023 2024 2025'. "
+        "Return up to 6 yearly median house prices for 2021–2026. Include a year if a figure appears in any credible source.\n\n"
+        "STEP 4 — LIFESTYLE AMENITIES\n"
+        "Search '[suburb] [state] supermarket' — find the nearest Coles, Woolworths, or Aldi; return name and approximate distance.\n"
+        "Search '[suburb] [state] gym fitness' — find the nearest gym; return name, approximate distance, and weekly cost if listed.\n"
+        "Search '[suburb] [state] park reserve' — find the nearest public park; return name and approximate distance.\n"
+        "Search '[suburb] [state] GP clinic doctor' — find the nearest GP; return name and approximate distance.\n"
+        "Search '[suburb] [state] hospital' — return the nearest hospital only if within 10 km.\n"
+        "Search '[suburb] [state] freeway motorway' — return the nearest major road and its approximate driving distance.\n"
+        "For all of the above, the suburb and state are extracted from {address}. "
+        "Use any credible source — real estate sites, suburb guides, local directories. Approximate distances are acceptable.\n\n"
+        "STEP 5 — CRIME\n"
+        "Use {crime_url} first if it contains suburb-level crime data.\n"
+        "If {crime_url} is unavailable or lacks suburb-level data, use state police, ABS, or another official authority.\n"
+        "Do not estimate crime unless actual offence rates are available.\n"
+        "crime_safety_percentile must be derived from the suburb's offence rate versus the state average, where 100 = safest.\n"
+        "crime_violent_vs_state_avg_pct and crime_property_vs_state_avg_pct must be calculated from actual rates if available; otherwise null.\n\n"
+        "RETURN JSON WITH THESE KEYS\n"
+        "suburb, postcode, median_house_price, median_unit_price, price_growth_5yr, rental_yield, demographics, key_amenities, liveability_score, "
+        "nearest_freeway (object: name, distance_km), "
+        "nearby_gps (list of up to 2 objects: name, distance_km), "
+        "nearby_hospitals (list of up to 3 objects: name, distance_km — only if within 10km), "
+        "nearby_supermarkets (list of up to 2 objects: name, distance_km), "
+        "nearby_parks (list of up to 2 objects: name, distance_km), "
+        "nearby_gyms (list of up to 2 objects: name, distance_km, weekly_cost_aud), "
+        "crime_safety_percentile, crime_violent_vs_state_avg_pct, crime_property_vs_state_avg_pct, "
+        "price_history_5yr (list of objects: year, median_house_price), "
+        "moving_here_demographic, becoming_narrative."
+    ),
+
+    "schools": (
+        "Research the property at {address}.\n"
+        "Use location-aware search and map-based lookups.\n"
+        "Prefer official government and state education sources first.\n"
+        "Do not assume suburb-level catchment for this specific address — confirm boundary inclusion explicitly.\n"
+        "Return only verified facts. If catchment, distance, or ICSEA cannot be confirmed, return null.\n\n"
+        "Goal: return verified school catchment, school quality, and nearby school options for this address.\n\n"
+        "SOURCE ORDER\n"
+        "1. Official catchment/boundary systems and state education sources.\n"
+        "2. myschool.edu.au / ACARA for school profile data.\n"
+        "3. School websites for fees only if official and publicly posted.\n"
+        "4. Commercial school directories only if necessary for proximity, not for catchment confirmation.\n\n"
+        "STEP 1 — PRIMARY CATCHMENT\n"
+        "Find the official government primary school catchment for {address}.\n"
+        "Use the official state school zone map (e.g. findmyschool.vic.gov.au for VIC, or equivalent) "
+        "to confirm whether this address is inside the catchment boundary (in_catchment = true/false).\n"
+        "Then return the nearest school name, ICSEA from myschool.edu.au, latest available NAPLAN reading and numeracy, "
+        "and walking distance from the property using a street-level source.\n"
+        "Add 1-2 other nearby primary schools within 2 km if verifiable.\n\n"
+        "STEP 2 — SECONDARY CATCHMENT\n"
+        "Find the official government secondary school catchment for {address}.\n"
+        "Confirm whether the address is inside the boundary using the official state school zone map.\n"
+        "Return the school name, ICSEA from myschool.edu.au, latest available NAPLAN reading and numeracy, "
+        "and walking distance from the property.\n"
+        "Add 1-2 other nearby secondary schools within 2 km if verifiable.\n\n"
+        "STEP 3 — PRIVATE SCHOOLS\n"
+        "Search for Catholic, Independent, Anglican, Selective, or other private options within 5 km.\n"
+        "For each, return school_type, ICSEA where available, and annual tuition fees only if posted on an official school source.\n"
+        "If tuition fees are not publicly posted, return null.\n\n"
+        "STEP 4 — QUALITY SUMMARY\n"
+        "Use the average ICSEA of the in-catchment government schools only.\n"
+        "Assign school_quality_summary exactly as: Excellent, Strong, Average, Below Average, or Limited.\n"
+        "≥1080 avg ICSEA = Excellent, 1040–1079 = Strong, 1000–1039 = Average, 960–999 = Below Average, <960 = Limited.\n"
+        "If average ICSEA cannot be verified, return null.\n\n"
+        "RETURN JSON WITH THESE KEYS\n"
+        "primary_schools (list: name, distance_km, icsea, in_catchment, walk_mins, naplan_reading_pct, naplan_numeracy_pct), "
+        "secondary_schools (same fields), "
+        "private_schools (list: name, distance_km, icsea, school_type, fees_annual_aud, naplan_reading_pct, naplan_numeracy_pct), "
+        "in_catchment_zone, school_quality_summary."
+    ),
+
+    "government_projects": (
+        "Property: {address}\nState: {state}\n\n"
+        "Goal: return verified infrastructure and development activity likely to affect this property.\n\n"
+        "SOURCE ORDER\n"
+        "1. Official state, council, planning portal, or infrastructure agency sources.\n"
+        "2. Official DA registers and planning permit registers.\n"
+        "3. Major project announcements from government sources.\n"
+        "4. Commercial or media sources only if no official record exists.\n\n"
+        "STEP 1 — INFRASTRUCTURE\n"
+        "Search for planned, approved, under construction, or completed projects near the property.\n"
+        "Include only projects that are plausibly relevant to the area and have a verified source.\n\n"
+        "STEP 2 — DAs\n"
+        "Search official DA or planning permit registers for recent or nearby applications.\n"
+        "Include only significant DAs within 1 km if verifiable.\n"
+        "If none are found, return an empty list.\n\n"
+        "STEP 3 — ZONING / OVERLAYS\n"
+        "Check {planning_url} or the official planning map for zoning changes, overlays, or amendments affecting the address.\n"
+        "If no change is confirmed, return null.\n\n"
+        "STEP 4 — IMPACT\n"
+        "impact_on_value must be one of Positive, Neutral, or Negative based only on verified projects and planning evidence.\n\n"
+        "RETURN JSON WITH THESE KEYS\n"
+        "infrastructure_projects (list: name, type, status, description), "
+        "nearby_das (list: address, description, status, lodged_date, impact), "
+        "zoning_changes, impact_on_value, impact_reason."
+    ),
+
+    "transport": (
+        "Research the property at {address}, {state}.\n"
+        "Prefer official transport agency sources first; use any credible source if official data is unavailable.\n"
+        "For walking distances, approximate values based on suburb context are acceptable.\n\n"
+        "Goal: return transport access and commute information for this address.\n\n"
+        "SOURCE ORDER\n"
+        "1. Official transport agencies: PTV, TfNSW, Translink, Transperth, or equivalent.\n"
+        "2. Street-level map results for walking distance.\n"
+        "3. Commercial property pages only if needed for distance confirmation.\n\n"
+        "STEP 1 — TRAIN\n"
+        "Search '[suburb] [state] train station' using the suburb and state from {address} "
+        "to find the nearest station name, line, and CBD travel time. "
+        "Then search 'walking distance [suburb] to [station name]' or check any real estate listing or "
+        "suburb profile that mentions the walk time from the suburb to the station. "
+        "Approximate walking distances from suburb context are acceptable — return the best available estimate. "
+        "Return distance_km rounded to 2 decimal places.\n\n"
+        "STEP 2 — BUS\n"
+        "Search '[suburb] [state] bus routes' using {transport_url} or any official or suburb-level source. "
+        "The suburb and state are extracted from {address}. "
+        "List only routes that plausibly stop within 1 km of the address.\n\n"
+        "STEP 3 — TRAM\n"
+        "Confirm tram access only if a tram stop is confirmed within 500m of the suburb in {address}.\n\n"
+        "STEP 4 — DRIVE\n"
+        "Search '[suburb] [state] drive time CBD' using the suburb and state from {address}. "
+        "Return peak and off-peak estimates from any credible source. If neither can be found, return null.\n\n"
+        "RETURN JSON WITH THESE KEYS\n"
+        "nearest_train (object: name, distance_km, line, cbd_mins), "
+        "bus_routes, tram_access, drive_to_cbd_peak_mins, drive_to_cbd_offpeak_mins, "
+        "walkability_score, cycling_infrastructure."
+    ),
+
+    "property_market": (
+        "Property: {address}\n\n"
+        "Goal: return the verified sales history and current market context for this specific property.\n\n"
+        "SOURCE ORDER\n"
+        "1. Official listing pages or property records.\n"
+        "2. Major portals such as realestate.com.au and domain.com.au.\n"
+        "3. Historical sold-price pages and suburb sales history sources.\n"
+        "4. Suburb-level market summaries.\n\n"
+        "CRITICAL RULE\n"
+        "You MUST find the last sold price for this specific property if it exists publicly.\n"
+        "Stop only after you have verified the sale price with a credible source.\n"
+        "If no sale price can be verified, return null.\n\n"
+        "STEP 1\n"
+        "Fetch the realestate.com.au property page directly if available.\n\n"
+        "STEP 2\n"
+        "If no sale price is found, search \"{address} sold 2025 OR 2024 OR 2023\".\n\n"
+        "STEP 3\n"
+        "If still not found, search \"{address} sold site:domain.com.au\".\n\n"
+        "STEP 4\n"
+        "If still not found, search \"{address} sold price history\".\n\n"
+        "STEP 5\n"
+        "Find comparable recent sales from the current market, prioritising the most recent sales within the suburb and nearby suburbs.\n\n"
+        "STEP 6\n"
+        "Add suburb-level days on market, auction clearance rate, and market outlook only if verifiable.\n\n"
+        "RETURN JSON WITH THESE KEYS\n"
+        "subject_property_last_sale (object: price (numeric AUD), date (string e.g. 'February 2025')), "
+        "comparable_sales (list: address, sale_price, sale_date, bedrooms, bathrooms, land_sqm), "
+        "days_on_market, auction_clearance_rate, price_per_sqm, best_pockets, market_outlook."
+    ),
+
+    "risk_overlays": (
+        "Research the property at {address}, {state}.\n"
+        "Use location-aware search and map-based lookups.\n"
+        "Prefer official flood, planning, bushfire, and environmental mapping sources first.\n"
+        "Do not assume suburb-level risk for this specific address.\n"
+        "Return only confirmed risks. If a map source does not explicitly show a result for this address, return null.\n"
+        "Do not infer a hazard from proximity alone unless the source explicitly supports it.\n\n"
+        "Goal: return verified property risk and overlay data.\n\n"
+        "SOURCE ORDER\n"
+        "1. Official flood, bushfire, planning, heritage, and environmental mapping sources.\n"
+        "2. Council or state planning maps.\n"
+        "3. Official hazard or environmental agency sources.\n"
+        "4. Commercial risk pages only if no official source exists.\n\n"
+        "STEP 1 — FLOOD\n"
+        "Check the official flood map at {flood_url} for {address}.\n"
+        "Return the confirmed flood zone status (High, Medium, Low, or Negligible) with one sentence of context.\n"
+        "If the flood map does not explicitly show a result for this address, return null.\n\n"
+        "STEP 2 — BUSHFIRE\n"
+        "Search '[suburb] [state] bushfire attack level BAL rating'.\n"
+        "Return the BAL rating (BAL-FZ, BAL-40, BAL-29, BAL-19, BAL-12.5, BAL-Low, or N/A) only if confirmed.\n\n"
+        "STEP 3 — PLANNING OVERLAYS\n"
+        "Check the official planning map at {planning_url} for {address}.\n"
+        "Return only confirmed zoning codes, overlays, and amendments that apply to this address.\n"
+        "If the planning map does not explicitly show a result for this address, return null.\n\n"
+        "STEP 4 — NOISE / OTHER\n"
+        "Search for airport, rail, freeway, contamination, or other verified local hazards near {address}.\n"
+        "Only return confirmed hazards with an explicit source.\n\n"
+        "RETURN JSON WITH THESE KEYS\n"
+        "flood_risk, bushfire_bal_rating, heritage_overlay, landscape_overlay, "
+        "airport_overlay, noise_concerns, contamination_flags, subdivision_potential."
+    ),
+
+    "property_intel": (
+        "Property: {address}\nState: {state}\n\n"
+        "Goal: return verified physical and planning attributes for this property.\n\n"
+        "SOURCE ORDER\n"
+        "1. Official listing pages or property records.\n"
+        "2. Major portals such as realestate.com.au and domain.com.au.\n"
+        "3. Planning maps and council records.\n"
+        "4. Other property profile sources only if needed.\n\n"
+        "STEP 1\n"
+        "Fetch the realestate.com.au page if available and extract bedrooms, bathrooms, parking, and land size.\n\n"
+        "STEP 2\n"
+        "Search domain.com.au for the same property and compare only if needed.\n\n"
+        "STEP 3\n"
+        "Search for property attributes using the address.\n\n"
+        "STEP 4\n"
+        "Check {planning_url} for zoning code and planning description.\n\n"
+        "Only return fields that are supported by a reliable source. Use null for unknowns.\n\n"
+        "RETURN JSON WITH THESE KEYS\n"
+        "land_sqm, dwelling_type, frontage_m, bedrooms, bathrooms, parking, year_built, "
+        "zoning_code, zoning_description, corner_block, subdivision_potential, "
+        "development_feasibility, renovation_potential, knockdown_rebuild_viability, street_position_quality."
     ),
 }
 
@@ -657,14 +986,19 @@ def _parse_json(text: str, label: str = "") -> dict:
 
 # Tasks that need more web searches to reliably find specific data
 _TASK_MAX_SEARCHES = {
-    "property_market":     10,  # direct fetch + fallback queries + comps + market data
-    "government_projects": 5,   # must search council + state + planning portal
-    "suburb":              6,   # median price + rental yield + price history + crime
+    "property_market":     10,
+    "government_projects": 5,
+    "suburb":              6,
+    "schools":             4,
+    "transport":           4,
+    "risk_overlays":       4,
 }
 _DEFAULT_MAX_SEARCHES = 3
 
 _TASK_MAX_TOKENS = {
-    "property_market": 6000,  # verbose reasoning + full JSON; 3000 causes truncation
+    "property_market": 6000,
+    "risk_overlays":   4000,
+    "schools":         3500,
 }
 _DEFAULT_MAX_TOKENS = 3000
 
@@ -677,6 +1011,23 @@ _RESEARCH_SYSTEM_PROMPT = (
     "Keep every string value concise — one short sentence or a few words max. "
     "Never include a 'sources', 'citations', or 'notes' field unless the prompt "
     "explicitly requests it."
+)
+
+_RESEARCH_SYSTEM_PROMPT_PERPLEXITY = (
+    "Australian property researcher. Return valid JSON only. No prose, no markdown, "
+    "no citations, no notes, no extra keys unless the task explicitly allows them.\n\n"
+    "Use authoritative sources first: government, council, regulator, school, official property records, "
+    "or official open-data portals. Use commercial portals if no official source provides the field. "
+    "Never use forums, social media, or unverified blogs.\n\n"
+    "For proximity and amenity fields (nearby places, transport distances, price history), "
+    "any credible source is acceptable — real estate listings, suburb guides, local directories, "
+    "property portals, or transport sites. Approximate distances are acceptable when exact figures "
+    "are unavailable. Do not return null just because an official source does not exist for these fields; "
+    "use the best available source and return a reasonable estimate.\n\n"
+    "For all other fields: do not guess or invent values. Use null only if you genuinely cannot find "
+    "any credible information after searching.\n\n"
+    "All numeric fields must be numbers, not strings. Round only when the task specifies. "
+    "If sources conflict, prefer the most recent. Keep each string concise: one short sentence or a few words max."
 )
 
 
@@ -729,12 +1080,13 @@ def _run_research_task_perplexity(task_name: str, prompt: str) -> str:
                     {"role": "system", "content": _RESEARCH_SYSTEM_PROMPT},
                     {"role": "user",   "content": prompt},
                 ],
+                timeout=120,
             )
             return response.choices[0].message.content or ""
         except Exception as e:
             if attempt == 3:
                 raise
-            wait = 60 * (attempt + 1)
+            wait = 30 * (attempt + 1)
             print(f"  ⏳ Perplexity error on {task_name} ({e}), retrying in {wait}s...")
             time.sleep(wait)
 
@@ -748,7 +1100,8 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
 
     state         = _get_state(address)
     current_month = datetime.datetime.now().strftime("%B %Y")
-    prompt = RESEARCH_TASKS[task_name].format(
+    task_dict = RESEARCH_TASKS
+    prompt = task_dict[task_name].format(
         address=address,
         state=state["label"],
         planning_url=state["planning"],
@@ -784,6 +1137,22 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
 
     result = _parse_json(full_text, task_name)
 
+    if task_name == "suburb":
+        print(f"  📄 [DEBUG suburb] raw output (first 1000):\n{full_text[:1000]}")
+        print(f"  📊 [DEBUG suburb] price_history_5yr = {result.get('price_history_5yr')}")
+        print(f"  📊 [DEBUG suburb] nearby_supermarkets = {result.get('nearby_supermarkets')}")
+        print(f"  📊 [DEBUG suburb] nearby_parks = {result.get('nearby_parks')}")
+        print(f"  📊 [DEBUG suburb] nearby_gyms = {result.get('nearby_gyms')}")
+        print(f"  📊 [DEBUG suburb] nearby_gps = {result.get('nearby_gps')}")
+        print(f"  📊 [DEBUG suburb] top-level keys = {list(result.keys())[:20]}")
+
+    if task_name == "transport":
+        print(f"  📄 [DEBUG transport] raw output (first 1000):\n{full_text[:1000]}")
+        print(f"  📊 [DEBUG transport] nearest_train = {result.get('nearest_train')}")
+        print(f"  📊 [DEBUG transport] bus_routes = {result.get('bus_routes')}")
+        print(f"  📊 [DEBUG transport] drive_to_cbd_offpeak_mins = {result.get('drive_to_cbd_offpeak_mins')}")
+        print(f"  📊 [DEBUG transport] top-level keys = {list(result.keys())}")
+
     # Overwrite crime fields with authoritative MCP values (belt-and-suspenders —
     # ensures the AI didn't alter or ignore the injected values).
     if crime_data and crime_data.get("coverage") == "available":
@@ -791,6 +1160,9 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
         result["crime_violent_vs_state_avg_pct"] = crime_data.get("crime_violent_vs_state_avg_pct")
         result["crime_property_vs_state_avg_pct"]= crime_data.get("crime_property_vs_state_avg_pct")
         result["crime_data_source"]              = crime_data.get("data_source")
+        if crime_data.get("crime_trend_3yr"):
+            result["crime_trend_3yr"]   = crime_data["crime_trend_3yr"]
+            result["crime_trend_years"] = crime_data.get("crime_trend_years")
 
     return result
 
@@ -849,12 +1221,13 @@ SECTIONS TO WRITE:
 **Property Type:** [type if known, else 'Residential']
 
 ## EXECUTIVE SUMMARY
-[1-2 short sentences: where the property is, headline data, one-line stance]
+[3–4 sentences covering: (1) property location and type, (2) key suburb metrics (median price, rental yield, school quality), (3) market conditions and recent comparable sales context, (4) overall investment/lifestyle assessment. Write in plain English, no bullet points in this paragraph. Be specific — cite actual figures from the data.]
 
 ### Key Highlights
-- [bullet — max 15 words]
-- [bullet]
-- [bullet]
+- [bullet — 15–25 words, include a specific figure where possible]
+- [bullet — 15–25 words, include a specific figure where possible]
+- [bullet — 15–25 words, include a specific figure where possible]
+- [bullet — 15–25 words, include a specific figure where possible]
 
 ### Primary Concerns
 - [bullet]
@@ -890,8 +1263,8 @@ SECTIONS TO WRITE:
 ### What This Suburb Is Becoming
 [MAX 2 sentences — forward-looking but grounded.]
 
-### Household & Amenities
-- [MAX 4 bullets covering household type, income, employment, key amenities. DO NOT list freeway / GPs / hospitals — the Amenities panel renders those.]
+### Lifestyle
+- [MAX 4 bullets covering household type, income, employment, and community character. DO NOT list supermarkets / gyms / parks / freeway / GPs / hospitals — the Lifestyle table in the body renders those.]
 
 After completing every section above, output exactly this token on its own line and STOP:
 
@@ -909,7 +1282,7 @@ MISSING-DATA WORDING rules — never 'Data unavailable'.
 """ + _SHARED_RULES + """
 SECTIONS TO WRITE:
 ## SCHOOLS CATCHMENT
-[MAX 2 short sentences — the ICSEA chart renders per-school detail. Do NOT enumerate school names with scores.]
+[MAX 2 short sentences — the school detail table renders catchment status, ICSEA, NAPLAN percentiles, and proximity for each school. Reference the qualitative picture only (e.g. in-catchment schools above national average, walkable from the property) — do NOT list individual school names or numeric scores.]
 
 ## INFRASTRUCTURE & DEVELOPMENT
 - [MAX 4 bullets total — combine major projects, planning reforms, recent completions. Each ≤18 words.]
@@ -976,7 +1349,8 @@ Do not write anything else after the sentinel.
 """
 
 
-_SYNTHESIS_MODEL = "claude-sonnet-4-6"
+_SYNTHESIS_MODEL         = "claude-sonnet-4-6"
+_SYNTHESIS_MODEL_DEEPSEEK = "deepseek-chat"
 
 
 def _data_sources_section(address: str, research_data: dict) -> str:
@@ -1028,6 +1402,37 @@ def _synth_chunk(
             time.sleep(wait)
 
 
+def _synth_chunk_deepseek(
+    user_prompt: str,
+    system_text: str,
+    max_tok: int,
+    label: str,
+) -> str:
+    deepseek_client = _OpenAI(
+        api_key=os.environ["DEEPSEEK_API_KEY"],
+        base_url="https://api.deepseek.com",
+    )
+    for attempt in range(4):
+        try:
+            response = deepseek_client.chat.completions.create(
+                model=_SYNTHESIS_MODEL_DEEPSEEK,
+                max_tokens=max_tok,
+                messages=[
+                    {"role": "system", "content": system_text},
+                    {"role": "user",   "content": user_prompt},
+                ],
+                timeout=120,
+            )
+            return response.choices[0].message.content or ""
+        except Exception as e:
+            if attempt == 3:
+                raise
+            wait = 30 * (attempt + 1)
+            print(f"  ⏳ DeepSeek error on {label} ({e}), retrying in {wait}s...")
+            time.sleep(wait)
+    return ""
+
+
 def _trim_at_sentinel(text: str, sentinel: str) -> str:
     """Cut off everything from the sentinel onward — guards against the model
     overrunning into sections that belong to the other chunk."""
@@ -1038,7 +1443,8 @@ def _trim_at_sentinel(text: str, sentinel: str) -> str:
 def synthesise_report(client: anthropic.Anthropic, address: str, research_data: dict) -> str:
     """Synthesise all research data into a buyer-friendly narrative report."""
 
-    print("  ✍️  Synthesising report (2 parallel chunks on Sonnet 4.6)...")
+    backend_label = "DeepSeek deepseek-chat" if _SYNTHESIS_BACKEND == "deepseek" else "Sonnet 4.6"
+    print(f"  ✍️  Synthesising report (2 parallel chunks on {backend_label})...")
 
     today_str   = datetime.datetime.now().strftime("%B %Y")
     user_prompt = (
@@ -1051,8 +1457,12 @@ def synthesise_report(client: anthropic.Anthropic, address: str, research_data: 
     )
 
     with ThreadPoolExecutor(max_workers=2) as executor:
-        f_a = executor.submit(_synth_chunk, client, user_prompt, _SYNTHESIS_SYSTEM_A, 2500, "synthesis-A")
-        f_b = executor.submit(_synth_chunk, client, user_prompt, _SYNTHESIS_SYSTEM_B, 2500, "synthesis-B")
+        if _SYNTHESIS_BACKEND == "deepseek":
+            f_a = executor.submit(_synth_chunk_deepseek, user_prompt, _SYNTHESIS_SYSTEM_A, 4096, "synthesis-A")
+            f_b = executor.submit(_synth_chunk_deepseek, user_prompt, _SYNTHESIS_SYSTEM_B, 4096, "synthesis-B")
+        else:
+            f_a = executor.submit(_synth_chunk, client, user_prompt, _SYNTHESIS_SYSTEM_A, 2500, "synthesis-A")
+            f_b = executor.submit(_synth_chunk, client, user_prompt, _SYNTHESIS_SYSTEM_B, 2500, "synthesis-B")
         part_a = _trim_at_sentinel(f_a.result(), "<<END_A>>")
         part_b = _trim_at_sentinel(f_b.result(), "<<END_B>>")
 
@@ -1126,9 +1536,16 @@ def research_property(address: str, api_key: str = None) -> PropertyReport:
 
     # Run all research tasks + Domain API last-sale lookup in parallel
     research_data = {}
+    state_abbrev  = _get_state_abbrev(address)
+    suburb_name   = _extract_suburb(address)
 
-    with ThreadPoolExecutor(max_workers=len(RESEARCH_TASKS) + 1) as executor:
+    with ThreadPoolExecutor(max_workers=len(RESEARCH_TASKS) + 2) as executor:
         domain_future = executor.submit(_domain_get_last_sale, address)
+
+        # NSW DA lookup — runs in parallel, overrides nearby_das after research
+        da_future = None
+        if state_abbrev == "NSW" and _get_nsw_das and suburb_name:
+            da_future = executor.submit(_get_nsw_das, suburb_name)
 
         task_futures = {
             executor.submit(run_research_task, client, task_name, address): task_name
@@ -1154,6 +1571,34 @@ def research_property(address: str, api_key: str = None) -> PropertyReport:
                 print("  ✅ [Domain API] Last sale injected into property_market")
         except Exception as e:
             print(f"  ⚠️  [Domain API] Result unavailable: {e}")
+
+        # Inject historical NSW DA planning character into government_projects
+        if da_future is not None:
+            try:
+                da_result = da_future.result(timeout=30)
+                if da_result.get("coverage") == "available":
+                    gp = research_data.get("government_projects")
+                    if not isinstance(gp, dict):
+                        research_data["government_projects"] = {}
+                        gp = research_data["government_projects"]
+                    # Store as planning_character — historical data, not current DA status
+                    gp["planning_character_2018_2023"] = {
+                        "total_das_lodged":     da_result.get("total_records", 0),
+                        "multi_dwelling_das":   da_result.get("multi_dwelling_count", 0),
+                        "large_projects":       da_result.get("large_project_count", 0),
+                        "notable_projects":     da_result.get("notable_projects", []),
+                        "data_period":          da_result.get("data_period", "2018–2023"),
+                    }
+                    print(
+                        f"  ✅ [NSW DA] Historical: {da_result['total_records']} DAs lodged, "
+                        f"{da_result.get('multi_dwelling_count', 0)} multi-dwelling"
+                    )
+                elif da_result.get("coverage") == "no_data":
+                    print(f"  ℹ️  [NSW DA] No historical DA records for '{suburb_name}'")
+                else:
+                    print(f"  ⚠️  [NSW DA] Error: {da_result.get('error', 'unknown')}")
+            except Exception as e:
+                print(f"  ⚠️  [NSW DA] Result unavailable: {e}")
 
     print("\n📝 All research complete. Synthesising...")
     print("=" * 60)

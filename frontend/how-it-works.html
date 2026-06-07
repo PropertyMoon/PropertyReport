@@ -373,6 +373,124 @@
       margin-top: 2px;
     }
 
+    /* ── SAMPLE REPORT ── */
+    .sample-section {
+      background: linear-gradient(160deg, #ecfdf5 0%, var(--cream) 100%);
+      padding: 80px 60px;
+      border-top: 1px solid rgba(15,23,42,0.06);
+    }
+    .sample-inner {
+      max-width: 960px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+      align-items: center;
+    }
+    .sample-text h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(26px, 3vw, 36px);
+      color: var(--navy);
+      font-weight: 700;
+      margin-bottom: 14px;
+      line-height: 1.2;
+    }
+    .sample-text p {
+      font-size: 15px;
+      color: var(--grey-text);
+      line-height: 1.7;
+      margin-bottom: 22px;
+    }
+    .sample-list {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 28px;
+    }
+    .sample-list li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      color: var(--grey-text);
+      padding: 5px 0;
+    }
+    .sample-list li::before {
+      content: '✓';
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(16,185,129,0.18);
+      color: var(--green);
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .btn-sample {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 28px;
+      background: var(--navy);
+      color: var(--white);
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 4px 16px rgba(15,23,42,0.2);
+    }
+    .btn-sample:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(15,23,42,0.3);
+    }
+    .sample-preview {
+      background: var(--white);
+      border-radius: 14px;
+      box-shadow: 0 12px 48px rgba(15,23,42,0.14);
+      overflow: hidden;
+      border: 1px solid rgba(15,23,42,0.07);
+    }
+    .sample-preview-header {
+      background: var(--navy-dark);
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .sample-preview-header span {
+      font-family: 'Playfair Display', serif;
+      font-size: 14px;
+      color: var(--white);
+      font-weight: 700;
+    }
+    .sample-preview-header span em { color: var(--gold); font-style: normal; }
+    .sample-preview-body {
+      padding: 20px 20px 0;
+    }
+    .sample-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .sample-block {
+      border-radius: 6px;
+      flex-shrink: 0;
+    }
+    .sample-preview-footer {
+      height: 40px;
+      background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.96));
+      position: relative;
+      top: -1px;
+    }
+    @media (max-width: 768px) {
+      .sample-section { padding: 60px 20px; }
+      .sample-inner { grid-template-columns: 1fr; gap: 32px; }
+      .sample-preview { display: none; }
+    }
+
     /* ── DISCLOSURE ── */
     .disclosure {
       background: linear-gradient(180deg, var(--cream) 0%, var(--white) 100%);
@@ -472,8 +590,9 @@
 
     @media (max-width: 768px) {
       nav { padding: 16px 20px; }
-      .nav-links { gap: 18px; }
+      .nav-links { gap: 14px; }
       .nav-links a { font-size: 13px; }
+      .nav-tag { display: none; }
       .hero { padding: 60px 20px 80px; }
       .section { padding: 60px 20px; }
       .compare-grid { grid-template-columns: 1fr; }
@@ -567,7 +686,7 @@
           <li>Findings synthesised into a structured, easy-to-scan report</li>
           <li>Every section anchored to concrete numbers, not vibes</li>
           <li>Branded PDF emailed automatically when complete</li>
-          <li>Re-run for any number of shortlist properties at $20 each</li>
+          <li>Re-run for any number of shortlist properties at $9.99 each</li>
         </ul>
         <div class="compare-time">Realistic timeframe: <strong>under 10 minutes</strong></div>
       </div>
@@ -592,6 +711,74 @@
     <div class="source-tile"><div class="icon">🏗️</div><div class="label">Infrastructure Pipelines<small>Federal &amp; state project announcements</small></div></div>
   </div>
 </div>
+
+<!-- SAMPLE REPORT -->
+<section class="sample-section">
+  <div class="sample-inner">
+    <div class="sample-text">
+      <div class="section-eyebrow">See for yourself</div>
+      <h2>What a real report looks like.</h2>
+      <p>This is an actual PropertyReport generated for a home in Taylors Lakes, VIC — the same format, depth and structure you'll receive for any Australian property.</p>
+      <ul class="sample-list">
+        <li>Cover dashboard with key metrics, charts and comparable sales</li>
+        <li>Executive summary, suburb profile and market analysis</li>
+        <li>School catchments with ICSEA scores and quality rating</li>
+        <li>Government infrastructure projects and risk overlays</li>
+        <li>Transport breakdown and development potential</li>
+        <li>Scored verdict with buyer suitability guidance</li>
+      </ul>
+      <a class="btn-sample" href="/sample_report.pdf" target="_blank" rel="noopener">
+        📄 Download Sample Report
+      </a>
+    </div>
+
+    <!-- Visual mockup of a report page -->
+    <div class="sample-preview">
+      <div class="sample-preview-header">
+        <span>Property<em>Report</em></span>
+        <span style="margin-left:auto;font-size:11px;color:rgba(255,255,255,0.5);font-family:'DM Sans',sans-serif;">SAMPLE</span>
+      </div>
+      <div class="sample-preview-body">
+        <!-- Address bar -->
+        <div style="background:#f1f5f9;border-left:4px solid #1e293b;padding:10px 14px;border-radius:0 8px 8px 0;margin-bottom:14px;">
+          <div style="font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#94a3b8;margin-bottom:3px;">Property Address</div>
+          <div style="font-size:13px;font-weight:700;color:#1e293b;">35 Pindari Ave, Taylors Lakes VIC 3038</div>
+          <div style="font-size:10px;color:#94a3b8;margin-top:2px;">Report generated June 2026</div>
+        </div>
+        <!-- Metric row -->
+        <div class="sample-row">
+          <div style="flex:1;background:#f8fafc;border-radius:8px;padding:10px;text-align:center;border:1px solid #e2e8f0;">
+            <div style="font-size:9px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;color:#94a3b8;margin-bottom:4px;">Median Price</div>
+            <div style="font-size:14px;font-weight:700;color:#1e293b;">$960K</div>
+          </div>
+          <div style="flex:1;background:#f8fafc;border-radius:8px;padding:10px;text-align:center;border:1px solid #e2e8f0;">
+            <div style="font-size:9px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;color:#94a3b8;margin-bottom:4px;">Train to CBD</div>
+            <div style="font-size:14px;font-weight:700;color:#1e293b;">34 min</div>
+          </div>
+          <div style="flex:1;background:#f8fafc;border-radius:8px;padding:10px;text-align:center;border:1px solid #e2e8f0;">
+            <div style="font-size:9px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;color:#94a3b8;margin-bottom:4px;">Schools</div>
+            <div style="font-size:13px;font-weight:700;color:#059669;">Strong</div>
+          </div>
+        </div>
+        <!-- Section stubs -->
+        <div style="margin-bottom:8px;background:#f8fafc;border-radius:6px;padding:10px 12px;">
+          <div style="font-size:10px;font-weight:700;color:#1e293b;margin-bottom:6px;">EXECUTIVE SUMMARY</div>
+          <div style="height:6px;background:#e2e8f0;border-radius:3px;margin-bottom:4px;width:100%;"></div>
+          <div style="height:6px;background:#e2e8f0;border-radius:3px;margin-bottom:4px;width:90%;"></div>
+          <div style="height:6px;background:#e2e8f0;border-radius:3px;width:75%;"></div>
+        </div>
+        <div style="background:#f8fafc;border-radius:6px;padding:10px 12px;margin-bottom:0;">
+          <div style="font-size:10px;font-weight:700;color:#1e293b;margin-bottom:6px;">COMPARABLE SALES</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:4px;padding:5px 8px;font-size:10px;color:#475569;">13 Pindari Ave — $775K</div>
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:4px;padding:5px 8px;font-size:10px;color:#475569;">28 Cloudburst Ave — $942K</div>
+          </div>
+        </div>
+      </div>
+      <div class="sample-preview-footer"></div>
+    </div>
+  </div>
+</section>
 
 <!-- DISCLOSURE -->
 <section class="disclosure">

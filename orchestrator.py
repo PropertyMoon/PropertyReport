@@ -1077,7 +1077,7 @@ def _run_research_task_perplexity(task_name: str, prompt: str) -> str:
             response = perplexity_client.chat.completions.create(
                 model="sonar-pro",
                 messages=[
-                    {"role": "system", "content": _RESEARCH_SYSTEM_PROMPT_PERPLEXITY},
+                    {"role": "system", "content": _RESEARCH_SYSTEM_PROMPT},
                     {"role": "user",   "content": prompt},
                 ],
                 timeout=120,
@@ -1100,7 +1100,7 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
 
     state         = _get_state(address)
     current_month = datetime.datetime.now().strftime("%B %Y")
-    task_dict = RESEARCH_TASKS_PERPLEXITY if _RESEARCH_BACKEND == "perplexity" else RESEARCH_TASKS
+    task_dict = RESEARCH_TASKS
     prompt = task_dict[task_name].format(
         address=address,
         state=state["label"],

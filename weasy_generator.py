@@ -1596,7 +1596,7 @@ body {
 
 .dashboard {
   display: grid;
-  grid-template-rows: 88px 205px 185px 88px;
+  grid-template-rows: 88px 205px 185px 110px;
   gap: 8px;
 }
 
@@ -2012,7 +2012,7 @@ body {
 .pipeline-row.planned .icon-sm   { background: var(--orange-soft);  color: var(--orange); }
 
 /* ── VERDICT BAND ── */
-.verdict-row { grid-template-columns: 1.4fr 1fr 1fr 1fr 1.2fr; gap: 8px; height: 88px; overflow: hidden; }
+.verdict-row { grid-template-columns: 1.4fr 1fr 1fr 1fr 1.2fr; gap: 8px; height: 110px; overflow: hidden; }
 .verdict-band {
   background: var(--navy);
   color: white;

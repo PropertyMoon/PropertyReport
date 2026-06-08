@@ -47,6 +47,10 @@ _CRIME_MCP_URL = os.getenv(
     "CRIME_MCP_URL",
     "https://au-crime-mcp-production.up.railway.app/suburb-crime",
 )
+_MEDIAN_MCP_URL = os.getenv(
+    "MEDIAN_MCP_URL",
+    "https://au-median-price-mcp-production.up.railway.app/suburb-median",
+)
 
 _STREET_TYPE_RE = re.compile(
     r'\b(Street|St|Road|Rd|Avenue|Ave|Drive|Dr|Court|Ct|Place|Pl|Crescent|Cres|'
@@ -113,6 +117,37 @@ def _inject_crime_into_suburb_prompt(prompt: str, crime: dict) -> str:
             break
     if step4_start >= 0 and return_json_start >= 0:
         return prompt[:step4_start] + injected + "\n" + prompt[return_json_start:]
+    return prompt
+
+
+def _fetch_median_price_data(suburb: str, state: str) -> dict | None:
+    """Call the au-median-price-mcp /suburb-median endpoint. Returns None on failure."""
+    if not suburb or not state:
+        return None
+    try:
+        r = httpx.get(_MEDIAN_MCP_URL, params={"suburb": suburb, "state": state}, timeout=60)
+        if r.status_code == 200:
+            return r.json()
+    except Exception as e:
+        print(f"  ⚠️  Median Price MCP unavailable ({e}), falling back to web search")
+    return None
+
+
+def _inject_median_into_suburb_prompt(prompt: str, median: dict) -> str:
+    """Replace STEP 1 (MEDIAN PRICE) with pre-fetched authoritative values."""
+    source = median.get("data_source", "authoritative state source")
+    injected = (
+        "STEP 1 — MEDIAN PRICE: Data pre-fetched from authoritative government source. "
+        "Use these exact values — do NOT search for median price:\n"
+        f"  median_house_price = {median.get('median_house_price')}\n"
+        f"  median_unit_price  = {median.get('median_unit_price')}\n"
+        f"  data_period        = {median.get('data_period')}\n"
+        f"  data_source        = {source}\n"
+    )
+    step1_start = prompt.find("STEP 1 — MEDIAN PRICE")
+    step2_start = prompt.find("STEP 2 —", step1_start + 1 if step1_start >= 0 else 0)
+    if step1_start >= 0 and step2_start >= 0:
+        return prompt[:step1_start] + injected + "\n" + prompt[step2_start:]
     return prompt
 
 
@@ -1111,18 +1146,27 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
         current_month=current_month,
     )
 
-    # Pre-fetch crime data for suburb task — inject into prompt so the AI
-    # skips the crime web search and uses authoritative values instead.
-    crime_data = None
+    # Pre-fetch authoritative data for suburb task — inject into prompt so the AI
+    # skips those web searches and uses the pre-fetched values instead.
+    crime_data  = None
+    median_data = None
     if task_name == "suburb":
         suburb_name  = _extract_suburb(address)
         state_abbrev = _get_state_abbrev(address)
-        crime_data   = _fetch_crime_data(suburb_name, state_abbrev)
+
+        crime_data = _fetch_crime_data(suburb_name, state_abbrev)
         if crime_data and crime_data.get("coverage") == "available":
             prompt = _inject_crime_into_suburb_prompt(prompt, crime_data)
             print(f"  ✅ Crime MCP: {suburb_name} {state_abbrev} — percentile={crime_data.get('crime_safety_percentile')}")
         else:
             crime_data = None  # not available — let AI search
+
+        median_data = _fetch_median_price_data(suburb_name, state_abbrev)
+        if median_data and median_data.get("coverage") == "available":
+            prompt = _inject_median_into_suburb_prompt(prompt, median_data)
+            print(f"  ✅ Median MCP: {suburb_name} {state_abbrev} — house=${median_data.get('median_house_price')}")
+        else:
+            median_data = None  # not available — let AI search
 
     if _RESEARCH_BACKEND == "perplexity":
         full_text = _run_research_task_perplexity(task_name, prompt)
@@ -1163,6 +1207,16 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
         if crime_data.get("crime_trend_3yr"):
             result["crime_trend_3yr"]   = crime_data["crime_trend_3yr"]
             result["crime_trend_years"] = crime_data.get("crime_trend_years")
+
+    # Overwrite median price fields with authoritative MCP values.
+    if median_data and median_data.get("coverage") == "available":
+        if median_data.get("median_house_price"):
+            result["median_house_price"] = median_data["median_house_price"]
+        if median_data.get("median_unit_price"):
+            result["median_unit_price"] = median_data["median_unit_price"]
+        if median_data.get("price_history_quarterly"):
+            result["price_history_quarterly"] = median_data["price_history_quarterly"]
+        result["median_price_data_source"] = median_data.get("data_source")
 
     return result
 

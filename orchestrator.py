@@ -1593,7 +1593,7 @@ def research_property(address: str, api_key: str = None) -> PropertyReport:
     state_abbrev  = _get_state_abbrev(address)
     suburb_name   = _extract_suburb(address)
 
-    with ThreadPoolExecutor(max_workers=len(RESEARCH_TASKS) + 2) as executor:
+    with ThreadPoolExecutor(max_workers=3) as executor:
         domain_future = executor.submit(_domain_get_last_sale, address)
 
         # NSW DA lookup — runs in parallel, overrides nearby_das after research

@@ -1291,7 +1291,7 @@ SECTIONS TO WRITE:
 - Owner-occupiers: [LOW / MODERATE / HIGH] — [short reason]
 - Investors: [LOW / MODERATE / HIGH] — [short reason]
 
-<!-- EMAIL_SUMMARY: [Exactly 2 plain-English sentences summarising the property's location, headline data, and investment/lifestyle stance. No markdown, no bullets, no asterisks.] -->
+<!-- EMAIL_SUMMARY: [see user prompt for instructions] -->
 
 ## PROPERTY SNAPSHOT
 [1 short sentence framing the subject-property situation; the data table renders specifics]
@@ -1306,7 +1306,9 @@ SECTIONS TO WRITE:
 - [MAX 3 bullets]
 
 ### 5-Year Outlook
-- [MAX 3 bullets]
+- [Bullet A — primary growth driver: infrastructure pipeline, demographic shift, or rezoning]
+- [Bullet B — one risk that could moderate growth: supply, interest rates, or affordability ceiling]
+- [Bullet C — supply/demand dynamic: vacancy trend, new stock coming, or demand cohort pressure]
 
 ## SUBURB PROFILE
 [1 short sentence framing the suburb]
@@ -1336,7 +1338,7 @@ MISSING-DATA WORDING rules — never 'Data unavailable'.
 """ + _SHARED_RULES + """
 SECTIONS TO WRITE:
 ## SCHOOLS CATCHMENT
-[MAX 2 short sentences — the school detail table renders catchment status, ICSEA, NAPLAN percentiles, and proximity for each school. Reference the qualitative picture only (e.g. in-catchment schools above national average, walkable from the property) — do NOT list individual school names or numeric scores.]
+[MAX 2 short sentences. Name the primary in-catchment school(s) and describe the overall quality level in plain language (e.g. "Taylors Lakes Primary School feeds this address — in-catchment schools average above the national ICSEA mean and are walkable from the property."). The detail table renders individual ICSEA scores and NAPLAN percentiles — do not enumerate those numbers in prose.]
 
 ## INFRASTRUCTURE & DEVELOPMENT
 - [MAX 4 bullets total — combine major projects, planning reforms, recent completions. Each ≤18 words.]
@@ -1374,10 +1376,18 @@ SECTIONS TO WRITE:
 
 **Overall Score: X.X / 10**
 
-[FORMAT IS STRICT: exact labels, score wrapped in ** **, value 0.0-10.0. PDF parses these into a chart — deviation breaks rendering. Safety scale: 10 = safest, 0 = worst.]
+[FORMAT IS STRICT: exact labels, score wrapped in ** **, value 0.0-10.0. PDF parses these into a chart — deviation breaks rendering.]
+
+Score calibration — use these as anchor points for consistency:
+- Growth Potential: 9-10 = strong multi-year price trend + major infrastructure tailwind; 7-8 = steady growth with some tailwind; 5-6 = flat or mixed signals; <5 = declining or speculative
+- Rental Demand: 9-10 = gross yield >5% and tight vacancy; 7-8 = yield 3.5-5% with solid demand; 5-6 = modest yield, average vacancy; <5 = weak rental market
+- Infrastructure: 9-10 = train station <500m; 7-8 = station <2km or strong frequent-bus network; 5-6 = bus-only or infrequent services; <5 = car-dependent with no near-term improvement
+- Safety: derive directly from crime_safety_percentile in the data — percentile 80-100 → score 8-10; 50-79 → 5-7; 20-49 → 3-4; 0-19 → 1-2. Higher percentile = safer = higher score.
+- Family Suitability: 9-10 = ICSEA >1050 in catchment + walkable + high owner-occupancy; 7-8 = above-average schools, family demographic; 5-6 = average schools, mixed demographic; <5 = below-average schools or low family demand
+- Overall Score: weighted average — Growth 25%, Rental 20%, Infrastructure 20%, Safety 15%, Family 20%]
 
 ### Overall Assessment
-[MAX 2 short sentences — buy / hold / avoid leaning.]
+[MAX 2 sentences. First sentence: state a clear buy / hold / wait position — do not hedge. Second sentence: give the single most important reason supporting that position.]
 
 ### Strengths
 1. [item ≤15 words]
@@ -1393,7 +1403,7 @@ SECTIONS TO WRITE:
 **Developers:** [ONE short sentence]
 
 ### Price Guidance
-[MAX 2 short sentences OR 2-3 bullets — not both.]
+[MAX 2 sentences OR 2-3 bullets — not both. Derive the price band from the comparable_sales range in the data. In the final sentence, state whether this property targets the lower or upper end of that band and cite the specific reason (e.g. station proximity, lot size, corner position, renovation potential).]
 
 After completing every section above, output exactly this token on its own line and STOP:
 
@@ -1507,6 +1517,10 @@ def synthesise_report(client: anthropic.Anthropic, address: str, research_data: 
         f"Data: {json.dumps(research_data, separators=(',', ':'))}\n\n"
         f"Write your assigned sections. Replace [ADDRESS] with the address above. "
         f"Replace [Month YYYY] with '{today_str}'. "
+        "If your sections include the <!-- EMAIL_SUMMARY --> placeholder, replace it with: "
+        "<!-- EMAIL_SUMMARY: [exactly 2 plain-English sentences covering the property location, "
+        "headline figure (median price or last sale), and the overall investment/lifestyle stance. "
+        "No markdown, no bullets, no asterisks.] --> "
         "End with the sentinel exactly as instructed."
     )
 
@@ -1515,8 +1529,8 @@ def synthesise_report(client: anthropic.Anthropic, address: str, research_data: 
             f_a = executor.submit(_synth_chunk_deepseek, user_prompt, _SYNTHESIS_SYSTEM_A, 4096, "synthesis-A")
             f_b = executor.submit(_synth_chunk_deepseek, user_prompt, _SYNTHESIS_SYSTEM_B, 4096, "synthesis-B")
         else:
-            f_a = executor.submit(_synth_chunk, client, user_prompt, _SYNTHESIS_SYSTEM_A, 2500, "synthesis-A")
-            f_b = executor.submit(_synth_chunk, client, user_prompt, _SYNTHESIS_SYSTEM_B, 2500, "synthesis-B")
+            f_a = executor.submit(_synth_chunk, client, user_prompt, _SYNTHESIS_SYSTEM_A, 3500, "synthesis-A")
+            f_b = executor.submit(_synth_chunk, client, user_prompt, _SYNTHESIS_SYSTEM_B, 3500, "synthesis-B")
         part_a = _trim_at_sentinel(f_a.result(), "<<END_A>>")
         part_b = _trim_at_sentinel(f_b.result(), "<<END_B>>")
 

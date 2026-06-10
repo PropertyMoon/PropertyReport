@@ -7,6 +7,7 @@ import anthropic
 import datetime
 import httpx
 import json
+import math
 import os
 import re
 import time
@@ -32,16 +33,16 @@ except ImportError:
 
 # Reuse state detection from pdf_generator
 _STATE_SOURCES = {
-    "VIC": {"label": "Victoria",           "planning": "planning.vic.gov.au",   "crime": "crimestats.vic.gov.au",                 "flood": "vicfloodmap.com.au",          "transport": "ptv.vic.gov.au"},
-    "NSW": {"label": "New South Wales",    "planning": "planning.nsw.gov.au",   "crime": "bocsar.nsw.gov.au",                     "flood": "floodplanning.nsw.gov.au",    "transport": "transportnsw.info"},
-    "QLD": {"label": "Queensland",         "planning": "dsdilgp.qld.gov.au",    "crime": "police.qld.gov.au/maps-and-statistics", "flood": "floodcheck.qld.gov.au",       "transport": "translink.com.au"},
-    "SA":  {"label": "South Australia",    "planning": "plan.sa.gov.au",        "crime": "police.sa.gov.au/services-and-stats",   "flood": "environment.sa.gov.au/flood", "transport": "adelaidemetro.com.au"},
-    "WA":  {"label": "Western Australia",  "planning": "planning.wa.gov.au",    "crime": "police.wa.gov.au/crime-statistics",     "flood": "planning.wa.gov.au/flood",    "transport": "transperth.wa.gov.au"},
-    "TAS": {"label": "Tasmania",           "planning": "listmap.tas.gov.au",    "crime": "justice.tas.gov.au/crime-statistics",   "flood": "dpipwe.tas.gov.au/flood",     "transport": "metrotas.com.au"},
-    "ACT": {"label": "ACT",                "planning": "actmapi.act.gov.au",    "crime": "police.act.gov.au/crime-statistics",    "flood": "esa.act.gov.au/flood",        "transport": "transport.act.gov.au"},
-    "NT":  {"label": "Northern Territory", "planning": "planning.nt.gov.au",    "crime": "pfes.nt.gov.au/crime-statistics",       "flood": "nt.gov.au/emergency/flood",   "transport": "nt.gov.au/driving-transport/public-transport"},
+    "VIC": {"label": "Victoria",           "planning": "planning.vic.gov.au",   "crime": "crimestats.vic.gov.au",                 "flood": "vicfloodmap.com.au",          "transport": "ptv.vic.gov.au",        "catchment": "findmyschool.vic.gov.au"},
+    "NSW": {"label": "New South Wales",    "planning": "planning.nsw.gov.au",   "crime": "bocsar.nsw.gov.au",                     "flood": "floodplanning.nsw.gov.au",    "transport": "transportnsw.info",     "catchment": "schoolfinder.education.nsw.gov.au"},
+    "QLD": {"label": "Queensland",         "planning": "dsdilgp.qld.gov.au",    "crime": "police.qld.gov.au/maps-and-statistics", "flood": "floodcheck.qld.gov.au",       "transport": "translink.com.au",      "catchment": "schoolfinder.education.qld.gov.au"},
+    "SA":  {"label": "South Australia",    "planning": "plan.sa.gov.au",        "crime": "police.sa.gov.au/services-and-stats",   "flood": "environment.sa.gov.au/flood", "transport": "adelaidemetro.com.au",  "catchment": "education.sa.gov.au/find-a-school"},
+    "WA":  {"label": "Western Australia",  "planning": "planning.wa.gov.au",    "crime": "police.wa.gov.au/crime-statistics",     "flood": "planning.wa.gov.au/flood",    "transport": "transperth.wa.gov.au",  "catchment": "education.wa.edu.au/web/school-search"},
+    "TAS": {"label": "Tasmania",           "planning": "listmap.tas.gov.au",    "crime": "justice.tas.gov.au/crime-statistics",   "flood": "dpipwe.tas.gov.au/flood",     "transport": "metrotas.com.au",       "catchment": "education.tas.gov.au/parents-carers/find-a-school"},
+    "ACT": {"label": "ACT",                "planning": "actmapi.act.gov.au",    "crime": "police.act.gov.au/crime-statistics",    "flood": "esa.act.gov.au/flood",        "transport": "transport.act.gov.au",  "catchment": "education.act.gov.au/public-school-enrolment/find-your-local-school"},
+    "NT":  {"label": "Northern Territory", "planning": "planning.nt.gov.au",    "crime": "pfes.nt.gov.au/crime-statistics",       "flood": "nt.gov.au/emergency/flood",   "transport": "nt.gov.au/driving-transport/public-transport", "catchment": "education.nt.gov.au/enrolment/find-a-school"},
 }
-_DEFAULT_STATE = {"label": "Australia", "planning": "planning.gov.au", "crime": "aic.gov.au", "flood": "ga.gov.au/flood", "transport": "transportnsw.info"}
+_DEFAULT_STATE = {"label": "Australia", "planning": "planning.gov.au", "crime": "aic.gov.au", "flood": "ga.gov.au/flood", "transport": "transportnsw.info", "catchment": "myschool.edu.au"}
 
 _CRIME_MCP_URL = os.getenv(
     "CRIME_MCP_URL",
@@ -90,6 +91,88 @@ def _fetch_crime_data(suburb: str, state: str) -> dict | None:
     except Exception as e:
         print(f"  ⚠️  Crime MCP unavailable ({e}), falling back to web search")
     return None
+
+
+def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    R = 6371.0
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2
+    return R * 2 * math.asin(math.sqrt(a))
+
+
+def _fetch_schools_google_places(address: str) -> dict | None:
+    """Geocode address then find nearby schools via Google Places Nearby Search."""
+    api_key = os.getenv("GOOGLE_MAPS_API_KEY")
+    if not api_key:
+        return None
+    try:
+        geo = httpx.get(
+            "https://maps.googleapis.com/maps/api/geocode/json",
+            params={"address": address, "key": api_key},
+            timeout=10,
+        )
+        geo_data = geo.json()
+        if geo_data.get("status") != "OK" or not geo_data.get("results"):
+            print(f"  ⚠️  Google geocode failed for schools ({geo_data.get('status')})")
+            return None
+
+        loc = geo_data["results"][0]["geometry"]["location"]
+        lat, lng = loc["lat"], loc["lng"]
+
+        def _places_search(type_: str, radius: int) -> list:
+            r = httpx.get(
+                "https://maps.googleapis.com/maps/api/place/nearbysearch/json",
+                params={"location": f"{lat},{lng}", "radius": radius, "type": type_, "key": api_key},
+                timeout=10,
+            )
+            data = r.json()
+            if data.get("status") not in ("OK", "ZERO_RESULTS"):
+                return []
+            results = []
+            for place in data.get("results", []):
+                plat = place["geometry"]["location"]["lat"]
+                plng = place["geometry"]["location"]["lng"]
+                dist = round(_haversine_km(lat, lng, plat, plng), 2)
+                types = place.get("types", [])
+                if "secondary_school" in types:
+                    kind = "secondary"
+                elif "primary_school" in types:
+                    kind = "primary"
+                else:
+                    kind = "school"
+                results.append({"name": place["name"], "distance_km": dist, "type": kind})
+            return results
+
+        # 3 km broad search + dedicated 5 km secondary search to catch distant high schools
+        general   = _places_search("school",           3000)
+        secondary = _places_search("secondary_school", 5000)
+
+        # Merge, deduplicate by name, keep closest distance per school
+        seen: dict[str, dict] = {}
+        for s in general + secondary:
+            name = s["name"]
+            if name not in seen or s["distance_km"] < seen[name]["distance_km"]:
+                seen[name] = s
+        schools = sorted(seen.values(), key=lambda s: s["distance_km"])
+
+        print(f"  ✅ Google Places: {len(schools)} schools found near {address}")
+        return {"lat": lat, "lng": lng, "nearby_schools": schools[:15]}
+
+    except Exception as e:
+        print(f"  ⚠️  Google Places schools fetch failed ({e})")
+        return None
+
+
+def _build_nearby_schools_section(places_data: dict | None) -> str:
+    """Format Google Places results into a prompt injection block."""
+    if not places_data or not places_data.get("nearby_schools"):
+        return "No pre-fetched nearby schools — use web search to find schools near this address.\n\n"
+    lines = ["NEARBY SCHOOLS pre-fetched via Google Places (primaries within 3 km, secondaries within 5 km — use these names/distances directly, do not search for them):"]
+    for s in places_data["nearby_schools"]:
+        lines.append(f"  - {s['name']} — {s['distance_km']} km ({s['type']})")
+    lines.append("Enrich these with ICSEA scores from myschool.edu.au in Steps 2–3.\n")
+    return "\n".join(lines) + "\n"
 
 
 def _inject_crime_into_suburb_prompt(prompt: str, crime: dict) -> str:
@@ -506,33 +589,33 @@ RESEARCH_TASKS = {
     ),
 
     "schools": (
-        "Property: {address}\n"
-        "STEP 1 — Search '[suburb] [state] primary school catchment zone' to identify the in-catchment government primary school. "
-        "Confirm whether THIS specific address falls inside that school's boundary (in_catchment = true/false). "
+        "Property address: {address}\n"
+        "{nearby_schools_section}"
+        "STEP 1 — Catchment (primary): Search '{address} primary school catchment' and check {catchment_url} "
+        "to find the government primary school whose catchment zone contains this exact street address. "
+        "If the state site returns no result, also try searching '{address} primary school zone {state}'. "
         "Fetch its myschool.edu.au profile for ICSEA and latest NAPLAN results (reading/numeracy percentile vs national average). "
-        "Estimate the walk time in minutes from the property to the school. "
-        "Also note 1-2 other nearby primary schools within 2 km.\n"
-        "STEP 2 — Search '[suburb] [state] secondary school catchment zone' to identify the in-catchment secondary school. "
-        "Confirm catchment status for this address. Fetch myschool.edu.au for ICSEA and NAPLAN. "
-        "Estimate walk time. Note 1-2 other nearby secondary schools.\n"
-        "STEP 3 — Search '[suburb] [state] private schools' for independent/Catholic/Anglican/selective options within 5 km. "
-        "For each: fetch myschool.edu.au ICSEA where available, identify school_type (Catholic / Independent / Anglican / Selective / Other), "
-        "and estimate annual tuition fees from the school's website if findable.\n"
-        "STEP 4 — Review ICSEA scores. Assign school_quality_summary based on the in-catchment schools' average ICSEA.\n"
+        "Estimate walk time in minutes from the property to the school.\n"
+        "STEP 2 — Catchment (secondary): Search '{address} secondary school catchment' on {catchment_url} "
+        "to identify the in-catchment government secondary school for this exact address. "
+        "Fetch myschool.edu.au for ICSEA and NAPLAN. Estimate walk time.\n"
+        "STEP 3 — ICSEA scores: For any government schools in the pre-fetched nearby list not yet covered, "
+        "fetch myschool.edu.au ICSEA. For private/Catholic/independent schools in the list, "
+        "fetch ICSEA and estimate annual tuition fees from the school's website if findable.\n"
+        "STEP 4 — Review ICSEA scores. Assign school_quality_summary based on the in-catchment schools' average ICSEA: "
+        "≥1080 = Excellent, 1040–1079 = Strong, 1000–1039 = Average, 960–999 = Below Average, <960 = Limited.\n"
         "Return JSON with: "
-        "primary_schools (list of objects: name, distance_km, icsea (int or null), "
-        "in_catchment (boolean — true if this address is inside the school's catchment zone), "
-        "walk_mins (int — estimated walk time in minutes; null if more than 25 min or walk not practical), "
-        "naplan_reading_pct (int 1–100 — NAPLAN reading percentile rank vs national average from myschool.edu.au; null if not found), "
-        "naplan_numeracy_pct (int 1–100 — same for numeracy; null if not found)), "
+        "primary_schools (list: name, distance_km, icsea (int or null), "
+        "in_catchment (bool — true if this address is inside the school's catchment zone), "
+        "walk_mins (int — estimated walk mins; null if >25 min or not walkable), "
+        "naplan_reading_pct (int 1–100 or null), naplan_numeracy_pct (int 1–100 or null)), "
         "secondary_schools (same fields as primary_schools), "
         "private_schools (list: name, distance_km, icsea (int or null), "
-        "school_type (string — 'Catholic', 'Independent', 'Anglican', 'Selective', or 'Other'), "
-        "fees_annual_aud (int — approximate annual tuition fees AUD; null if unknown), "
-        "naplan_reading_pct (int or null), naplan_numeracy_pct (int or null)), "
-        "in_catchment_zone (one sentence describing the catchment boundary for this address), "
-        "school_quality_summary (MUST be exactly one of: 'Excellent', 'Strong', 'Average', 'Below Average', 'Limited' — "
-        "≥1080 avg ICSEA = Excellent, 1040–1079 = Strong, 1000–1039 = Average, 960–999 = Below Average, <960 = Limited)."
+        "school_type ('Catholic', 'Independent', 'Anglican', 'Selective', or 'Other'), "
+        "fees_annual_aud (int or null), naplan_reading_pct (int or null), naplan_numeracy_pct (int or null)), "
+        "in_catchment_primary (string — exact name of in-catchment government primary for this address), "
+        "in_catchment_secondary (string — exact name of in-catchment government secondary for this address), "
+        "school_quality_summary (MUST be exactly one of: 'Excellent', 'Strong', 'Average', 'Below Average', 'Limited')."
     ),
 
     "government_projects": (
@@ -1135,6 +1218,12 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
 
     state         = _get_state(address)
     current_month = datetime.datetime.now().strftime("%B %Y")
+
+    # Pre-fetch Google Places schools before formatting so {nearby_schools_section} resolves.
+    places_data = None
+    if task_name == "schools":
+        places_data = _fetch_schools_google_places(address)
+
     task_dict = RESEARCH_TASKS
     prompt = task_dict[task_name].format(
         address=address,
@@ -1143,7 +1232,9 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
         crime_url=state["crime"],
         flood_url=state["flood"],
         transport_url=state["transport"],
+        catchment_url=state.get("catchment", "myschool.edu.au"),
         current_month=current_month,
+        nearby_schools_section=_build_nearby_schools_section(places_data) if task_name == "schools" else "",
     )
 
     # Pre-fetch authoritative data for suburb task — inject into prompt so the AI

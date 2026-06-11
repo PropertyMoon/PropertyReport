@@ -566,9 +566,13 @@ RESEARCH_TASKS = {
         "You MUST return numeric values for crime fields — derive the percentile and deltas from the actual offence "
         "rates you find (e.g. if suburb has 850 offences/100k vs state avg 1200/100k, percentile is ~70). "
         "Return null only if you find zero crime data anywhere.\n"
-        "STEP 5 — LIFESTYLE AMENITIES: Search '[address] nearest supermarket' to find the closest Coles/Woolworths/Aldi "
-        "and its walking distance. Search 'nearest gym to [address]' to find the geographically closest gym regardless "
-        "of brand and its approximate weekly membership cost. Search '[address] nearest park reserve' for the closest public park.\n"
+        "STEP 5 — LIFESTYLE AMENITIES: "
+        "SUPERMARKET — search 'Woolworths [suburb] [postcode]', then 'Coles [suburb] [postcode]', then 'Aldi [suburb] [postcode]' "
+        "to find which chains have a store in or immediately adjacent to the suburb. Pick the one closest to the address and estimate walking distance. "
+        "Do NOT accept a result from a different suburb unless no store exists within 1.5km. "
+        "GYM — search 'gym [suburb] [postcode]' to find the geographically closest gym and its approximate weekly membership cost. "
+        "PARK — search 'park reserve [suburb] [postcode]' for the closest public park or reserve. "
+        "GP — search 'medical centre [suburb] [postcode]' for the nearest general practitioner clinic.\n"
         "Return JSON with: suburb, postcode, median_house_price, median_unit_price, "
         "price_growth_5yr, rental_yield, demographics, key_amenities, "
         "liveability_score, "
@@ -1473,7 +1477,7 @@ Score calibration — use these as anchor points for consistency:
 - Growth Potential: 9-10 = strong multi-year price trend + major infrastructure tailwind; 7-8 = steady growth with some tailwind; 5-6 = flat or mixed signals; <5 = declining or speculative
 - Rental Demand: 9-10 = gross yield >5% and tight vacancy; 7-8 = yield 3.5-5% with solid demand; 5-6 = modest yield, average vacancy; <5 = weak rental market
 - Infrastructure: 9-10 = train station <500m; 7-8 = station <2km or strong frequent-bus network; 5-6 = bus-only or infrequent services; <5 = car-dependent with no near-term improvement
-- Safety: derive directly from crime_safety_percentile in the data — percentile 80-100 → score 8-10; 50-79 → 5-7; 20-49 → 3-4; 0-19 → 1-2. Higher percentile = safer = higher score.
+- Safety: derive from crime_violent_vs_state_avg_pct and crime_property_vs_state_avg_pct (negative = below state average = safer). Average the two deltas, then map: ≤−40% → 9–10; −20% to −40% → 7–8; −10% to −20% → 6–7; −10% to +10% → 5–6; +10% to +30% → 4–5; +30% to +60% → 2–4; >+60% → 1–2. If both deltas are null, fall back to crime_safety_percentile ÷ 10.
 - Family Suitability: 9-10 = ICSEA >1050 in catchment + walkable + high owner-occupancy; 7-8 = above-average schools, family demographic; 5-6 = average schools, mixed demographic; <5 = below-average schools or low family demand
 - Overall Score: weighted average — Growth 25%, Rental 20%, Infrastructure 20%, Safety 15%, Family 20%]
 

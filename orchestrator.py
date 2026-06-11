@@ -1108,7 +1108,7 @@ def _parse_json(text: str, label: str = "") -> dict:
 _TASK_MAX_SEARCHES = {
     "property_market":     10,
     "government_projects": 5,
-    "suburb":              6,
+    "suburb":              8,
     "schools":             4,
     "transport":           4,
     "risk_overlays":       4,
@@ -1151,9 +1151,10 @@ _RESEARCH_SYSTEM_PROMPT_PERPLEXITY = (
 )
 
 
-def _run_research_task_claude(client: anthropic.Anthropic, task_name: str, prompt: str) -> str:
+def _run_research_task_claude(client: anthropic.Anthropic, task_name: str, prompt: str, max_searches: int | None = None) -> str:
     """Execute a research task via Claude with the web_search tool. Returns raw text."""
-    max_searches = _TASK_MAX_SEARCHES.get(task_name, _DEFAULT_MAX_SEARCHES)
+    if max_searches is None:
+        max_searches = _TASK_MAX_SEARCHES.get(task_name, _DEFAULT_MAX_SEARCHES)
     max_tokens   = _TASK_MAX_TOKENS.get(task_name, _DEFAULT_MAX_TOKENS)
 
     for attempt in range(4):
@@ -1261,10 +1262,24 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
         else:
             median_data = None  # not available — let AI search
 
+    # Dynamic search budget for suburb task:
+    # Base: STEP 2 (rental yield=2) + STEP 5 (amenities=6) = 8
+    # No crime MCP: +2 (STEP 4 crime search)
+    # No median MCP: +3 (STEP 1 median + STEP 3 price history)
+    suburb_max_searches = None
+    if task_name == "suburb":
+        budget = 8
+        if not crime_data:
+            budget += 2
+        if not median_data:
+            budget += 3
+        suburb_max_searches = budget
+        print(f"  🔢 Suburb search budget: {budget} (crime_mcp={'✅' if crime_data else '❌'}, median_mcp={'✅' if median_data else '❌'})")
+
     if _RESEARCH_BACKEND == "perplexity":
         full_text = _run_research_task_perplexity(task_name, prompt)
     else:
-        full_text = _run_research_task_claude(client, task_name, prompt)
+        full_text = _run_research_task_claude(client, task_name, prompt, max_searches=suburb_max_searches)
 
     if task_name == "property_market":
         print(f"  📄 [DEBUG] raw model output:\n{full_text[:3000]}")

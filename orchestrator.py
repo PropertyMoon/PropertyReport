@@ -175,6 +175,101 @@ def _build_nearby_schools_section(places_data: dict | None) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _fetch_amenities_google_places(address: str) -> dict | None:
+    """Geocode address then find nearby amenities via Google Places Nearby Search."""
+    api_key = os.getenv("GOOGLE_MAPS_API_KEY")
+    if not api_key:
+        return None
+    try:
+        geo = httpx.get(
+            "https://maps.googleapis.com/maps/api/geocode/json",
+            params={"address": address, "key": api_key},
+            timeout=10,
+        )
+        geo_data = geo.json()
+        if geo_data.get("status") != "OK" or not geo_data.get("results"):
+            print(f"  ⚠️  Google geocode failed for amenities ({geo_data.get('status')})")
+            return None
+
+        loc = geo_data["results"][0]["geometry"]["location"]
+        lat, lng = loc["lat"], loc["lng"]
+
+        def _nearby(keyword: str | None = None, type_: str | None = None, radius: int = 1500) -> list:
+            params: dict = {"location": f"{lat},{lng}", "radius": radius, "key": api_key}
+            if type_:
+                params["type"] = type_
+            if keyword:
+                params["keyword"] = keyword
+            r = httpx.get(
+                "https://maps.googleapis.com/maps/api/place/nearbysearch/json",
+                params=params,
+                timeout=10,
+            )
+            data = r.json()
+            if data.get("status") not in ("OK", "ZERO_RESULTS"):
+                return []
+            results = []
+            for place in data.get("results", []):
+                plat = place["geometry"]["location"]["lat"]
+                plng = place["geometry"]["location"]["lng"]
+                dist = round(_haversine_km(lat, lng, plat, plng), 2)
+                results.append({
+                    "name":        place["name"],
+                    "distance_km": dist,
+                    "vicinity":    place.get("vicinity", ""),
+                })
+            return sorted(results, key=lambda x: x["distance_km"])
+
+        supermarkets = _nearby(keyword="Woolworths OR Coles OR Aldi OR IGA supermarket", radius=1500)[:3]
+        gyms         = _nearby(keyword="gym fitness centre", radius=1500)[:5]
+        parks        = _nearby(type_="park", radius=1000)[:3]
+        doctors      = _nearby(keyword="general practitioner medical centre doctor", radius=1500)[:3]
+
+        print(
+            f"  ✅ Google Places amenities: {len(supermarkets)} supermarkets, "
+            f"{len(gyms)} gyms, {len(parks)} parks, {len(doctors)} GPs"
+        )
+        return {
+            "lat": lat, "lng": lng,
+            "nearby_supermarkets": supermarkets,
+            "nearby_gyms":         gyms,
+            "nearby_parks":        parks,
+            "nearby_gps":          doctors,
+        }
+    except Exception as e:
+        print(f"  ⚠️  Google Places amenities fetch failed ({e})")
+        return None
+
+
+def _build_amenities_section(amenities: dict | None) -> str:
+    """Format Google Places amenity results into a prompt injection block."""
+    if not amenities:
+        return (
+            "No pre-fetched amenity data — use web search:\n"
+            "SUPERMARKET — search 'Woolworths [suburb] [postcode]', then 'Coles [suburb] [postcode]', then 'Aldi [suburb] [postcode]' "
+            "to find which chains have a store in or immediately adjacent to the suburb. Pick the one closest to the address and estimate walking distance. "
+            "Do NOT accept a result from a different suburb unless no store exists within 1.5km.\n"
+            "GYM — search 'gym [suburb] [postcode]' and return the first 3 gyms that have a confirmed location in or immediately adjacent to the suburb. Do NOT include gyms from a different suburb.\n"
+            "PARK — search 'park reserve [suburb] [postcode]' for the closest public park or reserve.\n"
+            "GP — search 'medical centre [suburb] [postcode]' for the nearest general practitioner clinic.\n"
+        )
+
+    def _fmt(items: list, limit: int) -> str:
+        return ", ".join(
+            f"{p['name']} ({p['distance_km']} km)" for p in items[:limit]
+        ) or "none found"
+
+    return (
+        "AMENITIES pre-fetched via Google Places — use these values directly, do NOT search for amenities.\n"
+        f"  SUPERMARKETS (≤1.5 km): {_fmt(amenities.get('nearby_supermarkets', []), 3)}\n"
+        f"  GYMS (≤1.5 km):         {_fmt(amenities.get('nearby_gyms', []), 5)}\n"
+        f"  PARKS (≤1 km):          {_fmt(amenities.get('nearby_parks', []), 3)}\n"
+        f"  GPs (≤1.5 km):          {_fmt(amenities.get('nearby_gps', []), 3)}\n"
+        "Format these into the nearby_supermarkets / nearby_gyms / nearby_parks / nearby_gps JSON fields. "
+        "Set weekly_cost_aud to null for all gyms (pricing not available from the database).\n"
+    )
+
+
 def _inject_crime_into_suburb_prompt(prompt: str, crime: dict) -> str:
     """Replace the CRIME step with pre-fetched authoritative values.
     Handles both 'STEP 4 — CRIME' (Claude prompts) and 'STEP 5 — CRIME' (Perplexity prompts)."""
@@ -566,13 +661,7 @@ RESEARCH_TASKS = {
         "You MUST return numeric values for crime fields — derive the percentile and deltas from the actual offence "
         "rates you find (e.g. if suburb has 850 offences/100k vs state avg 1200/100k, percentile is ~70). "
         "Return null only if you find zero crime data anywhere.\n"
-        "STEP 5 — LIFESTYLE AMENITIES: "
-        "SUPERMARKET — search 'Woolworths [suburb] [postcode]', then 'Coles [suburb] [postcode]', then 'Aldi [suburb] [postcode]' "
-        "to find which chains have a store in or immediately adjacent to the suburb. Pick the one closest to the address and estimate walking distance. "
-        "Do NOT accept a result from a different suburb unless no store exists within 1.5km. "
-        "GYM — search 'gym [suburb] [postcode]' and return the first 3 gyms that have a confirmed location in or immediately adjacent to the suburb, each with their approximate weekly membership cost. Do NOT include gyms from a different suburb. "
-        "PARK — search 'park reserve [suburb] [postcode]' for the closest public park or reserve. "
-        "GP — search 'medical centre [suburb] [postcode]' for the nearest general practitioner clinic.\n"
+        "STEP 5 — LIFESTYLE AMENITIES: {amenities_section}"
         "Return JSON with: suburb, postcode, median_house_price, median_unit_price, "
         "price_growth_5yr, rental_yield, demographics, key_amenities, "
         "liveability_score, "
@@ -1235,10 +1324,13 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
     prev_year     = str(_now.year - 1)
     two_years_ago = str(_now.year - 2)
 
-    # Pre-fetch Google Places schools before formatting so {nearby_schools_section} resolves.
-    places_data = None
+    # Pre-fetch Google Places data before formatting so injected sections resolve.
+    places_data    = None
+    amenities_data = None
     if task_name == "schools":
         places_data = _fetch_schools_google_places(address)
+    if task_name == "suburb":
+        amenities_data = _fetch_amenities_google_places(address)
 
     task_dict = RESEARCH_TASKS
     prompt = task_dict[task_name].format(
@@ -1255,6 +1347,7 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
         prev_year=prev_year,
         two_years_ago=two_years_ago,
         nearby_schools_section=_build_nearby_schools_section(places_data) if task_name == "schools" else "",
+        amenities_section=_build_amenities_section(amenities_data) if task_name == "suburb" else "",
     )
 
     # Pre-fetch authoritative data for suburb task — inject into prompt so the AI
@@ -1280,18 +1373,26 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
             median_data = None  # not available — let AI search
 
     # Dynamic search budget for suburb task:
-    # Base: STEP 2 (rental yield=2) + STEP 5 (amenities=6) = 8
-    # No crime MCP: +2 (STEP 4 crime search)
-    # No median MCP: +3 (STEP 1 median + STEP 3 price history)
+    # Base 2: STEP 2 (rental yield) + STEP 3 (price history)
+    # No crime MCP:     +2  (STEP 4 crime search)
+    # No median MCP:    +3  (STEP 1 median)
+    # No amenities API: +4  (STEP 5 supermarket×2, gym, park, GP)
     suburb_max_searches = None
     if task_name == "suburb":
-        budget = 8
+        budget = 2
         if not crime_data:
             budget += 2
         if not median_data:
             budget += 3
+        if not amenities_data:
+            budget += 4
         suburb_max_searches = budget
-        print(f"  🔢 Suburb search budget: {budget} (crime_mcp={'✅' if crime_data else '❌'}, median_mcp={'✅' if median_data else '❌'})")
+        print(
+            f"  🔢 Suburb search budget: {budget} "
+            f"(crime={'✅' if crime_data else '❌'}, "
+            f"median={'✅' if median_data else '❌'}, "
+            f"amenities={'✅' if amenities_data else '❌'})"
+        )
 
     if _RESEARCH_BACKEND == "perplexity":
         full_text = _run_research_task_perplexity(task_name, prompt)

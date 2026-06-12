@@ -702,19 +702,22 @@ RESEARCH_TASKS = {
     "schools": (
         "Property address: {address}\n"
         "{nearby_schools_section}"
-        "STEP 1 — Catchment (primary): Search '{address} primary school catchment' and check {catchment_url} "
-        "to find the government primary school whose catchment zone contains this exact street address. "
-        "If the state site returns no result, also try searching '{address} primary school zone {state}'. "
+        "STEP 1 — Catchment (primary): Check {catchment_url} for '{address} primary school catchment zone'. "
+        "If no result, search '{address} primary school catchment {state}'. "
+        "IMPORTANT: the pre-fetched Google Places list above is sorted by distance — if the official catchment tool returns no clear match, "
+        "treat the CLOSEST government primary school in the pre-fetched list as the likely catchment school. "
+        "Use the same school consistently — do NOT switch between schools on different searches. "
         "Fetch its myschool.edu.au profile for ICSEA and latest NAPLAN results (reading/numeracy percentile vs national average). "
         "Estimate walk time in minutes from the property to the school.\n"
-        "STEP 2 — Catchment (secondary): Search '{address} secondary school catchment' on {catchment_url} "
-        "to identify the in-catchment government secondary school for this exact address. "
+        "STEP 2 — Catchment (secondary): Check {catchment_url} for '{address} secondary school catchment zone'. "
+        "If no result, treat the closest government secondary school in the pre-fetched list as the catchment school. "
         "Fetch myschool.edu.au for ICSEA and NAPLAN. Estimate walk time.\n"
         "STEP 3 — ICSEA scores: For any government schools in the pre-fetched nearby list not yet covered, "
         "fetch myschool.edu.au ICSEA. For private/Catholic/independent schools in the list, "
         "fetch ICSEA and estimate annual tuition fees from the school's website if findable.\n"
-        "STEP 4 — Review ICSEA scores. Assign school_quality_summary based on the in-catchment schools' average ICSEA: "
-        "≥1080 = Excellent, 1040–1079 = Strong, 1000–1039 = Average, 960–999 = Below Average, <960 = Limited.\n"
+        "STEP 4 — Assign school_quality_summary using ONLY the in-catchment government PRIMARY school's ICSEA "
+        "(the school identified in STEP 1). Do NOT average across multiple schools. "
+        "Bands: ≥1080 = Excellent, 1040–1079 = Strong, 1000–1039 = Average, 960–999 = Below Average, <960 = Limited.\n"
         "Return JSON with: "
         "primary_schools (list: name, distance_km, icsea (int or null), "
         "in_catchment (bool — true if this address is inside the school's catchment zone), "
@@ -1465,6 +1468,27 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
         if median_data.get("price_history_quarterly"):
             result["price_history_quarterly"] = median_data["price_history_quarterly"]
         result["median_price_data_source"] = median_data.get("data_source")
+
+    # Overwrite amenity fields with GPS-accurate Google Places values (belt-and-suspenders —
+    # the AI ignores the injected instruction and web-searches anyway, so we force the result).
+    if amenities_has_data:
+        def _places_to_amenity(items: list, include_cost: bool = False) -> list:
+            out = []
+            for p in items:
+                entry: dict = {"name": p["name"], "distance_km": p["distance_km"]}
+                if include_cost:
+                    entry["weekly_cost_aud"] = None
+                out.append(entry)
+            return out
+
+        if amenities_data.get("nearby_supermarkets"):
+            result["nearby_supermarkets"] = _places_to_amenity(amenities_data["nearby_supermarkets"])
+        if amenities_data.get("nearby_gyms"):
+            result["nearby_gyms"] = _places_to_amenity(amenities_data["nearby_gyms"], include_cost=True)
+        if amenities_data.get("nearby_parks"):
+            result["nearby_parks"] = _places_to_amenity(amenities_data["nearby_parks"])
+        if amenities_data.get("nearby_gps"):
+            result["nearby_gps"] = _places_to_amenity(amenities_data["nearby_gps"])
 
     return result
 

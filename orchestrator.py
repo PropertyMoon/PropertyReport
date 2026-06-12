@@ -220,15 +220,20 @@ def _fetch_amenities_google_places(address: str) -> dict | None:
                 })
             return sorted(results, key=lambda x: x["distance_km"])
 
-        supermarkets = _nearby(keyword="Woolworths OR Coles OR Aldi OR IGA supermarket", radius=1500)[:3]
-        gyms         = _nearby(keyword="gym fitness centre", radius=1500)[:5]
-        parks        = _nearby(type_="park", radius=1000)[:3]
-        doctors      = _nearby(keyword="general practitioner medical centre doctor", radius=1500)[:3]
+        supermarkets = _nearby(type_="supermarket", radius=1500)[:3]
+        gyms         = _nearby(type_="gym",         radius=1500)[:5]
+        parks        = _nearby(type_="park",        radius=1000)[:3]
+        doctors      = _nearby(type_="doctor",      radius=1500)[:3]
 
-        print(
-            f"  ✅ Google Places amenities: {len(supermarkets)} supermarkets, "
-            f"{len(gyms)} gyms, {len(parks)} parks, {len(doctors)} GPs"
-        )
+        def _names(items: list) -> str:
+            return ", ".join(f"{p['name']} ({p['distance_km']}km)" for p in items) or "none"
+
+        print(f"  ✅ Google Places amenities near {address}:")
+        print(f"     supermarkets: {_names(supermarkets)}")
+        print(f"     gyms:         {_names(gyms)}")
+        print(f"     parks:        {_names(parks)}")
+        print(f"     doctors:      {_names(doctors)}")
+
         return {
             "lat": lat, "lng": lng,
             "nearby_supermarkets": supermarkets,
@@ -241,32 +246,45 @@ def _fetch_amenities_google_places(address: str) -> dict | None:
         return None
 
 
+_AMENITIES_WEB_SEARCH_FALLBACK = (
+    "No pre-fetched amenity data — use web search:\n"
+    "SUPERMARKET — search 'Woolworths [suburb] [postcode]', then 'Coles [suburb] [postcode]', then 'Aldi [suburb] [postcode]' "
+    "to find which chains have a store in or immediately adjacent to the suburb. Pick the one closest to the address and estimate walking distance. "
+    "Do NOT accept a result from a different suburb unless no store exists within 1.5km.\n"
+    "GYM — search 'gym [suburb] [postcode]' and return the first 3 gyms with a confirmed location in or immediately adjacent to the suburb. Do NOT include gyms from a different suburb.\n"
+    "PARK — search 'park reserve [suburb] [postcode]' for the closest public park or reserve.\n"
+    "GP — search 'medical centre [suburb] [postcode]' for the nearest general practitioner clinic.\n"
+)
+
+
 def _build_amenities_section(amenities: dict | None) -> str:
     """Format Google Places amenity results into a prompt injection block."""
     if not amenities:
-        return (
-            "No pre-fetched amenity data — use web search:\n"
-            "SUPERMARKET — search 'Woolworths [suburb] [postcode]', then 'Coles [suburb] [postcode]', then 'Aldi [suburb] [postcode]' "
-            "to find which chains have a store in or immediately adjacent to the suburb. Pick the one closest to the address and estimate walking distance. "
-            "Do NOT accept a result from a different suburb unless no store exists within 1.5km.\n"
-            "GYM — search 'gym [suburb] [postcode]' and return the first 3 gyms that have a confirmed location in or immediately adjacent to the suburb. Do NOT include gyms from a different suburb.\n"
-            "PARK — search 'park reserve [suburb] [postcode]' for the closest public park or reserve.\n"
-            "GP — search 'medical centre [suburb] [postcode]' for the nearest general practitioner clinic.\n"
-        )
+        return _AMENITIES_WEB_SEARCH_FALLBACK
+
+    # If all four categories returned zero results, Places likely failed silently — fall back.
+    total = sum(
+        len(amenities.get(k, []))
+        for k in ("nearby_supermarkets", "nearby_gyms", "nearby_parks", "nearby_gps")
+    )
+    if total == 0:
+        print("  ⚠️  Google Places returned 0 amenity results — falling back to web search")
+        return _AMENITIES_WEB_SEARCH_FALLBACK
 
     def _fmt(items: list, limit: int) -> str:
         return ", ".join(
             f"{p['name']} ({p['distance_km']} km)" for p in items[:limit]
-        ) or "none found"
+        ) or "none within range"
 
     return (
-        "AMENITIES pre-fetched via Google Places — use these values directly, do NOT search for amenities.\n"
+        "AMENITIES pre-fetched via Google Places (GPS-accurate distances) — "
+        "use these values directly, do NOT search for amenities.\n"
         f"  SUPERMARKETS (≤1.5 km): {_fmt(amenities.get('nearby_supermarkets', []), 3)}\n"
         f"  GYMS (≤1.5 km):         {_fmt(amenities.get('nearby_gyms', []), 5)}\n"
         f"  PARKS (≤1 km):          {_fmt(amenities.get('nearby_parks', []), 3)}\n"
         f"  GPs (≤1.5 km):          {_fmt(amenities.get('nearby_gps', []), 3)}\n"
-        "Format these into the nearby_supermarkets / nearby_gyms / nearby_parks / nearby_gps JSON fields. "
-        "Set weekly_cost_aud to null for all gyms (pricing not available from the database).\n"
+        "Map these into the nearby_supermarkets / nearby_gyms / nearby_parks / nearby_gps JSON fields. "
+        "Set weekly_cost_aud to null for all gyms (pricing not in the database).\n"
     )
 
 
@@ -1384,14 +1402,18 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
             budget += 2
         if not median_data:
             budget += 3
-        if not amenities_data:
+        amenities_has_data = amenities_data and sum(
+            len(amenities_data.get(k, []))
+            for k in ("nearby_supermarkets", "nearby_gyms", "nearby_parks", "nearby_gps")
+        ) > 0
+        if not amenities_has_data:
             budget += 4
         suburb_max_searches = budget
         print(
             f"  🔢 Suburb search budget: {budget} "
             f"(crime={'✅' if crime_data else '❌'}, "
             f"median={'✅' if median_data else '❌'}, "
-            f"amenities={'✅' if amenities_data else '❌'})"
+            f"amenities={'✅' if amenities_has_data else '❌'})"
         )
 
     if _RESEARCH_BACKEND == "perplexity":

@@ -691,25 +691,26 @@ RESEARCH_TASKS = {
         "STEP 3 — If step 2 finds nothing, search: \"{address} sold site:domain.com.au\" "
         "and fetch the top result — look for sold price on the page.\n\n"
         "STEP 4 — If step 3 finds nothing, search: \"{address} sold price history\"\n\n"
-        "STEP 5 — Comparable sales within ~1km, current year preferred. Work through these levels in order, stopping as soon as you have 3 results:\n"
-        "  Level 1 (same street, 2026): search '[street name] [suburb] sold 2026 site:realestate.com.au OR site:domain.com.au'\n"
-        "  Level 2 (nearby streets, 2026): search '[suburb] [state] sold 2026 site:realestate.com.au' — pick only results whose address is on a street geographically close to the subject property (within ~1km walking distance); skip results from the far side of the suburb\n"
-        "  Level 3 (suburb, last 12 months): search '[suburb] [state] house sold {current_month} site:realestate.com.au OR site:domain.com.au' and work backwards month by month\n"
+        "STEP 5 — Comparable sales within ~1km, {current_year} or {prev_year} ONLY. Work through these levels in order, stopping as soon as you have 3 results:\n"
+        "  Level 1 (same street, {current_year}): search '[street name] [suburb] sold {current_year} site:realestate.com.au OR site:domain.com.au'\n"
+        "  Level 2 (nearby streets, {current_year}): search '[suburb] [state] sold {current_year} site:realestate.com.au' — pick only results whose address is on a street geographically close to the subject property (within ~1km); skip results from the far side of the suburb\n"
+        "  Level 3 (suburb, {prev_year}): search '[suburb] [state] house sold {prev_year} site:realestate.com.au OR site:domain.com.au' — pick the closest matches within ~1km\n"
+        "STRICT DATE RULE: Only include sales with a sale_date in {current_year} or {prev_year}. Discard any result dated {two_years_ago} or earlier.\n"
         "In all levels: pick properties most similar in type (house/unit/townhouse) and approximate size to the subject property. Do NOT use the subject property's own sale history as a comparable.\n"
         "Return empty list only if you find zero results after all three levels.\n"
         "STEP 6 — Search for suburb-level market data (days on market, clearance rate, outlook).\n\n"
-        "STEP 7 — Comparable listings (currently for sale): search '[suburb] [state] house for sale site:realestate.com.au OR site:domain.com.au' "
+        "STEP 7 — Comparable listings (currently for sale): search '[suburb] [state] house for sale {current_month} site:realestate.com.au OR site:domain.com.au' "
         "— find up to 3 active listings within ~1km of the subject property, similar type and size. "
+        "STRICT DATE RULE: Only include listings first listed in {current_month} or {prev_month}. Skip stale listings from earlier months. "
         "Pick properties on streets geographically close to the subject property. "
         "Do NOT include the subject property itself if it is currently listed. "
-        "Return empty list if no nearby active listings found.\n\n"
+        "Return empty list if no nearby active listings were listed in {current_month} or {prev_month}.\n\n"
         "Return JSON with: "
         "subject_property_last_sale (object: price (numeric AUD — no $ sign, just the number), "
         "date (string e.g. 'February 2025') — null only if all steps above return zero results), "
-        "comparable_sales (list of up to 3 comparable sales — similar type and size, "
-        "ordered by: current year and closest to subject property first; "
+        "comparable_sales (list of up to 3 comparable sales — {current_year} sales first, then {prev_year}; closest to subject property within each year; "
         "each: address, sale_price (numeric AUD), sale_date (string e.g. 'March 2025'), bedrooms (int), bathrooms (int), land_sqm (int or null)), "
-        "comparable_listings (list of up to 3 active for-sale listings — similar type and size, closest first; "
+        "comparable_listings (list of up to 3 active for-sale listings listed in {current_month} or {prev_month} — similar type and size, closest first; "
         "each: address, listing_price (numeric AUD), bedrooms (int), bathrooms (int), land_sqm (int or null)), "
         "days_on_market, auction_clearance_rate, price_per_sqm, best_pockets, market_outlook."
     ),
@@ -1227,7 +1228,12 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
     print(f"  🔍 Researching {task_name} [{_RESEARCH_BACKEND}]...")
 
     state         = _get_state(address)
-    current_month = datetime.datetime.now().strftime("%B %Y")
+    _now          = datetime.datetime.now()
+    current_month = _now.strftime("%B %Y")
+    prev_month    = (_now.replace(day=1) - datetime.timedelta(days=1)).strftime("%B %Y")
+    current_year  = str(_now.year)
+    prev_year     = str(_now.year - 1)
+    two_years_ago = str(_now.year - 2)
 
     # Pre-fetch Google Places schools before formatting so {nearby_schools_section} resolves.
     places_data = None
@@ -1244,6 +1250,10 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
         transport_url=state["transport"],
         catchment_url=state.get("catchment", "myschool.edu.au"),
         current_month=current_month,
+        prev_month=prev_month,
+        current_year=current_year,
+        prev_year=prev_year,
+        two_years_ago=two_years_ago,
         nearby_schools_section=_build_nearby_schools_section(places_data) if task_name == "schools" else "",
     )
 

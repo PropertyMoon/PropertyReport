@@ -702,15 +702,14 @@ RESEARCH_TASKS = {
     "schools": (
         "Property address: {address}\n"
         "{nearby_schools_section}"
-        "STEP 1 — Catchment (primary): Check {catchment_url} for '{address} primary school catchment zone'. "
-        "If no result, search '{address} primary school catchment {state}'. "
-        "IMPORTANT: the pre-fetched Google Places list above is sorted by distance — if the official catchment tool returns no clear match, "
-        "treat the CLOSEST government primary school in the pre-fetched list as the likely catchment school. "
-        "Use the same school consistently — do NOT switch between schools on different searches. "
+        "STEP 1 — Catchment (primary): Search '{address} primary school catchment {state}' and use {catchment_url} as the primary source. "
+        "Identify the ONE government primary school whose catchment boundary contains this exact address. "
+        "If multiple schools appear, pick the one from the pre-fetched list above with the shortest distance_km — "
+        "use that school on every search and do NOT switch to a different school mid-task. "
         "Fetch its myschool.edu.au profile for ICSEA and latest NAPLAN results (reading/numeracy percentile vs national average). "
         "Estimate walk time in minutes from the property to the school.\n"
-        "STEP 2 — Catchment (secondary): Check {catchment_url} for '{address} secondary school catchment zone'. "
-        "If no result, treat the closest government secondary school in the pre-fetched list as the catchment school. "
+        "STEP 2 — Catchment (secondary): Search '{address} secondary school catchment {state}' using {catchment_url}. "
+        "Identify the one in-catchment government secondary school. If unclear, use the closest government secondary in the pre-fetched list. "
         "Fetch myschool.edu.au for ICSEA and NAPLAN. Estimate walk time.\n"
         "STEP 3 — ICSEA scores: For any government schools in the pre-fetched nearby list not yet covered, "
         "fetch myschool.edu.au ICSEA. For private/Catholic/independent schools in the list, "
@@ -809,18 +808,18 @@ RESEARCH_TASKS = {
         "In all levels: pick properties most similar in type (house/unit/townhouse) and approximate size to the subject property. Do NOT use the subject property's own sale history as a comparable.\n"
         "Return empty list only if you find zero results after all three levels.\n"
         "STEP 6 — Search for suburb-level market data (days on market, clearance rate, outlook).\n\n"
-        "STEP 7 — Comparable listings (currently for sale): search '[suburb] [state] house for sale {current_month} site:realestate.com.au OR site:domain.com.au' "
+        "STEP 7 — Comparable listings (currently for sale): search '[suburb] [state] house for sale site:realestate.com.au OR site:domain.com.au' "
         "— find up to 3 active listings within ~1km of the subject property, similar type and size. "
-        "STRICT DATE RULE: Only include listings first listed in {current_month} or {prev_month}. Skip stale listings from earlier months. "
+        "Prefer recently listed properties (listed in {current_month} or {prev_month}) but include any active listing if recent ones are unavailable. "
         "Pick properties on streets geographically close to the subject property. "
         "Do NOT include the subject property itself if it is currently listed. "
-        "Return empty list if no nearby active listings were listed in {current_month} or {prev_month}.\n\n"
+        "Return empty list only if no active listings of similar type exist nearby.\n\n"
         "Return JSON with: "
         "subject_property_last_sale (object: price (numeric AUD — no $ sign, just the number), "
         "date (string e.g. 'February 2025') — null only if all steps above return zero results), "
         "comparable_sales (list of up to 3 comparable sales — {current_year} sales first, then {prev_year}; closest to subject property within each year; "
         "each: address, sale_price (numeric AUD), sale_date (string e.g. 'March 2025'), bedrooms (int), bathrooms (int), land_sqm (int or null)), "
-        "comparable_listings (list of up to 3 active for-sale listings listed in {current_month} or {prev_month} — similar type and size, closest first; "
+        "comparable_listings (list of up to 3 active for-sale listings — similar type and size, closest first, prefer recently listed; "
         "each: address, listing_price (numeric AUD), bedrooms (int), bathrooms (int), land_sqm (int or null)), "
         "days_on_market, auction_clearance_rate, price_per_sqm, best_pockets, market_outlook."
     ),
@@ -1227,8 +1226,8 @@ _TASK_MAX_SEARCHES = {
     "property_market":     12,
     "government_projects": 5,
     "suburb":              8,
-    "schools":             4,
-    "transport":           4,
+    "schools":             5,
+    "transport":           6,
     "risk_overlays":       4,
 }
 _DEFAULT_MAX_SEARCHES = 3

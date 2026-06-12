@@ -601,6 +601,52 @@ def render_property_snapshot_html(report) -> str:
     return f'<table class="snapshot-table">{body}</table>'
 
 
+def render_market_evidence_html(comps: list, listings: list) -> str:
+    """Combined comparable sales + active listings table for the Property Snapshot body section."""
+    if not comps and not listings:
+        return ""
+
+    rows_html = []
+    for c in comps:
+        addr  = c.get("address") or "—"
+        date  = c.get("date") or "—"
+        price = c.get("price") or "—"
+        rows_html.append(
+            f'<tr>'
+            f'<td>{addr}</td>'
+            f'<td><span class="mev-badge mev-sold">Sold</span></td>'
+            f'<td>{date}</td>'
+            f'<td>—</td>'
+            f'<td>{price}</td>'
+            f'</tr>'
+        )
+    for l in listings:
+        addr  = l.get("address") or "—"
+        beds  = l.get("beds") or "—"
+        baths = l.get("baths") or "—"
+        price = l.get("price") or "—"
+        beds_baths = f"{beds}bd / {baths}ba" if beds != "—" or baths != "—" else "—"
+        rows_html.append(
+            f'<tr>'
+            f'<td>{addr}</td>'
+            f'<td><span class="mev-badge mev-listed">For Sale</span></td>'
+            f'<td>—</td>'
+            f'<td>{beds_baths}</td>'
+            f'<td>{price}</td>'
+            f'</tr>'
+        )
+
+    return (
+        '<table class="mev-table">'
+        '<thead><tr>'
+        '<th>Address</th><th>Status</th><th>Sale Date</th><th>Config</th><th>Price</th>'
+        '</tr></thead>'
+        '<tbody>'
+        + "".join(rows_html)
+        + '</tbody></table>'
+    )
+
+
 # ─── View-model: shape report → simple dict the template can read cleanly ────
 
 def build_view(report) -> dict:
@@ -661,6 +707,18 @@ def build_view(report) -> dict:
             "date":     str(s_row.get("sale_date") or "—"),
             "price":    _fmt_price(s_row.get("sale_price") or s_row.get("price")),
             "distance": s_row.get("distance_m") or "—",
+        })
+
+    # Comparable listings (active for-sale, max 3)
+    listings = []
+    for l_row in (mk.get("comparable_listings") or [])[:3]:
+        if not isinstance(l_row, dict):
+            continue
+        listings.append({
+            "address": (l_row.get("address") or "").strip(),
+            "price":   _fmt_price(l_row.get("listing_price") or l_row.get("price")),
+            "beds":    l_row.get("bedrooms") or "—",
+            "baths":   l_row.get("bathrooms") or "—",
         })
 
     # Last sale (subject property)
@@ -899,6 +957,7 @@ def build_view(report) -> dict:
         "history":     _history_chart(history),
         "rental":      _rental_chart(s, mk),
         "comparables": comps,
+        "listings":    listings,
         "last_sale":   last_sale,
         "scorecard":   scorecard,
         "overall_score": overall_score,
@@ -931,6 +990,7 @@ def build_view(report) -> dict:
         "map_uri":    map_uri,
         "body_sections":      parse_body_sections(report),
         "property_snapshot_html": render_property_snapshot_html(report),
+        "market_evidence_html":   render_market_evidence_html(comps, listings),
         "school_chart_svg":         _school_chart_svg(sch),
         "school_detail_table_html": _school_detail_table_html(sch),
         "lifestyle_table_html":     _lifestyle_table_html(lifestyle),
@@ -2144,6 +2204,44 @@ body {
 .snapshot-table tr:last-child td { border-bottom: none; }
 .snapshot-table strong { color: var(--navy); }
 
+/* Market Evidence table (comparable sales + active listings) */
+.mev-heading {
+  font-size: 9pt;
+  font-weight: 700;
+  color: var(--navy);
+  margin: 16px 0 6px 0;
+  letter-spacing: 0.02em;
+}
+.mev-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 8.5pt;
+  margin-bottom: 10px;
+}
+.mev-table thead th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--slate-3);
+  padding: 4px 6px;
+  border-bottom: 2px solid var(--grey-200);
+}
+.mev-table tbody td {
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--grey-100);
+  color: var(--slate);
+}
+.mev-table tbody tr:last-child td { border-bottom: none; }
+.mev-badge {
+  display: inline-block;
+  font-size: 7pt;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.mev-sold   { background: #e0f2f1; color: #00695c; }
+.mev-listed { background: #e8eaf6; color: #3949ab; }
+
 .body-chart {
   margin: 8px 0 14px 0;
   padding: 10px;
@@ -2416,6 +2514,7 @@ body {
   <section class="body-section">
     <h2 class="section-title"><span class="section-icon">{{ sec.icon | safe }}</span>{{ sec.title }}</h2>
     {% if sec.anchor == 'property-snapshot' and view.property_snapshot_html %}{{ view.property_snapshot_html | safe }}{% endif %}
+    {% if sec.anchor == 'property-snapshot' and view.market_evidence_html %}<h3 class="mev-heading">Comparable Sales &amp; Active Listings — 1 km Radius</h3>{{ view.market_evidence_html | safe }}{% endif %}
     {% if sec.anchor == 'market-analysis' and view.history %}<div class="body-chart">{{ view.history | safe }}</div>{% endif %}
     {% if sec.anchor == 'schools-catchment' %}{% if view.school_detail_table_html %}{{ view.school_detail_table_html | safe }}{% elif view.school_chart_svg %}<div class="body-chart">{{ view.school_chart_svg | safe }}</div>{% endif %}{% endif %}
     {% if sec.anchor == 'risk-assessment' and view.crime.rows %}

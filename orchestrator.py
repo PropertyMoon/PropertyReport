@@ -698,12 +698,19 @@ RESEARCH_TASKS = {
         "In all levels: pick properties most similar in type (house/unit/townhouse) and approximate size to the subject property. Do NOT use the subject property's own sale history as a comparable.\n"
         "Return empty list only if you find zero results after all three levels.\n"
         "STEP 6 — Search for suburb-level market data (days on market, clearance rate, outlook).\n\n"
+        "STEP 7 — Comparable listings (currently for sale): search '[suburb] [state] house for sale site:realestate.com.au OR site:domain.com.au' "
+        "— find up to 3 active listings within ~1km of the subject property, similar type and size. "
+        "Pick properties on streets geographically close to the subject property. "
+        "Do NOT include the subject property itself if it is currently listed. "
+        "Return empty list if no nearby active listings found.\n\n"
         "Return JSON with: "
         "subject_property_last_sale (object: price (numeric AUD — no $ sign, just the number), "
         "date (string e.g. 'February 2025') — null only if all steps above return zero results), "
         "comparable_sales (list of up to 3 comparable sales — similar type and size, "
         "ordered by: current year and closest to subject property first; "
         "each: address, sale_price (numeric AUD), sale_date (string e.g. 'March 2025'), bedrooms (int), bathrooms (int), land_sqm (int or null)), "
+        "comparable_listings (list of up to 3 active for-sale listings — similar type and size, closest first; "
+        "each: address, listing_price (numeric AUD), bedrooms (int), bathrooms (int), land_sqm (int or null)), "
         "days_on_market, auction_clearance_rate, price_per_sqm, best_pockets, market_outlook."
     ),
 
@@ -1106,7 +1113,7 @@ def _parse_json(text: str, label: str = "") -> dict:
 
 # Tasks that need more web searches to reliably find specific data
 _TASK_MAX_SEARCHES = {
-    "property_market":     10,
+    "property_market":     12,
     "government_projects": 5,
     "suburb":              8,
     "schools":             4,

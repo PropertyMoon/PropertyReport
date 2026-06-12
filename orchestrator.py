@@ -1398,6 +1398,7 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
     # No median MCP:    +3  (STEP 1 median)
     # No amenities API: +4  (STEP 5 supermarket×2, gym, park, GP)
     suburb_max_searches = None
+    amenities_has_data  = False
     if task_name == "suburb":
         budget = 2
         if not crime_data:

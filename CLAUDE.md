@@ -74,6 +74,7 @@ No test suite exists. Manual testing via the dev endpoint or CLI is the primary 
 | `SYNTHESIS_BACKEND` | `claude` (default) or `deepseek` — selects the AI backend for narrative synthesis. `deepseek` uses `deepseek-chat` (DeepSeek-V3) via the OpenAI-compatible API; research backend is unaffected. |
 | `DEEPSEEK_API_KEY` | Required when `SYNTHESIS_BACKEND=deepseek`. Get from platform.deepseek.com. |
 | `CRIME_MCP_URL` | URL for the au-crime-mcp `/suburb-crime` REST endpoint. Default: `https://au-crime-mcp-production.up.railway.app/suburb-crime`. On Railway, set to `http://au-crime-mcp.railway.internal:8080/suburb-crime` to use private networking. |
+| `MEDIAN_MCP_URL` | URL for the au-median-price-mcp `/suburb-median` REST endpoint. Default: `https://au-median-price-mcp-production.up.railway.app/suburb-median`. On Railway, set to `http://au-median-price-mcp.railway.internal:8080/suburb-median` to use private networking. Covers VIC + NSW; falls back to web search for all other states. |
 
 ## Deployment
 

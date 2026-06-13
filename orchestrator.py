@@ -1366,7 +1366,7 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
     if task_name == "suburb":
         amenities_data = _fetch_amenities_google_places(address)
 
-    task_dict = RESEARCH_TASKS
+    task_dict = RESEARCH_TASKS_PERPLEXITY if _RESEARCH_BACKEND == "perplexity" else RESEARCH_TASKS
     prompt = task_dict[task_name].format(
         address=address,
         state=state["label"],

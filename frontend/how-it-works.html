@@ -78,6 +78,27 @@
       padding: 4px 12px;
       border-radius: 20px;
     }
+    .hamburger {
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      gap: 5px;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 6px 4px;
+    }
+    .hamburger span {
+      display: block;
+      width: 22px;
+      height: 2px;
+      background: rgba(255,255,255,0.85);
+      border-radius: 2px;
+      transition: transform 0.25s, opacity 0.25s;
+    }
+    .hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .hamburger.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+    .hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
     /* ── HERO ── */
     .hero {
@@ -589,9 +610,20 @@
     footer strong { color: rgba(255,255,255,0.8); }
 
     @media (max-width: 768px) {
-      nav { padding: 16px 20px; }
-      .nav-links { gap: 14px; }
-      .nav-links a { font-size: 13px; }
+      nav { padding: 16px 20px; flex-wrap: wrap; }
+      .hamburger { display: flex; }
+      .nav-links {
+        display: none;
+        flex-direction: column;
+        width: 100%;
+        align-items: flex-start;
+        gap: 18px;
+        padding: 16px 0 6px;
+        border-top: 1px solid rgba(255,255,255,0.12);
+        margin-top: 12px;
+      }
+      .nav-links.open { display: flex; }
+      .nav-links a { font-size: 15px; }
       .nav-tag { display: none; }
       .hero { padding: 60px 20px 80px; }
       .section { padding: 60px 20px; }
@@ -608,6 +640,9 @@
 <!-- NAV -->
 <nav>
   <a href="/" class="logo">Property<span>Report</span></a>
+  <button class="hamburger" aria-label="Toggle menu" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
   <div class="nav-links">
     <a href="/" >Home</a>
     <a href="/how-it-works.html" class="active">How It Works</a>
@@ -818,5 +853,24 @@
   Not financial advice. Always conduct independent due diligence.
 </footer>
 
+
+<script>
+  (function() {
+    var btn = document.querySelector('.hamburger');
+    var menu = document.querySelector('.nav-links');
+    btn.addEventListener('click', function() {
+      var open = menu.classList.toggle('open');
+      btn.classList.toggle('open', open);
+      btn.setAttribute('aria-expanded', open);
+    });
+    document.addEventListener('click', function(e) {
+      if (!btn.contains(e.target) && !menu.contains(e.target)) {
+        menu.classList.remove('open');
+        btn.classList.remove('open');
+        btn.setAttribute('aria-expanded', false);
+      }
+    });
+  })();
+</script>
 </body>
 </html>

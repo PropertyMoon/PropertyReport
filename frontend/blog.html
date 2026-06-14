@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Property Insights Blog | PropertyReport</title>
+  <meta name="description" content="Plain-English guides on Australian property, tax, and market trends — written for home buyers and investors by the PropertyReport team." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://propreport.com.au/blog.html" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://propreport.com.au/blog.html" />
+  <meta property="og:site_name" content="PropertyReport" />
+  <meta property="og:title" content="Property Insights Blog | PropertyReport" />
+  <meta property="og:description" content="Plain-English guides on Australian property, tax, and market trends — written for home buyers and investors by the PropertyReport team." />
+  <meta property="og:image" content="https://propreport.com.au/og-image.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Property Insights Blog | PropertyReport" />
+  <meta name="twitter:description" content="Plain-English guides on Australian property, tax, and market trends — written for home buyers and investors by the PropertyReport team." />
+  <meta name="twitter:image" content="https://propreport.com.au/og-image.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --navy:       #1e293b;
+      --navy-dark:  #0f172a;
+      --gold:       #10b981;
+      --gold-light: #6ee7b7;
+      --cream:      #f8fafc;
+      --white:      #ffffff;
+      --grey-light: #f1f5f9;
+      --grey-mid:   #94a3b8;
+      --grey-text:  #475569;
+      --radius:     12px;
+      --shadow:     0 8px 40px rgba(15,23,42,0.12);
+      --shadow-sm:  0 2px 12px rgba(15,23,42,0.08);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--grey-text); min-height: 100vh; }
+
+    nav {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 20px 60px; background: var(--navy); position: sticky; top: 0; z-index: 100;
+    }
+    .logo { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: var(--white); display: flex; align-items: center; gap: 8px; text-decoration: none; }
+    .logo span { color: var(--gold); }
+    .nav-links { display: flex; align-items: center; gap: 28px; }
+    .nav-links a { color: rgba(255,255,255,0.78); text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.15s; }
+    .nav-links a:hover { color: var(--gold-light); }
+    .nav-links a.active { color: var(--gold-light); }
+    .nav-tag { background: rgba(201,168,76,0.15); border: 1px solid rgba(201,168,76,0.4); color: var(--gold-light); font-size: 12px; font-weight: 500; padding: 4px 12px; border-radius: 20px; }
+    .hamburger { display: none; flex-direction: column; justify-content: center; gap: 5px; cursor: pointer; background: none; border: none; padding: 6px 4px; }
+    .hamburger span { display: block; width: 22px; height: 2px; background: rgba(255,255,255,0.85); border-radius: 2px; transition: transform 0.25s, opacity 0.25s; }
+    .hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .hamburger.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+    .hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+    .page-hero {
+      background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy) 60%, #1e3a5f 100%);
+      padding: 60px 60px 70px; text-align: center;
+    }
+    .page-hero h1 { font-family: 'Playfair Display', serif; font-size: clamp(32px, 4vw, 52px); font-weight: 900; color: var(--white); margin-bottom: 12px; }
+    .page-hero p { font-size: 17px; color: rgba(255,255,255,0.65); max-width: 480px; margin: 0 auto; }
+
+    .blog-grid {
+      max-width: 860px; margin: 60px auto; padding: 0 24px;
+      display: grid; gap: 32px;
+    }
+
+    .blog-card {
+      background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow-sm);
+      overflow: hidden; transition: box-shadow 0.2s; text-decoration: none; display: block; color: inherit;
+    }
+    .blog-card:hover { box-shadow: var(--shadow); }
+    .blog-card-body { padding: 32px; }
+    .blog-tag { display: inline-block; background: rgba(16,185,129,0.1); color: var(--gold); font-size: 12px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; padding: 4px 12px; border-radius: 20px; margin-bottom: 16px; }
+    .blog-card h2 { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; color: var(--navy); margin-bottom: 10px; line-height: 1.3; }
+    .blog-card p { font-size: 15px; color: var(--grey-text); line-height: 1.65; margin-bottom: 20px; }
+    .blog-meta { font-size: 13px; color: var(--grey-mid); display: flex; align-items: center; gap: 16px; }
+    .read-more { color: var(--gold); font-weight: 600; font-size: 14px; }
+
+    footer { background: var(--navy-dark); color: rgba(255,255,255,0.5); text-align: center; padding: 28px; font-size: 13px; }
+    footer strong { color: rgba(255,255,255,0.8); }
+    footer a { color: rgba(255,255,255,0.7); text-decoration: underline; }
+
+    @media (max-width: 640px) {
+      nav { padding: 16px 20px; flex-wrap: wrap; }
+      .hamburger { display: flex; }
+      .nav-links {
+        display: none;
+        flex-direction: column;
+        width: 100%;
+        align-items: flex-start;
+        gap: 18px;
+        padding: 16px 0 6px;
+        border-top: 1px solid rgba(255,255,255,0.12);
+        margin-top: 12px;
+      }
+      .nav-links.open { display: flex; }
+      .nav-links a { font-size: 15px; }
+      .nav-tag { display: none; }
+      .page-hero { padding: 40px 20px 50px; }
+      .blog-grid { margin: 32px auto; }
+      .blog-card-body { padding: 22px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="logo">Property<span>Report</span></a>
+  <button class="hamburger" aria-label="Toggle menu" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="nav-links">
+    <a href="/">Home</a>
+    <a href="/how-it-works.html">How It Works</a>
+    <a href="/blog.html" class="active">Blog</a>
+    <a href="mailto:info@propreport.com.au">Contact</a>
+    <span class="nav-tag">🇦🇺 Australia Only</span>
+  </div>
+</nav>
+
+<div class="page-hero">
+  <h1>Property Insights</h1>
+  <p>Plain-English guides on Australian property, tax, and market trends.</p>
+</div>
+
+<div class="blog-grid">
+
+  <a class="blog-card" href="/blog-cgt-negative-gearing.html">
+    <div class="blog-card-body">
+      <span class="blog-tag">Tax &amp; Policy</span>
+      <h2>CGT and Negative Gearing — What's Changing and What It Means for You</h2>
+      <p>Two of the biggest tax perks for Australian property investors explained in plain English — what they are, how they work, and what recent debates mean for buyers and sellers.</p>
+      <div class="blog-meta">
+        <span>June 2026</span>
+        <span>·</span>
+        <span>5 min read</span>
+        <span class="read-more">Read article →</span>
+      </div>
+    </div>
+  </a>
+
+</div>
+
+<footer>
+  <strong>PropertyReport</strong> · AI Property Research for Australian Buyers<br/>
+  Questions? <a href="mailto:info@propreport.com.au">info@propreport.com.au</a><br/>
+  Not financial advice. Always conduct independent due diligence.
+</footer>
+
+
+<script>
+  (function() {
+    var btn = document.querySelector('.hamburger');
+    var menu = document.querySelector('.nav-links');
+    btn.addEventListener('click', function() {
+      var open = menu.classList.toggle('open');
+      btn.classList.toggle('open', open);
+      btn.setAttribute('aria-expanded', open);
+    });
+    document.addEventListener('click', function(e) {
+      if (!btn.contains(e.target) && !menu.contains(e.target)) {
+        menu.classList.remove('open');
+        btn.classList.remove('open');
+        btn.setAttribute('aria-expanded', false);
+      }
+    });
+  })();
+</script>
+</body>
+</html>

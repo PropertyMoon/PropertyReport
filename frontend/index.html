@@ -3,7 +3,47 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PropertyReport — AI Property Research Reports</title>
+  <title>PropertyReport | AI Property Reports for Australian Home Buyers</title>
+  <meta name="description" content="Get a detailed AI-generated property research report for any Australian address in minutes. Covers market value, crime, schools, flood risk, transport and comparable sales. From $9.99." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://propreport.com.au/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://propreport.com.au/" />
+  <meta property="og:site_name" content="PropertyReport" />
+  <meta property="og:title" content="PropertyReport | AI Property Reports for Australian Home Buyers" />
+  <meta property="og:description" content="Get a detailed AI-generated property research report for any Australian address in minutes. Covers market value, crime, schools, flood risk, transport and comparable sales. From $9.99." />
+  <meta property="og:image" content="https://propreport.com.au/og-image.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="PropertyReport | AI Property Reports for Australian Home Buyers" />
+  <meta name="twitter:description" content="Get a detailed AI-generated property research report for any Australian address in minutes. Covers market value, crime, schools, flood risk, transport and comparable sales. From $9.99." />
+  <meta name="twitter:image" content="https://propreport.com.au/og-image.png" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://propreport.com.au/#website",
+        "url": "https://propreport.com.au/",
+        "name": "PropertyReport",
+        "description": "AI property research reports for Australian home buyers"
+      },
+      {
+        "@type": "SoftwareApplication",
+        "name": "PropertyReport",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web",
+        "offers": {
+          "@type": "Offer",
+          "price": "9.99",
+          "priceCurrency": "AUD"
+        },
+        "description": "AI-generated property research reports for any Australian address. Covers market value, comparable sales, school catchments, crime, flood risk and more.",
+        "url": "https://propreport.com.au/"
+      }
+    ]
+  }
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <script>
@@ -88,6 +128,27 @@
       padding: 4px 12px;
       border-radius: 20px;
     }
+    .hamburger {
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      gap: 5px;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 6px 4px;
+    }
+    .hamburger span {
+      display: block;
+      width: 22px;
+      height: 2px;
+      background: rgba(255,255,255,0.85);
+      border-radius: 2px;
+      transition: transform 0.25s, opacity 0.25s;
+    }
+    .hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .hamburger.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+    .hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
     /* ── HERO ── */
     .hero {
@@ -455,9 +516,20 @@
     }
 
     @media (max-width: 768px) {
-      nav { padding: 16px 20px; }
-      .nav-links { gap: 14px; }
-      .nav-links a { font-size: 13px; }
+      nav { padding: 16px 20px; flex-wrap: wrap; }
+      .hamburger { display: flex; }
+      .nav-links {
+        display: none;
+        flex-direction: column;
+        width: 100%;
+        align-items: flex-start;
+        gap: 18px;
+        padding: 16px 0 6px;
+        border-top: 1px solid rgba(255,255,255,0.12);
+        margin-top: 12px;
+      }
+      .nav-links.open { display: flex; }
+      .nav-links a { font-size: 15px; }
       .nav-tag { display: none; }
       .hero { padding: 60px 20px 80px; }
       .section { padding: 60px 20px; }
@@ -470,9 +542,14 @@
 <!-- NAV -->
 <nav>
   <a href="/" class="logo">Property<span>Report</span></a>
+  <button class="hamburger" aria-label="Toggle menu" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
   <div class="nav-links">
     <a href="/" class="active">Home</a>
     <a href="/how-it-works.html">How It Works</a>
+    <a href="/blog.html">Blog</a>
+    <a href="mailto:info@propreport.com.au">Contact</a>
     <span class="nav-tag">🇦🇺 Australia Only</span>
   </div>
 </nav>
@@ -586,6 +663,7 @@
 <!-- FOOTER -->
 <footer>
   <strong>PropertyReport</strong> · AI Property Research for Australian Buyers<br/>
+  Questions? <a href="mailto:info@propreport.com.au" style="color:rgba(255,255,255,0.7);text-decoration:underline;">info@propreport.com.au</a><br/>
   Not financial advice. Always conduct independent due diligence.
 </footer>
 
@@ -817,6 +895,25 @@
   // Auto-start polling if returning from Stripe
   const jobId = getQueryParam("job_id");
   if (jobId) pollStatus(jobId);
+</script>
+
+<script>
+  (function() {
+    var btn = document.querySelector('.hamburger');
+    var menu = document.querySelector('.nav-links');
+    btn.addEventListener('click', function() {
+      var open = menu.classList.toggle('open');
+      btn.classList.toggle('open', open);
+      btn.setAttribute('aria-expanded', open);
+    });
+    document.addEventListener('click', function(e) {
+      if (!btn.contains(e.target) && !menu.contains(e.target)) {
+        menu.classList.remove('open');
+        btn.classList.remove('open');
+        btn.setAttribute('aria-expanded', false);
+      }
+    });
+  })();
 </script>
 </body>
 </html>

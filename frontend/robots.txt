@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+Disallow: /dev/
+Disallow: /report/
+Disallow: /webhook
+Disallow: /create-checkout
+Disallow: /api/
+
+Sitemap: https://propreport.com.au/sitemap.xml

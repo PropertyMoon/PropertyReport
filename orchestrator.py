@@ -37,7 +37,7 @@ _STATE_SOURCES = {
     "NSW": {"label": "New South Wales",    "planning": "planning.nsw.gov.au",   "crime": "bocsar.nsw.gov.au",                     "flood": "floodplanning.nsw.gov.au",    "transport": "transportnsw.info",     "catchment": "schoolfinder.education.nsw.gov.au"},
     "QLD": {"label": "Queensland",         "planning": "dsdilgp.qld.gov.au",    "crime": "police.qld.gov.au/maps-and-statistics", "flood": "floodcheck.qld.gov.au",       "transport": "translink.com.au",      "catchment": "schoolfinder.education.qld.gov.au"},
     "SA":  {"label": "South Australia",    "planning": "plan.sa.gov.au",        "crime": "police.sa.gov.au/services-and-stats",   "flood": "environment.sa.gov.au/flood", "transport": "adelaidemetro.com.au",  "catchment": "education.sa.gov.au/find-a-school"},
-    "WA":  {"label": "Western Australia",  "planning": "planning.wa.gov.au",    "crime": "police.wa.gov.au/crime-statistics",     "flood": "planning.wa.gov.au/flood",    "transport": "transperth.wa.gov.au",  "catchment": "education.wa.edu.au/web/school-search"},
+    "WA":  {"label": "Western Australia",  "planning": "planning.wa.gov.au",    "crime": "police.wa.gov.au/crime-statistics/suburb-crime-data", "flood": "planning.wa.gov.au/flood",    "transport": "transperth.wa.gov.au",  "catchment": "det.wa.edu.au/schoolsonline/local_intake_school.do"},
     "TAS": {"label": "Tasmania",           "planning": "listmap.tas.gov.au",    "crime": "justice.tas.gov.au/crime-statistics",   "flood": "dpipwe.tas.gov.au/flood",     "transport": "metrotas.com.au",       "catchment": "education.tas.gov.au/parents-carers/find-a-school"},
     "ACT": {"label": "ACT",                "planning": "actmapi.act.gov.au",    "crime": "police.act.gov.au/crime-statistics",    "flood": "esa.act.gov.au/flood",        "transport": "transport.act.gov.au",  "catchment": "education.act.gov.au/public-school-enrolment/find-your-local-school"},
     "NT":  {"label": "Northern Territory", "planning": "planning.nt.gov.au",    "crime": "pfes.nt.gov.au/crime-statistics",       "flood": "nt.gov.au/emergency/flood",   "transport": "nt.gov.au/driving-transport/public-transport", "catchment": "education.nt.gov.au/enrolment/find-a-school"},
@@ -672,8 +672,13 @@ RESEARCH_TASKS = {
         "STEP 2 — RENTAL YIELD: Search '[suburb] [postcode] gross rental yield 2025' — read the rental yield "
         "percentage from whichever source appears. If no yield figure is found, search '[suburb] [state] median weekly rent' "
         "and calculate yield as (weekly_rent × 52 / median_house_price × 100).\n"
-        "STEP 3 — PRICE HISTORY: Search '[suburb] [state] median house price history site:realestate.com.au OR site:domain.com.au' "
-        "— find year-by-year median prices from 2021 to 2025.\n"
+        "STEP 3 — PRICE HISTORY: Fetch BOTH of these suburb profile pages directly — do not skip either:\n"
+        "  REA profile: https://www.realestate.com.au/neighbourhoods/[suburb-hyphenated]-[postcode]-[state-lower]/\n"
+        "    (e.g. hazelwood-park-5066-sa or taylors-lakes-3038-vic)\n"
+        "  Domain profile: https://www.domain.com.au/suburb-profile/[suburb-lower]-[state-lower]-[postcode]/\n"
+        "    (e.g. hazelwood-park-sa-5066 or taylors-lakes-vic-3038)\n"
+        "Extract year-by-year median house prices for 2021–2026 from whichever page shows them. "
+        "Return up to 6 objects: year (int), median_house_price (numeric AUD).\n"
         "STEP 4 — CRIME: Search '[suburb] [state] crime statistics' and prefer {crime_url} as the primary source. "
         "If {crime_url} has no suburb-level data, use any authoritative source (state police, ABS, suburb profiles). "
         "You MUST return numeric values for crime fields — derive the percentile and deltas from the actual offence "
@@ -909,10 +914,13 @@ RESEARCH_TASKS_PERPLEXITY = {
         "(rent × 52 / median_house_price × 100). Round to 1 decimal place. "
         "If either value cannot be verified, return null.\n\n"
         "STEP 3 — PRICE HISTORY\n"
-        "Search '[suburb] [state] median house price history' using the suburb and state from {address}. "
-        "Try realestate.com.au suburb profile, domain.com.au suburb insights, or any property report showing year-by-year data. "
-        "Also try '[suburb] [state] median house price 2021 2022 2023 2024 2025'. "
-        "Return up to 6 yearly median house prices for 2021–2026. Include a year if a figure appears in any credible source.\n\n"
+        "Fetch BOTH of these suburb profile pages directly — do not skip either:\n"
+        "  REA profile: https://www.realestate.com.au/neighbourhoods/[suburb-hyphenated]-[postcode]-[state-lower]/\n"
+        "    (e.g. hazelwood-park-5066-sa or taylors-lakes-3038-vic)\n"
+        "  Domain profile: https://www.domain.com.au/suburb-profile/[suburb-lower]-[state-lower]-[postcode]/\n"
+        "    (e.g. hazelwood-park-sa-5066 or taylors-lakes-vic-3038)\n"
+        "Extract year-by-year median house prices for 2021–2026 from whichever page shows them. "
+        "Return up to 6 objects: year (int), median_house_price (numeric AUD).\n\n"
         "STEP 4 — LIFESTYLE AMENITIES\n"
         "{amenities_section}"
         "Search '[suburb] [state] hospital' — return the nearest hospital only if within 10 km.\n"
@@ -950,9 +958,10 @@ RESEARCH_TASKS_PERPLEXITY = {
         "4. Commercial school directories only if necessary for proximity, not for catchment confirmation.\n\n"
         "{nearby_schools_section}"
         "STEP 1 — PRIMARY CATCHMENT\n"
-        "Search '{address} primary school catchment' and use {catchment_url} as the primary source. "
-        "Confirm whether this address is inside the catchment boundary (in_catchment = true/false). "
+        "Search '[suburb] [state] primary school catchment' and also search '{address} primary school catchment zone'. "
+        "Use {catchment_url} as a reference source if accessible. "
         "If pre-fetched schools are listed above, use the closest one as the starting point. "
+        "Confirm whether this address is inside the catchment boundary (in_catchment = true/false). "
         "Return the school name, ICSEA from myschool.edu.au, latest available NAPLAN reading and numeracy, "
         "and walking distance from the property. Add 1-2 other nearby primary schools within 2 km if verifiable.\n\n"
         "STEP 2 — SECONDARY CATCHMENT\n"

@@ -52,6 +52,10 @@ _MEDIAN_MCP_URL = os.getenv(
     "MEDIAN_MCP_URL",
     "https://au-median-price-mcp-production.up.railway.app/suburb-median",
 )
+_COMPARABLE_SALES_MCP_URL = os.getenv(
+    "COMPARABLE_SALES_MCP_URL",
+    "https://au-median-price-mcp-production.up.railway.app/comparable-sales",
+)
 
 _STREET_TYPE_RE = re.compile(
     r'\b(Street|St|Road|Rd|Avenue|Ave|Drive|Dr|Court|Ct|Place|Pl|Crescent|Cres|'
@@ -78,6 +82,21 @@ def _extract_suburb(address: str) -> str:
 def _get_state_abbrev(address: str) -> str:
     m = re.search(r'\b(VIC|NSW|QLD|SA|WA|TAS|ACT|NT)\b', address, re.IGNORECASE)
     return m.group(1).upper() if m else ""
+
+
+def _extract_postcode(address: str) -> str:
+    m = re.search(r'\b(\d{4})\b', address)
+    return m.group(1) if m else ""
+
+
+def _extract_street_name(address: str) -> str:
+    """Return street name + type without the house number, e.g. 'Devereux Road'."""
+    m = _STREET_TYPE_RE.search(address)
+    if not m:
+        return ""
+    chunk = address[:m.end()]                              # e.g. "35 Devereux Road"
+    chunk = re.sub(r'^\d+[a-zA-Z]?\s*[/\\]?\s*\d*[a-zA-Z]?\s+', '', chunk)  # strip number
+    return chunk.strip()
 
 
 def _fetch_crime_data(suburb: str, state: str) -> dict | None:
@@ -345,6 +364,50 @@ def _inject_median_into_suburb_prompt(prompt: str, median: dict) -> str:
     if step1_start >= 0 and step2_start >= 0:
         return prompt[:step1_start] + injected + "\n" + prompt[step2_start:]
     return prompt
+
+
+def _fetch_comparable_sales(suburb: str, state: str, postcode: str, street: str) -> dict | None:
+    """Call /comparable-sales on the median-price MCP. Returns None on failure."""
+    if not suburb or not state or not postcode:
+        return None
+    try:
+        params = {"suburb": suburb, "state": state, "postcode": postcode}
+        if street:
+            params["street"] = street
+        r = httpx.get(_COMPARABLE_SALES_MCP_URL, params=params, timeout=60)
+        if r.status_code == 200:
+            return r.json()
+    except Exception as e:
+        print(f"  ⚠️  Comparable Sales MCP unavailable ({e}), falling back to AI search")
+    return None
+
+
+def _inject_comparables_into_property_market_prompt(prompt: str, comps: dict) -> str:
+    """Replace STEP 5 (comparable sales) with pre-fetched Scrapfly results."""
+    sales = comps.get("comparable_sales", [])
+    source = comps.get("data_source", "realestate.com.au + domain.com.au")
+    period = comps.get("data_period", "last 12 months")
+
+    sales_json = json.dumps(sales[:10], indent=2)  # cap at 10 for prompt size
+    injected = (
+        f"STEP 5 — COMPARABLE SALES: Pre-fetched from {source} ({period}). "
+        f"Use these exact values — do NOT search for comparable sales.\n"
+        f"Pick the 3 most relevant (closest property type/size to subject):\n"
+        f"{sales_json}\n"
+    )
+
+    # Find STEP 5 and the next STEP after it
+    step5_start = prompt.find("STEP 5\n")
+    if step5_start < 0:
+        step5_start = prompt.find("STEP 5 —")
+    if step5_start < 0:
+        return prompt
+
+    step6_start = prompt.find("STEP 6", step5_start + 1)
+    if step6_start >= 0:
+        return prompt[:step5_start] + injected + "\n" + prompt[step6_start:]
+
+    return prompt[:step5_start] + injected
 
 
 def _get_state(address: str) -> dict:
@@ -1400,14 +1463,16 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
         amenities_section=_build_amenities_section(amenities_data) if task_name == "suburb" else "",
     )
 
-    # Pre-fetch authoritative data for suburb task — inject into prompt so the AI
-    # skips those web searches and uses the pre-fetched values instead.
+    # Pre-fetch authoritative data — inject into prompt so the AI skips those
+    # web searches and uses the pre-fetched values instead.
     crime_data  = None
     median_data = None
-    if task_name == "suburb":
-        suburb_name  = _extract_suburb(address)
-        state_abbrev = _get_state_abbrev(address)
+    comps_data  = None
 
+    suburb_name  = _extract_suburb(address)
+    state_abbrev = _get_state_abbrev(address)
+
+    if task_name == "suburb":
         crime_data = _fetch_crime_data(suburb_name, state_abbrev)
         if crime_data and crime_data.get("coverage") == "available":
             prompt = _inject_crime_into_suburb_prompt(prompt, crime_data)
@@ -1421,6 +1486,17 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
             print(f"  ✅ Median MCP: {suburb_name} {state_abbrev} — house=${median_data.get('median_house_price')}")
         else:
             median_data = None  # not available — let AI search
+
+    if task_name == "property_market":
+        postcode    = _extract_postcode(address)
+        street_name = _extract_street_name(address)
+        comps_data  = _fetch_comparable_sales(suburb_name, state_abbrev, postcode, street_name)
+        if comps_data and comps_data.get("coverage") == "available":
+            prompt = _inject_comparables_into_property_market_prompt(prompt, comps_data)
+            print(f"  ✅ Comparable Sales MCP: {suburb_name} {state_abbrev} — {comps_data.get('total_sales_found')} sales fetched")
+        else:
+            comps_data = None  # not available — let AI search (STEP 5 in prompt)
+            print(f"  ⚠️  Comparable Sales MCP: not available for {suburb_name} {state_abbrev}, AI will search")
 
     # Dynamic search budget for suburb task:
     # Base 2: STEP 2 (rental yield) + STEP 3 (price history)
@@ -1458,6 +1534,13 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
         print(f"  📄 [DEBUG] raw model output:\n{full_text[:3000]}")
         parsed = _parse_json(full_text, task_name)
         print(f"  📊 [DEBUG] subject_property_last_sale = {parsed.get('subject_property_last_sale')}")
+        # Overwrite comparable_sales with MCP data (authoritative, bypasses bot detection)
+        if comps_data and comps_data.get("coverage") == "available":
+            sales = comps_data.get("comparable_sales", [])
+            if sales:
+                parsed["comparable_sales"] = sales[:3]
+                parsed["comparable_sales_source"] = comps_data.get("data_source")
+                print(f"  ✅ Injected {len(sales[:3])} comparable sales from MCP into result")
         return parsed
 
     result = _parse_json(full_text, task_name)

@@ -374,7 +374,7 @@ def _fetch_comparable_sales(suburb: str, state: str, postcode: str, street: str)
         params = {"suburb": suburb, "state": state, "postcode": postcode}
         if street:
             params["street"] = street
-        r = httpx.get(_COMPARABLE_SALES_MCP_URL, params=params, timeout=60)
+        r = httpx.get(_COMPARABLE_SALES_MCP_URL, params=params, timeout=90)
         if r.status_code == 200:
             return r.json()
     except Exception as e:

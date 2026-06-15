@@ -697,9 +697,9 @@ def build_view(report) -> dict:
             history.append((yr, pr))
     history.sort()
 
-    # Comparable sales (max 4 for the table card)
+    # Comparable sales (max 3 for the dashboard widget)
     comps = []
-    for s_row in (mk.get("comparable_sales") or [])[:4]:
+    for s_row in (mk.get("comparable_sales") or [])[:3]:
         if not isinstance(s_row, dict):
             continue
         comps.append({

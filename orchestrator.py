@@ -1538,7 +1538,7 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
         if comps_data and comps_data.get("coverage") == "available":
             sales = comps_data.get("comparable_sales", [])
             if sales:
-                parsed["comparable_sales"] = sales[:3]
+                parsed["comparable_sales"] = sales[:5]
                 parsed["comparable_sales_source"] = comps_data.get("data_source")
                 print(f"  ✅ Injected {len(sales[:3])} comparable sales from MCP into result")
         return parsed

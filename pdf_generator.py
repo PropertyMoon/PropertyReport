@@ -562,7 +562,7 @@ def build_school_chart(report, styles: dict) -> list:
 def build_comparables_table(report, styles: dict) -> list:
     market = report.property_market if isinstance(getattr(report, "property_market", None), dict) else {}
     raw_sales = market.get("comparable_sales") or market.get("recent_sales") or []
-    sales = [s for s in raw_sales if isinstance(s, dict)][:2]
+    sales = [s for s in raw_sales if isinstance(s, dict)][:5]
     if not sales:
         return []
 

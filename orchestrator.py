@@ -1506,15 +1506,15 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
             median_data = None  # not available — let AI search
 
     # Dynamic search budget for suburb task:
-    # Base 2: STEP 2 (rental yield) + STEP 3 (price history)
-    # Yield pre-fetched:  -1  (Domain scrape returned gross_rental_yield)
+    # Base 3: STEP 2 (rental yield, 1) + STEP 3 (price history: REA + Domain pages, 2)
+    # Yield pre-fetched:  -1  (Domain scrape returned gross_rental_yield; STEP 2 skipped)
     # No crime MCP:       +2  (STEP 4 crime search)
     # No median MCP:      +3  (STEP 1 median)
     # No amenities API:   +4  (STEP 5 supermarket×2, gym, park, GP)
     suburb_max_searches = None
     amenities_has_data  = False
     if task_name == "suburb":
-        budget = 2
+        budget = 3
         if median_data and median_data.get("gross_rental_yield") is not None:
             budget -= 1  # yield already injected, AI skips STEP 2
         if not crime_data:

@@ -10,6 +10,7 @@ import json
 import math
 import os
 import re
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
@@ -1487,17 +1488,6 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
         else:
             median_data = None  # not available — let AI search
 
-    if task_name == "property_market":
-        postcode    = _extract_postcode(address)
-        street_name = _extract_street_name(address)
-        comps_data  = _fetch_comparable_sales(suburb_name, state_abbrev, postcode, street_name)
-        if comps_data and comps_data.get("coverage") == "available":
-            prompt = _inject_comparables_into_property_market_prompt(prompt, comps_data)
-            print(f"  ✅ Comparable Sales MCP: {suburb_name} {state_abbrev} — {comps_data.get('total_sales_found')} sales fetched")
-        else:
-            comps_data = None  # not available — let AI search (STEP 5 in prompt)
-            print(f"  ⚠️  Comparable Sales MCP: not available for {suburb_name} {state_abbrev}, AI will search")
-
     # Dynamic search budget for suburb task:
     # Base 2: STEP 2 (rental yield) + STEP 3 (price history)
     # No crime MCP:     +2  (STEP 4 crime search)
@@ -1534,13 +1524,6 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
         print(f"  📄 [DEBUG] raw model output:\n{full_text[:3000]}")
         parsed = _parse_json(full_text, task_name)
         print(f"  📊 [DEBUG] subject_property_last_sale = {parsed.get('subject_property_last_sale')}")
-        # Overwrite comparable_sales with MCP data (authoritative, bypasses bot detection)
-        if comps_data and comps_data.get("coverage") == "available":
-            sales = comps_data.get("comparable_sales", [])
-            if sales:
-                parsed["comparable_sales"] = sales[:5]
-                parsed["comparable_sales_source"] = comps_data.get("data_source")
-                print(f"  ✅ Injected {len(sales[:3])} comparable sales from MCP into result")
         return parsed
 
     result = _parse_json(full_text, task_name)
@@ -1992,6 +1975,18 @@ def research_property(address: str, api_key: str = None) -> PropertyReport:
     state_abbrev  = _get_state_abbrev(address)
     suburb_name   = _extract_suburb(address)
 
+    # Fetch comparable sales in a dedicated daemon thread so the 20-30s Scrapfly
+    # wait runs fully in parallel with the AI tasks (doesn't consume a worker slot).
+    _comps_result: list = [None]
+    def _comps_worker():
+        _comps_result[0] = _fetch_comparable_sales(
+            suburb_name, state_abbrev,
+            _extract_postcode(address), _extract_street_name(address),
+        )
+    _comps_thread = threading.Thread(target=_comps_worker, daemon=True, name="comparable-sales-fetch")
+    _comps_thread.start()
+    print(f"  🔄 Comparable Sales MCP fetch started in background for {suburb_name} {state_abbrev}")
+
     with ThreadPoolExecutor(max_workers=3) as executor:
         domain_future = executor.submit(_domain_get_last_sale, address)
 
@@ -2053,9 +2048,29 @@ def research_property(address: str, api_key: str = None) -> PropertyReport:
             except Exception as e:
                 print(f"  ⚠️  [NSW DA] Result unavailable: {e}")
 
+    # Apply comparable sales from background thread (should already be done by now)
+    _comps_thread.join(timeout=45)  # generous fallback; AI tasks take 60-90s so thread is usually done
+    comps_data = _comps_result[0]
+    if comps_data and comps_data.get("coverage") == "available":
+        pm = research_data.get("property_market")
+        if not isinstance(pm, dict):
+            research_data["property_market"] = {}
+            pm = research_data["property_market"]
+        sales = comps_data.get("comparable_sales", [])
+        if sales:
+            pm["comparable_sales"] = sales[:5]
+            pm["comparable_sales_source"] = comps_data.get("data_source")
+            print(f"  ✅ Comparable Sales MCP: {len(sales[:5])} sales injected for {suburb_name} {state_abbrev}")
+        else:
+            print(f"  ⚠️  Comparable Sales MCP: available but 0 sales returned for {suburb_name} {state_abbrev}")
+    elif comps_data:
+        print(f"  ⚠️  Comparable Sales MCP: coverage={comps_data.get('coverage')} for {suburb_name} {state_abbrev}")
+    else:
+        print(f"  ⚠️  Comparable Sales MCP: no response for {suburb_name} {state_abbrev}")
+
     print("\n📝 All research complete. Synthesising...")
     print("=" * 60)
-    
+
     # Synthesise full narrative report
     summary = synthesise_report(client, address, research_data)
     

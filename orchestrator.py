@@ -353,11 +353,18 @@ def _fetch_median_price_data(suburb: str, state: str, postcode: str = "") -> dic
 
 
 def _inject_median_into_suburb_prompt(prompt: str, median: dict) -> str:
-    """Replace STEP 1 (MEDIAN PRICE) with pre-fetched authoritative values.
-    If gross_rental_yield is present (Domain scrape), also replace STEP 2 so the AI
-    skips the rental yield web search and saves search budget."""
-    source = median.get("data_source", "authoritative state source")
-    yield_val = median.get("gross_rental_yield")
+    """
+    Replace pre-fetched STEP 1/2/3 blocks so the AI skips the corresponding
+    web searches and uses authoritative scraped values instead.
+
+    - STEP 1 always replaced (median prices).
+    - STEP 2 replaced when gross_rental_yield is present (Domain scrape).
+    - STEP 3 replaced when price_history_5yr is present (Domain scrape).
+    """
+    source      = median.get("data_source", "authoritative source")
+    yield_val   = median.get("gross_rental_yield")
+    history     = median.get("price_history_5yr") or []
+
     injected = (
         "STEP 1 — MEDIAN PRICE: Data pre-fetched. "
         "Use these exact values — do NOT search for median price:\n"
@@ -372,13 +379,24 @@ def _inject_median_into_suburb_prompt(prompt: str, median: dict) -> str:
             "Use this value — do NOT search for rental yield:\n"
             f"  gross_rental_yield = {yield_val:.2f}%\n"
         )
+    if history:
+        import json as _json
+        injected += (
+            f"\nSTEP 3 — PRICE HISTORY: Pre-fetched from {source}. "
+            "Use these exact values — do NOT fetch suburb profile pages:\n"
+            f"  price_history_5yr = {_json.dumps(history)}\n"
+        )
+
     step1_start = prompt.find("STEP 1 — MEDIAN PRICE")
-    # If yield was pre-fetched, skip past STEP 2 as well
-    if yield_val is not None:
+    # Advance past whichever STEPs were pre-fetched
+    if history:
+        next_step_marker = "STEP 4 —"
+    elif yield_val is not None:
         next_step_marker = "STEP 3 —"
     else:
         next_step_marker = "STEP 2 —"
-    next_start = prompt.find(next_step_marker, step1_start + 1 if step1_start >= 0 else 0)
+    search_from = step1_start + 1 if step1_start >= 0 else 0
+    next_start  = prompt.find(next_step_marker, search_from)
     if step1_start >= 0 and next_start >= 0:
         return prompt[:step1_start] + injected + "\n" + prompt[next_start:]
     return prompt
@@ -1507,16 +1525,19 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
 
     # Dynamic search budget for suburb task:
     # Base 3: STEP 2 (rental yield, 1) + STEP 3 (price history: REA + Domain pages, 2)
-    # Yield pre-fetched:  -1  (Domain scrape returned gross_rental_yield; STEP 2 skipped)
-    # No crime MCP:       +2  (STEP 4 crime search)
-    # No median MCP:      +3  (STEP 1 median)
-    # No amenities API:   +4  (STEP 5 supermarket×2, gym, park, GP)
+    # Yield pre-fetched:    -1  (Domain scrape returned gross_rental_yield; STEP 2 skipped)
+    # History pre-fetched:  -2  (Domain scrape returned price_history_5yr; STEP 3 skipped)
+    # No crime MCP:         +2  (STEP 4 crime search)
+    # No median MCP:        +3  (STEP 1 median)
+    # No amenities API:     +4  (STEP 5 supermarket×2, gym, park, GP)
     suburb_max_searches = None
     amenities_has_data  = False
     if task_name == "suburb":
         budget = 3
         if median_data and median_data.get("gross_rental_yield") is not None:
             budget -= 1  # yield already injected, AI skips STEP 2
+        if median_data and median_data.get("price_history_5yr"):
+            budget -= 2  # history already injected, AI skips STEP 3 (2 page fetches)
         if not crime_data:
             budget += 2
         if not median_data:
@@ -1583,6 +1604,8 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
             result["median_unit_price"] = median_data["median_unit_price"]
         if median_data.get("price_history_quarterly"):
             result["price_history_quarterly"] = median_data["price_history_quarterly"]
+        if median_data.get("price_history_5yr"):
+            result["price_history_5yr"] = median_data["price_history_5yr"]
         if median_data.get("gross_rental_yield") is not None:
             result["gross_rental_yield"] = median_data["gross_rental_yield"]
         result["median_price_data_source"] = median_data.get("data_source")

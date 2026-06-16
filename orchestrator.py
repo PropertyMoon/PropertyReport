@@ -336,12 +336,15 @@ def _inject_crime_into_suburb_prompt(prompt: str, crime: dict) -> str:
     return prompt
 
 
-def _fetch_median_price_data(suburb: str, state: str) -> dict | None:
+def _fetch_median_price_data(suburb: str, state: str, postcode: str = "") -> dict | None:
     """Call the au-median-price-mcp /suburb-median endpoint. Returns None on failure."""
     if not suburb or not state:
         return None
     try:
-        r = httpx.get(_MEDIAN_MCP_URL, params={"suburb": suburb, "state": state}, timeout=60)
+        params = {"suburb": suburb, "state": state}
+        if postcode:
+            params["postcode"] = postcode
+        r = httpx.get(_MEDIAN_MCP_URL, params=params, timeout=60)
         if r.status_code == 200:
             return r.json()
     except Exception as e:
@@ -350,20 +353,34 @@ def _fetch_median_price_data(suburb: str, state: str) -> dict | None:
 
 
 def _inject_median_into_suburb_prompt(prompt: str, median: dict) -> str:
-    """Replace STEP 1 (MEDIAN PRICE) with pre-fetched authoritative values."""
+    """Replace STEP 1 (MEDIAN PRICE) with pre-fetched authoritative values.
+    If gross_rental_yield is present (Domain scrape), also replace STEP 2 so the AI
+    skips the rental yield web search and saves search budget."""
     source = median.get("data_source", "authoritative state source")
+    yield_val = median.get("gross_rental_yield")
     injected = (
-        "STEP 1 — MEDIAN PRICE: Data pre-fetched from authoritative government source. "
+        "STEP 1 — MEDIAN PRICE: Data pre-fetched. "
         "Use these exact values — do NOT search for median price:\n"
         f"  median_house_price = {median.get('median_house_price')}\n"
         f"  median_unit_price  = {median.get('median_unit_price')}\n"
         f"  data_period        = {median.get('data_period')}\n"
         f"  data_source        = {source}\n"
     )
+    if yield_val is not None:
+        injected += (
+            f"\nSTEP 2 — RENTAL YIELD: Pre-fetched from {source}. "
+            "Use this value — do NOT search for rental yield:\n"
+            f"  gross_rental_yield = {yield_val:.2f}%\n"
+        )
     step1_start = prompt.find("STEP 1 — MEDIAN PRICE")
-    step2_start = prompt.find("STEP 2 —", step1_start + 1 if step1_start >= 0 else 0)
-    if step1_start >= 0 and step2_start >= 0:
-        return prompt[:step1_start] + injected + "\n" + prompt[step2_start:]
+    # If yield was pre-fetched, skip past STEP 2 as well
+    if yield_val is not None:
+        next_step_marker = "STEP 3 —"
+    else:
+        next_step_marker = "STEP 2 —"
+    next_start = prompt.find(next_step_marker, step1_start + 1 if step1_start >= 0 else 0)
+    if step1_start >= 0 and next_start >= 0:
+        return prompt[:step1_start] + injected + "\n" + prompt[next_start:]
     return prompt
 
 
@@ -1481,7 +1498,7 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
         else:
             crime_data = None  # not available — let AI search
 
-        median_data = _fetch_median_price_data(suburb_name, state_abbrev)
+        median_data = _fetch_median_price_data(suburb_name, state_abbrev, _extract_postcode(address))
         if median_data and median_data.get("coverage") == "available":
             prompt = _inject_median_into_suburb_prompt(prompt, median_data)
             print(f"  ✅ Median MCP: {suburb_name} {state_abbrev} — house=${median_data.get('median_house_price')}")
@@ -1490,13 +1507,16 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
 
     # Dynamic search budget for suburb task:
     # Base 2: STEP 2 (rental yield) + STEP 3 (price history)
-    # No crime MCP:     +2  (STEP 4 crime search)
-    # No median MCP:    +3  (STEP 1 median)
-    # No amenities API: +4  (STEP 5 supermarket×2, gym, park, GP)
+    # Yield pre-fetched:  -1  (Domain scrape returned gross_rental_yield)
+    # No crime MCP:       +2  (STEP 4 crime search)
+    # No median MCP:      +3  (STEP 1 median)
+    # No amenities API:   +4  (STEP 5 supermarket×2, gym, park, GP)
     suburb_max_searches = None
     amenities_has_data  = False
     if task_name == "suburb":
         budget = 2
+        if median_data and median_data.get("gross_rental_yield") is not None:
+            budget -= 1  # yield already injected, AI skips STEP 2
         if not crime_data:
             budget += 2
         if not median_data:
@@ -1563,6 +1583,8 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
             result["median_unit_price"] = median_data["median_unit_price"]
         if median_data.get("price_history_quarterly"):
             result["price_history_quarterly"] = median_data["price_history_quarterly"]
+        if median_data.get("gross_rental_yield") is not None:
+            result["gross_rental_yield"] = median_data["gross_rental_yield"]
         result["median_price_data_source"] = median_data.get("data_source")
 
     # Overwrite amenity fields with GPS-accurate Google Places values (belt-and-suspenders —

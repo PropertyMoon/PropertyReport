@@ -1352,8 +1352,6 @@ def _school_detail_table_html(schools: dict) -> str:
         '<th class="sch-th">School</th>'
         '<th class="sch-th">Catchment</th>'
         '<th class="sch-th sch-center">ICSEA</th>'
-        '<th class="sch-th sch-center">Reading</th>'
-        '<th class="sch-th sch-center">Numeracy</th>'
         '<th class="sch-th">Proximity</th>'
         "</tr>"
     )
@@ -1371,14 +1369,12 @@ def _school_detail_table_html(schools: dict) -> str:
             f'<br><span class="sch-sub" style="color:{tc}">{row["tier"]}{fees_str}</span></td>'
             f'<td class="sch-td">{_catchment_cell(row["in_catchment"], row["sector"])}</td>'
             f'<td class="sch-td sch-center"><span class="sch-icsea">{row["icsea"] or "—"}</span></td>'
-            f'<td class="sch-td sch-center">{_pct_cell(row["read_pct"])}</td>'
-            f'<td class="sch-td sch-center">{_pct_cell(row["num_pct"])}</td>'
             f'<td class="sch-td">{_proximity(row["walk_mins"], row["dist_km"])}</td>'
             "</tr>"
         )
 
     note = (
-        '<p class="sch-note">NAPLAN percentile = rank vs national average from myschool.edu.au. '
+        '<p class="sch-note">ICSEA = Index of Community Socio-Educational Advantage (national mean 1000) from myschool.edu.au. '
         'Catchment zones should be confirmed at '
         '<a href="https://findmyschool.vic.gov.au">findmyschool.vic.gov.au</a>.</p>'
     )

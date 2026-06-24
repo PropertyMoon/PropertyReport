@@ -29,3 +29,6 @@ sendgrid>=6.9.0
 
 # Environment variable loading
 python-dotenv>=1.0.0
+
+# Browser automation (myschool NAPLAN scraper)
+playwright>=1.40.0

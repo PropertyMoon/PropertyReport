@@ -1287,6 +1287,14 @@ def _score_chart_svg(scores: dict) -> str:
 
 def _school_detail_table_html(schools: dict) -> str:
     """Rich per-school comparison table for the body Schools section."""
+    naplan_cache = schools.get("_naplan_cache") or {}
+
+    def _naplan_perf(school_name: str) -> str | None:
+        entry = naplan_cache.get(school_name)
+        if isinstance(entry, dict):
+            return entry.get("naplan_performance")
+        return None
+
     rows = []
     for tier_label, key in [("Primary", "primary_schools"), ("Secondary", "secondary_schools")]:
         for s in (schools.get(key) or []):
@@ -1300,8 +1308,7 @@ def _school_detail_table_html(schools: dict) -> str:
                 "icsea":     s.get("icsea"),
                 "walk_mins": s.get("walk_mins"),
                 "dist_km":   s.get("distance_km"),
-                "read_pct":  s.get("naplan_reading_pct"),
-                "num_pct":   s.get("naplan_numeracy_pct"),
+                "naplan":    _naplan_perf(s["name"]),
                 "fees":      None,
             })
     for s in (schools.get("private_schools") or []):
@@ -1315,8 +1322,7 @@ def _school_detail_table_html(schools: dict) -> str:
             "icsea":     s.get("icsea"),
             "walk_mins": None,
             "dist_km":   s.get("distance_km"),
-            "read_pct":  s.get("naplan_reading_pct"),
-            "num_pct":   s.get("naplan_numeracy_pct"),
+            "naplan":    _naplan_perf(s["name"]),
             "fees":      s.get("fees_annual_aud"),
         })
 
@@ -1332,12 +1338,14 @@ def _school_detail_table_html(schools: dict) -> str:
             return '<span class="sch-badge sch-badge-out">Out of catchment</span>'
         return '<span style="color:#94a3b8">—</span>'
 
-    def _pct_cell(pct):
-        if not isinstance(pct, (int, float)) or isinstance(pct, bool):
-            return '<span style="color:#94a3b8">—</span>'
-        p = int(pct)
-        color = "#10b981" if p >= 60 else "#f59e0b" if p >= 40 else "#ef4444"
-        return f'<span class="sch-pct" style="color:{color}">{p}th</span>'
+    def _naplan_cell(perf: str | None) -> str:
+        if perf == "Above Average":
+            return '<span style="color:#10b981;font-weight:600">Above Average</span>'
+        if perf == "Below Average":
+            return '<span style="color:#ef4444;font-weight:600">Below Average</span>'
+        if perf == "Average":
+            return '<span style="color:#64748b">Average</span>'
+        return '<span style="color:#94a3b8">—</span>'
 
     def _proximity(walk_mins, dist_km):
         if isinstance(walk_mins, (int, float)) and not isinstance(walk_mins, bool):
@@ -1352,6 +1360,7 @@ def _school_detail_table_html(schools: dict) -> str:
         '<th class="sch-th">School</th>'
         '<th class="sch-th">Catchment</th>'
         '<th class="sch-th sch-center">ICSEA</th>'
+        '<th class="sch-th sch-center">NAPLAN</th>'
         '<th class="sch-th">Proximity</th>'
         "</tr>"
     )
@@ -1369,12 +1378,14 @@ def _school_detail_table_html(schools: dict) -> str:
             f'<br><span class="sch-sub" style="color:{tc}">{row["tier"]}{fees_str}</span></td>'
             f'<td class="sch-td">{_catchment_cell(row["in_catchment"], row["sector"])}</td>'
             f'<td class="sch-td sch-center"><span class="sch-icsea">{row["icsea"] or "—"}</span></td>'
+            f'<td class="sch-td sch-center">{_naplan_cell(row["naplan"])}</td>'
             f'<td class="sch-td">{_proximity(row["walk_mins"], row["dist_km"])}</td>'
             "</tr>"
         )
 
     note = (
         '<p class="sch-note">ICSEA = Index of Community Socio-Educational Advantage (national mean 1000) from myschool.edu.au. '
+        'NAPLAN = Above/Average/Below national average, based on Reading + Numeracy scores from myschool.edu.au. '
         'Catchment zones should be confirmed at '
         '<a href="https://findmyschool.vic.gov.au">findmyschool.vic.gov.au</a>.</p>'
     )

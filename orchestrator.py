@@ -31,6 +31,11 @@ try:
 except ImportError:
     _get_nsw_das = None
 
+try:
+    import myschool as _myschool
+except ImportError:
+    _myschool = None
+
 
 # Reuse state detection from pdf_generator
 _STATE_SOURCES = {
@@ -1630,6 +1635,22 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
             result["nearby_parks"] = _places_to_amenity(amenities_data["nearby_parks"])
         if amenities_data.get("nearby_gps"):
             result["nearby_gps"] = _places_to_amenity(amenities_data["nearby_gps"])
+
+    # Post-fetch authoritative NAPLAN scores for each school returned by the AI.
+    # Done after the AI task so we use the exact school names the AI found.
+    # Results stored in _naplan_cache (dict of name → {naplan_performance, ...})
+    # and consumed by weasy_generator when building the schools table.
+    if task_name == "schools" and _myschool is not None:
+        _all_names = []
+        for _tier in ("primary_schools", "secondary_schools", "private_schools"):
+            for _s in result.get(_tier) or []:
+                if isinstance(_s, dict) and _s.get("name"):
+                    _all_names.append(_s["name"])
+        if _all_names:
+            try:
+                result["_naplan_cache"] = _myschool.get_naplan_for_schools(_all_names)
+            except Exception as _naplan_err:
+                print(f"  ⚠️  NAPLAN batch fetch error: {_naplan_err}")
 
     return result
 

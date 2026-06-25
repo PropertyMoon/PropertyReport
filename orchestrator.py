@@ -196,7 +196,7 @@ def _build_nearby_schools_section(places_data: dict | None) -> str:
     lines = ["NEARBY SCHOOLS pre-fetched via Google Places (primaries within 3 km, secondaries within 5 km — use these names/distances directly, do not search for them):"]
     for s in places_data["nearby_schools"]:
         lines.append(f"  - {s['name']} — {s['distance_km']} km ({s['type']})")
-    lines.append("Enrich these with ICSEA scores from myschool.edu.au in Steps 2–3.\n")
+    lines.append("Confirm catchment boundaries and fees in Steps 1–3.\n")
     return "\n".join(lines) + "\n"
 
 
@@ -815,26 +815,24 @@ RESEARCH_TASKS = {
         "Identify the ONE government primary school whose catchment boundary contains this exact address. "
         "If multiple schools appear, pick the one from the pre-fetched list above with the shortest distance_km — "
         "use that school on every search and do NOT switch to a different school mid-task. "
-        "Fetch its myschool.edu.au profile for ICSEA and latest NAPLAN results (reading/numeracy percentile vs national average). "
+        "Fetch its myschool.edu.au profile for school type and confirm the name. "
         "Estimate walk time in minutes from the property to the school.\n"
         "STEP 2 — Catchment (secondary): Search '{address} secondary school catchment {state}' using {catchment_url}. "
         "Identify the one in-catchment government secondary school. If unclear, use the closest government secondary in the pre-fetched list. "
-        "Fetch myschool.edu.au for ICSEA and NAPLAN. Estimate walk time.\n"
-        "STEP 3 — ICSEA scores: For any government schools in the pre-fetched nearby list not yet covered, "
-        "fetch myschool.edu.au ICSEA. For private/Catholic/independent schools in the list, "
-        "fetch ICSEA and estimate annual tuition fees from the school's website if findable.\n"
-        "STEP 4 — Assign school_quality_summary using ONLY the in-catchment government PRIMARY school's ICSEA "
-        "(the school identified in STEP 1). Do NOT average across multiple schools. "
-        "Bands: ≥1080 = Excellent, 1040–1079 = Strong, 1000–1039 = Average, 960–999 = Below Average, <960 = Limited.\n"
+        "Estimate walk time.\n"
+        "STEP 3 — Private schools: For private/Catholic/independent schools in the pre-fetched list, "
+        "estimate annual tuition fees from the school's website if publicly posted.\n"
+        "STEP 4 — Assign school_quality_summary using the in-catchment government PRIMARY school's overall reputation. "
+        "Use: Excellent = nationally recognised high-performing school; Strong = above-average community reputation; "
+        "Average = meets state standards; Below Average = known challenges; Limited = limited data available.\n"
         "Return JSON with: "
-        "primary_schools (list: name, distance_km, icsea (int or null), "
+        "primary_schools (list: name, distance_km, "
         "in_catchment (bool — true if this address is inside the school's catchment zone), "
-        "walk_mins (int — estimated walk mins; null if >25 min or not walkable), "
-        "naplan_reading_pct (int 1–100 or null), naplan_numeracy_pct (int 1–100 or null)), "
+        "walk_mins (int — estimated walk mins; null if >25 min or not walkable)), "
         "secondary_schools (same fields as primary_schools), "
-        "private_schools (list: name, distance_km, icsea (int or null), "
+        "private_schools (list: name, distance_km, "
         "school_type ('Catholic', 'Independent', 'Anglican', 'Selective', or 'Other'), "
-        "fees_annual_aud (int or null), naplan_reading_pct (int or null), naplan_numeracy_pct (int or null)), "
+        "fees_annual_aud (int or null)), "
         "in_catchment_primary (string — exact name of in-catchment government primary for this address), "
         "in_catchment_secondary (string — exact name of in-catchment government secondary for this address), "
         "school_quality_summary (MUST be exactly one of: 'Excellent', 'Strong', 'Average', 'Below Average', 'Limited')."
@@ -1053,11 +1051,11 @@ RESEARCH_TASKS_PERPLEXITY = {
         "Use location-aware search and map-based lookups.\n"
         "Prefer official government and state education sources first.\n"
         "Do not assume suburb-level catchment for this specific address — confirm boundary inclusion explicitly.\n"
-        "Return only verified facts. If catchment, distance, or ICSEA cannot be confirmed, return null.\n\n"
+        "Return only verified facts. If catchment or distance cannot be confirmed, return null.\n\n"
         "Goal: return verified school catchment, school quality, and nearby school options for this address.\n\n"
         "SOURCE ORDER\n"
         "1. Official catchment/boundary systems and state education sources.\n"
-        "2. myschool.edu.au / ACARA for school profile data.\n"
+        "2. myschool.edu.au / ACARA for school names and types.\n"
         "3. School websites for fees only if official and publicly posted.\n"
         "4. Commercial school directories only if necessary for proximity, not for catchment confirmation.\n\n"
         "{nearby_schools_section}"
@@ -1066,28 +1064,25 @@ RESEARCH_TASKS_PERPLEXITY = {
         "Use {catchment_url} as a reference source if accessible. "
         "If pre-fetched schools are listed above, use the closest one as the starting point. "
         "Confirm whether this address is inside the catchment boundary (in_catchment = true/false). "
-        "Return the school name, ICSEA from myschool.edu.au, latest available NAPLAN reading and numeracy, "
-        "and walking distance from the property. Add 1-2 other nearby primary schools within 2 km if verifiable.\n\n"
+        "Return the school name and walking distance from the property. "
+        "Add 1-2 other nearby primary schools within 2 km if verifiable.\n\n"
         "STEP 2 — SECONDARY CATCHMENT\n"
         "Find the official government secondary school catchment for {address}.\n"
         "Confirm whether the address is inside the boundary using the official state school zone map.\n"
-        "Return the school name, ICSEA from myschool.edu.au, latest available NAPLAN reading and numeracy, "
-        "and walking distance from the property.\n"
+        "Return the school name and walking distance from the property.\n"
         "Add 1-2 other nearby secondary schools within 2 km if verifiable.\n\n"
         "STEP 3 — PRIVATE SCHOOLS\n"
         "Search for Catholic, Independent, Anglican, Selective, or other private options within 5 km.\n"
-        "For each, return school_type, ICSEA where available, and annual tuition fees only if posted on an official school source.\n"
+        "For each, return school_type and annual tuition fees only if posted on an official school source.\n"
         "If tuition fees are not publicly posted, return null.\n\n"
         "STEP 4 — QUALITY SUMMARY\n"
-        "Use ONLY the ICSEA of the single in-catchment government PRIMARY school identified in STEP 1. "
-        "Do NOT average across multiple schools. Do NOT re-search for ICSEA — use the value already found in STEP 1.\n"
-        "Assign school_quality_summary exactly as one of: Excellent, Strong, Average, Below Average, or Limited.\n"
-        "≥1080 ICSEA = Excellent, 1040–1079 = Strong, 1000–1039 = Average, 960–999 = Below Average, <960 = Limited.\n"
-        "If ICSEA was not found in STEP 1, return null.\n\n"
+        "Assign school_quality_summary for the in-catchment PRIMARY school based on its overall reputation.\n"
+        "Excellent = nationally recognised high-performing school; Strong = above-average community reputation; "
+        "Average = meets state standards; Below Average = known challenges; Limited = insufficient data.\n\n"
         "RETURN JSON WITH THESE KEYS\n"
-        "primary_schools (list: name, distance_km, icsea, in_catchment, walk_mins, naplan_reading_pct, naplan_numeracy_pct), "
+        "primary_schools (list: name, distance_km, in_catchment, walk_mins), "
         "secondary_schools (same fields), "
-        "private_schools (list: name, distance_km, icsea, school_type, fees_annual_aud, naplan_reading_pct, naplan_numeracy_pct), "
+        "private_schools (list: name, distance_km, school_type, fees_annual_aud), "
         "in_catchment_zone, school_quality_summary."
     ),
 
@@ -1649,6 +1644,17 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
         if _all_names:
             try:
                 result["_naplan_cache"] = _myschool.get_naplan_for_schools(_all_names)
+                # Override school_quality_summary with authoritative NAPLAN data.
+                _primary_name = result.get("in_catchment_primary")
+                if isinstance(_primary_name, str) and _primary_name:
+                    _p_entry = result["_naplan_cache"].get(_primary_name)
+                    _p_perf  = (_p_entry or {}).get("naplan_performance")
+                    if _p_perf == "Above Average":
+                        result["school_quality_summary"] = "Strong"
+                    elif _p_perf == "Average":
+                        result["school_quality_summary"] = "Average"
+                    elif _p_perf == "Below Average":
+                        result["school_quality_summary"] = "Below Average"
             except Exception as _naplan_err:
                 print(f"  ⚠️  NAPLAN batch fetch error: {_naplan_err}")
 
@@ -1675,7 +1681,7 @@ CONCISENESS RULES (data-dense, not text-heavy — retail buyers will skim):
   · Property Snapshot data table (## PROPERTY SNAPSHOT) — land/zoning/dev potentials
   · 5-year price history bar chart + Comparable Sales table (## MARKET ANALYSIS)
   · Amenities panel (## SUBURB PROFILE) — freeway, GPs, hospitals
-  · ICSEA bar chart (## SCHOOLS CATCHMENT) — individual school scores
+  · School Performance chart (## SCHOOLS CATCHMENT) — NAPLAN performance per school
   · Crime safety percentile bar + crime delta table (## RISK ASSESSMENT)
   · Weighted Score Breakdown bar chart (## VERDICT) — per-factor scores
   Reference each visual once in a summary sentence, then move on. Never list items the chart will show.
@@ -1772,7 +1778,7 @@ MISSING-DATA WORDING rules — never 'Data unavailable'.
 """ + _SHARED_RULES + """
 SECTIONS TO WRITE:
 ## SCHOOLS CATCHMENT
-[MAX 2 short sentences. Name the primary in-catchment school(s) and describe the overall quality level in plain language (e.g. "Taylors Lakes Primary School feeds this address — in-catchment schools average above the national ICSEA mean and are walkable from the property."). The detail table renders individual ICSEA scores and NAPLAN percentiles — do not enumerate those numbers in prose.]
+[MAX 2 short sentences. Name the primary in-catchment school(s) and describe the overall quality level in plain language (e.g. "Taylors Lakes Primary School feeds this address — school performance is above the national average and the school is walkable from the property."). The detail table renders individual School Performance labels from NAPLAN — do not enumerate those in prose.]
 
 ## INFRASTRUCTURE & DEVELOPMENT
 - [MAX 4 bullets total — combine major projects, planning reforms, recent completions. Each ≤18 words.]
@@ -1817,7 +1823,7 @@ Score calibration — use these as anchor points for consistency:
 - Rental Demand: 9-10 = gross yield >5% and tight vacancy; 7-8 = yield 3.5-5% with solid demand; 5-6 = modest yield, average vacancy; <5 = weak rental market
 - Infrastructure: 9-10 = train station <500m; 7-8 = station <2km or strong frequent-bus network; 5-6 = bus-only or infrequent services; <5 = car-dependent with no near-term improvement
 - Safety: derive from crime_violent_vs_state_avg_pct and crime_property_vs_state_avg_pct (negative = below state average = safer). Average the two deltas, then map: ≤−40% → 9–10; −20% to −40% → 7–8; −10% to −20% → 6–7; −10% to +10% → 5–6; +10% to +30% → 4–5; +30% to +60% → 2–4; >+60% → 1–2. If both deltas are null, fall back to crime_safety_percentile ÷ 10.
-- Family Suitability: 9-10 = ICSEA >1050 in catchment + walkable + high owner-occupancy; 7-8 = above-average schools, family demographic; 5-6 = average schools, mixed demographic; <5 = below-average schools or low family demand
+- Family Suitability: 9-10 = Above Average school performance (NAPLAN) in catchment + walkable + high owner-occupancy; 7-8 = Average school performance, family demographic; 5-6 = mixed school performance, mixed demographic; <5 = Below Average school performance or low family demand
 - Overall Score: weighted average — Growth 25%, Rental 20%, Infrastructure 20%, Safety 15%, Family 20%]
 
 ### Overall Assessment

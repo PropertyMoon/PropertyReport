@@ -20,6 +20,7 @@ In-process 24 h cache prevents re-scraping the same school within a report batch
 import asyncio
 import json
 import time
+import urllib.parse
 
 try:
     from playwright.async_api import async_playwright
@@ -102,9 +103,14 @@ def _parse_naplan(data: dict) -> dict | None:
 
 async def _fetch_naplan_batch(school_names: list[str]) -> dict[str, dict | None]:
     """
-    Open ONE headless browser, solve Turnstile once, then look up and fetch
-    NAPLAN data for every school in `school_names` sequentially within the
-    same session (fast subsequent calls, no re-challenge).
+    Open ONE headless browser, solve Turnstile once, then for each school:
+    1. Navigate to the school search page — the React app fires its own XHR to
+       the search API, which we intercept via expect_response().
+    2. Navigate to the school's NAPLAN results page — the React component fires
+       its own XHR, which we intercept the same way.
+
+    Using browser navigation + response interception avoids the Cloudflare WAF
+    blocks that occur when calling these endpoints via in-page fetch() directly.
     """
     results: dict[str, dict | None] = {n: None for n in school_names}
 
@@ -121,15 +127,14 @@ async def _fetch_naplan_batch(school_names: list[str]) -> dict[str, dict | None]
         )
         page = await context.new_page()
 
-        # Navigate to the first school's NAPLAN results page to solve Turnstile.
-        # After ~6 s the challenge resolves and the API becomes accessible.
-        warmup_url = (
-            f"{_BASE_URL}/school/search"
-            f"?SchoolSearchQuery={school_names[0].replace(' ', '+')}"
-        )
+        # Warmup on the NAPLAN landing page to solve the Turnstile challenge once.
         try:
-            await page.goto(warmup_url, wait_until="load", timeout=45_000)
-            await page.wait_for_timeout(5_000)
+            await page.goto(
+                f"{_BASE_URL}/school/naplan/results",
+                wait_until="load",
+                timeout=45_000,
+            )
+            await page.wait_for_timeout(6_000)
         except Exception as e:
             print(f"  ⚠️  myschool warmup failed: {e}")
             await browser.close()
@@ -137,40 +142,58 @@ async def _fetch_naplan_batch(school_names: list[str]) -> dict[str, dict | None]
 
         for name in school_names:
             try:
-                # 1 — look up ACARA ID
-                acara_id = await page.evaluate(
-                    f"""async () => {{
-                        const r = await fetch(
-                            {json.dumps(_SEARCH_API + name)},
-                            {{headers: {{Accept: 'application/json'}}}}
-                        );
-                        if (!r.ok) return null;
-                        const d = await r.json();
-                        return d?.data?.[0]?.schoolId ?? null;
-                    }}"""
+                # Step 1 — navigate to search results page; capture the school's
+                # ACARA ID from the React app's own XHR call to the search API.
+                acara_id = None
+                search_url = (
+                    f"{_BASE_URL}/school/search"
+                    f"?SchoolSearchQuery={urllib.parse.quote_plus(name)}"
                 )
+                try:
+                    async with page.expect_response(
+                        lambda r: "searchschools" in r.url and r.ok,
+                        timeout=20_000,
+                    ) as search_ctx:
+                        await page.goto(
+                            search_url, wait_until="domcontentloaded", timeout=30_000
+                        )
+                    search_resp = await search_ctx.value
+                    search_data = await search_resp.json()
+                    data_list = search_data.get("data") or []
+                    if data_list:
+                        acara_id = data_list[0].get("schoolId")
+                except Exception:
+                    pass
+
                 if not acara_id:
                     print(f"  ⚠️  myschool: no ACARA ID for '{name}'")
                     continue
 
-                # 2 — fetch NAPLAN data for that ACARA ID
-                api_url = f"{_BASE_URL}{_RESOURCE_PATH}.json?sml_id={acara_id}"
-                data = await page.evaluate(
-                    f"""async () => {{
-                        const r = await fetch(
-                            {json.dumps(api_url)},
-                            {{headers: {{Accept: 'application/json'}}}}
-                        );
-                        if (!r.ok) return null;
-                        return await r.json();
-                    }}"""
-                )
-                if data:
-                    parsed = _parse_naplan(data)
+                # Step 2 — navigate to the NAPLAN results page; capture the JSON
+                # that the React NAPLAN component fetches on page load.
+                naplan_data = None
+                naplan_url = f"{_BASE_URL}/school/naplan/results?sml_id={acara_id}"
+                try:
+                    async with page.expect_response(
+                        lambda r: "result_naplan" in r.url and r.ok,
+                        timeout=25_000,
+                    ) as naplan_ctx:
+                        await page.goto(
+                            naplan_url, wait_until="domcontentloaded", timeout=45_000
+                        )
+                    naplan_resp = await naplan_ctx.value
+                    naplan_data = await naplan_resp.json()
+                except Exception:
+                    pass
+
+                if naplan_data:
+                    parsed = _parse_naplan(naplan_data)
                     results[name] = parsed
                     perf = (parsed or {}).get("naplan_performance", "—")
                     year = (parsed or {}).get("naplan_year", "?")
                     print(f"  ✅ myschool NAPLAN: {name} → {perf} ({year})")
+                else:
+                    print(f"  ⚠️  myschool: no NAPLAN data for '{name}' (ACARA {acara_id})")
 
             except Exception as e:
                 print(f"  ⚠️  myschool NAPLAN fetch failed for '{name}': {e}")

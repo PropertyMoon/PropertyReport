@@ -10,6 +10,7 @@ import json
 import math
 import os
 import re
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
@@ -29,6 +30,11 @@ try:
     from da_client_nsw import get_nsw_das as _get_nsw_das
 except ImportError:
     _get_nsw_das = None
+
+try:
+    import myschool as _myschool
+except ImportError:
+    _myschool = None
 
 
 # Reuse state detection from pdf_generator
@@ -51,6 +57,10 @@ _CRIME_MCP_URL = os.getenv(
 _MEDIAN_MCP_URL = os.getenv(
     "MEDIAN_MCP_URL",
     "https://au-median-price-mcp-production.up.railway.app/suburb-median",
+)
+_COMPARABLE_SALES_MCP_URL = os.getenv(
+    "COMPARABLE_SALES_MCP_URL",
+    "https://au-median-price-mcp-production.up.railway.app/comparable-sales",
 )
 
 _STREET_TYPE_RE = re.compile(
@@ -78,6 +88,21 @@ def _extract_suburb(address: str) -> str:
 def _get_state_abbrev(address: str) -> str:
     m = re.search(r'\b(VIC|NSW|QLD|SA|WA|TAS|ACT|NT)\b', address, re.IGNORECASE)
     return m.group(1).upper() if m else ""
+
+
+def _extract_postcode(address: str) -> str:
+    m = re.search(r'\b(\d{4})\b', address)
+    return m.group(1) if m else ""
+
+
+def _extract_street_name(address: str) -> str:
+    """Return street name + type without the house number, e.g. 'Devereux Road'."""
+    m = _STREET_TYPE_RE.search(address)
+    if not m:
+        return ""
+    chunk = address[:m.end()]                              # e.g. "35 Devereux Road"
+    chunk = re.sub(r'^\d+[a-zA-Z]?\s*[/\\]?\s*\d*[a-zA-Z]?\s+', '', chunk)  # strip number
+    return chunk.strip()
 
 
 def _fetch_crime_data(suburb: str, state: str) -> dict | None:
@@ -171,7 +196,7 @@ def _build_nearby_schools_section(places_data: dict | None) -> str:
     lines = ["NEARBY SCHOOLS pre-fetched via Google Places (primaries within 3 km, secondaries within 5 km — use these names/distances directly, do not search for them):"]
     for s in places_data["nearby_schools"]:
         lines.append(f"  - {s['name']} — {s['distance_km']} km ({s['type']})")
-    lines.append("Enrich these with ICSEA scores from myschool.edu.au in Steps 2–3.\n")
+    lines.append("Confirm catchment boundaries and fees in Steps 1–3.\n")
     return "\n".join(lines) + "\n"
 
 
@@ -316,12 +341,15 @@ def _inject_crime_into_suburb_prompt(prompt: str, crime: dict) -> str:
     return prompt
 
 
-def _fetch_median_price_data(suburb: str, state: str) -> dict | None:
+def _fetch_median_price_data(suburb: str, state: str, postcode: str = "") -> dict | None:
     """Call the au-median-price-mcp /suburb-median endpoint. Returns None on failure."""
     if not suburb or not state:
         return None
     try:
-        r = httpx.get(_MEDIAN_MCP_URL, params={"suburb": suburb, "state": state}, timeout=60)
+        params = {"suburb": suburb, "state": state}
+        if postcode:
+            params["postcode"] = postcode
+        r = httpx.get(_MEDIAN_MCP_URL, params=params, timeout=60)
         if r.status_code == 200:
             return r.json()
     except Exception as e:
@@ -330,21 +358,97 @@ def _fetch_median_price_data(suburb: str, state: str) -> dict | None:
 
 
 def _inject_median_into_suburb_prompt(prompt: str, median: dict) -> str:
-    """Replace STEP 1 (MEDIAN PRICE) with pre-fetched authoritative values."""
-    source = median.get("data_source", "authoritative state source")
+    """
+    Replace pre-fetched STEP 1/2/3 blocks so the AI skips the corresponding
+    web searches and uses authoritative scraped values instead.
+
+    - STEP 1 always replaced (median prices).
+    - STEP 2 replaced when gross_rental_yield is present (Domain scrape).
+    - STEP 3 replaced when price_history_5yr is present (Domain scrape).
+    """
+    source      = median.get("data_source", "authoritative source")
+    yield_val   = median.get("gross_rental_yield")
+    history     = median.get("price_history_5yr") or []
+
     injected = (
-        "STEP 1 — MEDIAN PRICE: Data pre-fetched from authoritative government source. "
+        "STEP 1 — MEDIAN PRICE: Data pre-fetched. "
         "Use these exact values — do NOT search for median price:\n"
         f"  median_house_price = {median.get('median_house_price')}\n"
         f"  median_unit_price  = {median.get('median_unit_price')}\n"
         f"  data_period        = {median.get('data_period')}\n"
         f"  data_source        = {source}\n"
     )
+    if yield_val is not None:
+        injected += (
+            f"\nSTEP 2 — RENTAL YIELD: Pre-fetched from {source}. "
+            "Use this value — do NOT search for rental yield:\n"
+            f"  gross_rental_yield = {yield_val:.2f}%\n"
+        )
+    if history:
+        import json as _json
+        injected += (
+            f"\nSTEP 3 — PRICE HISTORY: Pre-fetched from {source}. "
+            "Use these exact values — do NOT fetch suburb profile pages:\n"
+            f"  price_history_5yr = {_json.dumps(history)}\n"
+        )
+
     step1_start = prompt.find("STEP 1 — MEDIAN PRICE")
-    step2_start = prompt.find("STEP 2 —", step1_start + 1 if step1_start >= 0 else 0)
-    if step1_start >= 0 and step2_start >= 0:
-        return prompt[:step1_start] + injected + "\n" + prompt[step2_start:]
+    # Advance past whichever STEPs were pre-fetched
+    if history:
+        next_step_marker = "STEP 4 —"
+    elif yield_val is not None:
+        next_step_marker = "STEP 3 —"
+    else:
+        next_step_marker = "STEP 2 —"
+    search_from = step1_start + 1 if step1_start >= 0 else 0
+    next_start  = prompt.find(next_step_marker, search_from)
+    if step1_start >= 0 and next_start >= 0:
+        return prompt[:step1_start] + injected + "\n" + prompt[next_start:]
     return prompt
+
+
+def _fetch_comparable_sales(suburb: str, state: str, postcode: str, street: str) -> dict | None:
+    """Call /comparable-sales on the median-price MCP. Returns None on failure."""
+    if not suburb or not state or not postcode:
+        return None
+    try:
+        params = {"suburb": suburb, "state": state, "postcode": postcode}
+        if street:
+            params["street"] = street
+        r = httpx.get(_COMPARABLE_SALES_MCP_URL, params=params, timeout=90)
+        if r.status_code == 200:
+            return r.json()
+    except Exception as e:
+        print(f"  ⚠️  Comparable Sales MCP unavailable ({e}), falling back to AI search")
+    return None
+
+
+def _inject_comparables_into_property_market_prompt(prompt: str, comps: dict) -> str:
+    """Replace STEP 5 (comparable sales) with pre-fetched Scrapfly results."""
+    sales = comps.get("comparable_sales", [])
+    source = comps.get("data_source", "realestate.com.au + domain.com.au")
+    period = comps.get("data_period", "last 12 months")
+
+    sales_json = json.dumps(sales[:10], indent=2)  # cap at 10 for prompt size
+    injected = (
+        f"STEP 5 — COMPARABLE SALES: Pre-fetched from {source} ({period}). "
+        f"Use these exact values — do NOT search for comparable sales.\n"
+        f"Pick the 3 most relevant (closest property type/size to subject):\n"
+        f"{sales_json}\n"
+    )
+
+    # Find STEP 5 and the next STEP after it
+    step5_start = prompt.find("STEP 5\n")
+    if step5_start < 0:
+        step5_start = prompt.find("STEP 5 —")
+    if step5_start < 0:
+        return prompt
+
+    step6_start = prompt.find("STEP 6", step5_start + 1)
+    if step6_start >= 0:
+        return prompt[:step5_start] + injected + "\n" + prompt[step6_start:]
+
+    return prompt[:step5_start] + injected
 
 
 def _get_state(address: str) -> dict:
@@ -669,16 +773,19 @@ RESEARCH_TASKS = {
         "STEP 1 — MEDIAN PRICE: Search '[suburb] [state] median house price 2025' — read the median house price, "
         "median unit price, and 5-year price growth from whichever property portal appears (realestate.com.au, "
         "domain.com.au, or any suburb profile site). Accept the first credible figure you find.\n"
-        "STEP 2 — RENTAL YIELD: Search '[suburb] [postcode] gross rental yield 2025' — read the rental yield "
-        "percentage from whichever source appears. If no yield figure is found, search '[suburb] [state] median weekly rent' "
-        "and calculate yield as (weekly_rent × 52 / median_house_price × 100).\n"
-        "STEP 3 — PRICE HISTORY: Fetch BOTH of these suburb profile pages directly — do not skip either:\n"
+        "STEP 2 — RENTAL YIELD: Search '[suburb] [postcode] gross rental yield 2025' first. "
+        "If no yield percentage is found directly, search '[suburb] [state] median weekly rent 2025' "
+        "and ALWAYS calculate: (weekly_rent × 52 / median_house_price × 100), rounded to 1 decimal. "
+        "NEVER return null for rental_yield if a median weekly rent figure exists anywhere in your results — always compute it.\n"
+        "STEP 3 — PRICE HISTORY: Fetch BOTH of these suburb profile pages directly:\n"
         "  REA profile: https://www.realestate.com.au/neighbourhoods/[suburb-hyphenated]-[postcode]-[state-lower]/\n"
         "    (e.g. hazelwood-park-5066-sa or taylors-lakes-3038-vic)\n"
         "  Domain profile: https://www.domain.com.au/suburb-profile/[suburb-lower]-[state-lower]-[postcode]/\n"
         "    (e.g. hazelwood-park-sa-5066 or taylors-lakes-vic-3038)\n"
-        "Extract year-by-year median house prices for 2021–2026 from whichever page shows them. "
-        "Return up to 6 objects: year (int), median_house_price (numeric AUD).\n"
+        "Extract year-by-year median house prices for 2021–2026. "
+        "If neither profile page returns year-by-year data, search '[suburb] [state] median house price 2021 2022 2023 2024 2025' "
+        "and read any annual figures from suburb profile sites or property portals. "
+        "Return up to 6 objects: year (int), median_house_price (numeric AUD). NEVER return an empty list if any annual figure was found.\n"
         "STEP 4 — CRIME: Search '[suburb] [state] crime statistics' and prefer {crime_url} as the primary source. "
         "If {crime_url} has no suburb-level data, use any authoritative source (state police, ABS, suburb profiles). "
         "You MUST return numeric values for crime fields — derive the percentile and deltas from the actual offence "
@@ -700,8 +807,8 @@ RESEARCH_TASKS = {
         "crime_violent_vs_state_avg_pct (signed integer — percentage delta of suburb's violent crime rate vs state average; positive = worse than average; null if not found), "
         "crime_property_vs_state_avg_pct (signed integer — same for property crime; null if not found), "
         "price_history_5yr (list of up to 6 objects: year (int 2021-2026), median_house_price (numeric AUD) — from Step 3 price history search), "
-        "moving_here_demographic (one sentence describing who is moving to the suburb), "
-        "becoming_narrative (one sentence on what this suburb is becoming over the next 5 years)."
+        "moving_here_demographic (one sentence — base on verified census, council, or suburb profile data; do not fabricate), "
+        "becoming_narrative (one sentence on verified trends from planning documents, council strategy, or recent development activity — not a general prediction)."
     ),
 
     "schools": (
@@ -711,26 +818,24 @@ RESEARCH_TASKS = {
         "Identify the ONE government primary school whose catchment boundary contains this exact address. "
         "If multiple schools appear, pick the one from the pre-fetched list above with the shortest distance_km — "
         "use that school on every search and do NOT switch to a different school mid-task. "
-        "Fetch its myschool.edu.au profile for ICSEA and latest NAPLAN results (reading/numeracy percentile vs national average). "
+        "Fetch its myschool.edu.au profile for school type and confirm the name. "
         "Estimate walk time in minutes from the property to the school.\n"
         "STEP 2 — Catchment (secondary): Search '{address} secondary school catchment {state}' using {catchment_url}. "
         "Identify the one in-catchment government secondary school. If unclear, use the closest government secondary in the pre-fetched list. "
-        "Fetch myschool.edu.au for ICSEA and NAPLAN. Estimate walk time.\n"
-        "STEP 3 — ICSEA scores: For any government schools in the pre-fetched nearby list not yet covered, "
-        "fetch myschool.edu.au ICSEA. For private/Catholic/independent schools in the list, "
-        "fetch ICSEA and estimate annual tuition fees from the school's website if findable.\n"
-        "STEP 4 — Assign school_quality_summary using ONLY the in-catchment government PRIMARY school's ICSEA "
-        "(the school identified in STEP 1). Do NOT average across multiple schools. "
-        "Bands: ≥1080 = Excellent, 1040–1079 = Strong, 1000–1039 = Average, 960–999 = Below Average, <960 = Limited.\n"
+        "Estimate walk time.\n"
+        "STEP 3 — Private schools: For private/Catholic/independent schools in the pre-fetched list, "
+        "estimate annual tuition fees from the school's website if publicly posted.\n"
+        "STEP 4 — Assign school_quality_summary using the in-catchment government PRIMARY school's overall reputation. "
+        "Use: Excellent = nationally recognised high-performing school; Strong = above-average community reputation; "
+        "Average = meets state standards; Below Average = known challenges; Limited = limited data available.\n"
         "Return JSON with: "
-        "primary_schools (list: name, distance_km, icsea (int or null), "
+        "primary_schools (list: name, distance_km, "
         "in_catchment (bool — true if this address is inside the school's catchment zone), "
-        "walk_mins (int — estimated walk mins; null if >25 min or not walkable), "
-        "naplan_reading_pct (int 1–100 or null), naplan_numeracy_pct (int 1–100 or null)), "
+        "walk_mins (int — estimated walk mins; null if >25 min or not walkable)), "
         "secondary_schools (same fields as primary_schools), "
-        "private_schools (list: name, distance_km, icsea (int or null), "
+        "private_schools (list: name, distance_km, "
         "school_type ('Catholic', 'Independent', 'Anglican', 'Selective', or 'Other'), "
-        "fees_annual_aud (int or null), naplan_reading_pct (int or null), naplan_numeracy_pct (int or null)), "
+        "fees_annual_aud (int or null)), "
         "in_catchment_primary (string — exact name of in-catchment government primary for this address), "
         "in_catchment_secondary (string — exact name of in-catchment government secondary for this address), "
         "school_quality_summary (MUST be exactly one of: 'Excellent', 'Strong', 'Average', 'Below Average', 'Limited')."
@@ -813,13 +918,17 @@ RESEARCH_TASKS = {
         "From the combined results, pick the first 3 sales, similar type and size. "
         "STRICT DATE RULE: Only include sales with a sale_date in {current_year} or {prev_year}. Discard any result dated {two_years_ago} or earlier.\n"
         "Do NOT include any sale for {address} itself. Return empty list only if both pages return zero results.\n"
-        "STEP 6 — Search for suburb-level market data (days on market, clearance rate, outlook).\n\n"
-        "STEP 7 — Comparable listings (currently for sale). Run BOTH searches below — do not skip either:\n"
-        "  Search A (street-level): search '[street name] [suburb] [state] house for sale site:realestate.com.au OR site:domain.com.au'\n"
-        "  Search B (suburb-level): search '[suburb] [state] house for sale site:realestate.com.au OR site:domain.com.au'\n"
-        "Combine results from both searches. Pick up to 3 active listings within ~2km of the subject property, similar type and size. "
-        "Prefer listed in {current_month} or {prev_month} but accept any active listing. "
-        "Do NOT include any listing for {address} itself. Return empty list only if no active listings of similar type exist in the suburb.\n\n"
+        "STEP 6 — MANDATORY: Active comparable listings (currently for sale). Run ALL THREE searches — do not skip any:\n"
+        "  Search A: '[street name] [suburb] [state] for sale site:realestate.com.au'\n"
+        "  Search B: '[suburb] [state] house for sale site:domain.com.au'\n"
+        "  Search C: '[suburb] [state] property for sale realestate.com.au domain.com.au'\n"
+        "Combine all results. Pick up to 3 ACTIVE (not sold) listings within ~3km, matching the subject property's dwelling type "
+        "(house/townhouse/unit) and similar bedrooms. Prefer listings from {current_month} or {prev_month}. "
+        "Do NOT include {address} itself. Do NOT include sold properties. "
+        "Return an empty list ONLY if all three searches above return zero active for-sale results — "
+        "if any active listing appears anywhere in the search results, include it.\n\n"
+        "STEP 7 — Search for suburb-level market data: days on market, auction clearance rate, market outlook "
+        "(complete only if searches remain — this step is lower priority than STEP 6).\n\n"
         "Return JSON with: "
         "subject_property_last_sale (object: price (numeric AUD — no $ sign, just the number), "
         "date (string e.g. 'February 2025') — null only if all steps above return zero results), "
@@ -909,10 +1018,10 @@ RESEARCH_TASKS_PERPLEXITY = {
         "Accept the first credible figure you find. If multiple sources conflict, prefer the most recent. "
         "If no reliable figure is found, return null.\n\n"
         "STEP 2 — RENTAL YIELD\n"
-        "Search '[suburb] [postcode] gross rental yield 2025'. "
-        "If no yield figure is found, search '[suburb] [state] median weekly rent' and calculate: "
-        "(rent × 52 / median_house_price × 100). Round to 1 decimal place. "
-        "If either value cannot be verified, return null.\n\n"
+        "Search '[suburb] [postcode] gross rental yield 2025' first. "
+        "If no direct yield figure is found, search '[suburb] [state] median weekly rent 2025' and "
+        "ALWAYS calculate: (weekly_rent × 52 / median_house_price × 100), rounded to 1 decimal. "
+        "NEVER return null for rental_yield if a median weekly rent figure exists — always compute it.\n\n"
         "STEP 3 — PRICE HISTORY\n"
         "Fetch BOTH of these suburb profile pages directly — do not skip either:\n"
         "  REA profile: https://www.realestate.com.au/neighbourhoods/[suburb-hyphenated]-[postcode]-[state-lower]/\n"
@@ -920,7 +1029,9 @@ RESEARCH_TASKS_PERPLEXITY = {
         "  Domain profile: https://www.domain.com.au/suburb-profile/[suburb-lower]-[state-lower]-[postcode]/\n"
         "    (e.g. hazelwood-park-sa-5066 or taylors-lakes-vic-3038)\n"
         "Extract year-by-year median house prices for 2021–2026 from whichever page shows them. "
-        "Return up to 6 objects: year (int), median_house_price (numeric AUD).\n\n"
+        "If neither page returns year-by-year data, search '[suburb] [state] median house price 2021 2022 2023 2024 2025' "
+        "and read any annual figures from suburb profile sites or property portals. "
+        "Return up to 6 objects: year (int), median_house_price (numeric AUD). NEVER return an empty list if any annual figure was found.\n\n"
         "STEP 4 — LIFESTYLE AMENITIES\n"
         "{amenities_section}"
         "Search '[suburb] [state] hospital' — return the nearest hospital only if within 10 km.\n"
@@ -941,7 +1052,8 @@ RESEARCH_TASKS_PERPLEXITY = {
         "nearby_gyms (list of up to 3 objects: name, distance_km, weekly_cost_aud), "
         "crime_safety_percentile, crime_violent_vs_state_avg_pct, crime_property_vs_state_avg_pct, "
         "price_history_5yr (list of objects: year, median_house_price), "
-        "moving_here_demographic, becoming_narrative."
+        "moving_here_demographic (one sentence — base on census, council, or suburb profile data; do not fabricate), "
+        "becoming_narrative (one sentence on verified trends from planning, development activity, or council strategy — not a generic prediction)."
     ),
 
     "schools": (
@@ -949,11 +1061,11 @@ RESEARCH_TASKS_PERPLEXITY = {
         "Use location-aware search and map-based lookups.\n"
         "Prefer official government and state education sources first.\n"
         "Do not assume suburb-level catchment for this specific address — confirm boundary inclusion explicitly.\n"
-        "Return only verified facts. If catchment, distance, or ICSEA cannot be confirmed, return null.\n\n"
+        "Return only verified facts. If catchment or distance cannot be confirmed, return null.\n\n"
         "Goal: return verified school catchment, school quality, and nearby school options for this address.\n\n"
         "SOURCE ORDER\n"
         "1. Official catchment/boundary systems and state education sources.\n"
-        "2. myschool.edu.au / ACARA for school profile data.\n"
+        "2. myschool.edu.au / ACARA for school names and types.\n"
         "3. School websites for fees only if official and publicly posted.\n"
         "4. Commercial school directories only if necessary for proximity, not for catchment confirmation.\n\n"
         "{nearby_schools_section}"
@@ -962,28 +1074,25 @@ RESEARCH_TASKS_PERPLEXITY = {
         "Use {catchment_url} as a reference source if accessible. "
         "If pre-fetched schools are listed above, use the closest one as the starting point. "
         "Confirm whether this address is inside the catchment boundary (in_catchment = true/false). "
-        "Return the school name, ICSEA from myschool.edu.au, latest available NAPLAN reading and numeracy, "
-        "and walking distance from the property. Add 1-2 other nearby primary schools within 2 km if verifiable.\n\n"
+        "Return the school name and walking distance from the property. "
+        "Add 1-2 other nearby primary schools within 2 km if verifiable.\n\n"
         "STEP 2 — SECONDARY CATCHMENT\n"
         "Find the official government secondary school catchment for {address}.\n"
         "Confirm whether the address is inside the boundary using the official state school zone map.\n"
-        "Return the school name, ICSEA from myschool.edu.au, latest available NAPLAN reading and numeracy, "
-        "and walking distance from the property.\n"
+        "Return the school name and walking distance from the property.\n"
         "Add 1-2 other nearby secondary schools within 2 km if verifiable.\n\n"
         "STEP 3 — PRIVATE SCHOOLS\n"
         "Search for Catholic, Independent, Anglican, Selective, or other private options within 5 km.\n"
-        "For each, return school_type, ICSEA where available, and annual tuition fees only if posted on an official school source.\n"
+        "For each, return school_type and annual tuition fees only if posted on an official school source.\n"
         "If tuition fees are not publicly posted, return null.\n\n"
         "STEP 4 — QUALITY SUMMARY\n"
-        "Use ONLY the ICSEA of the single in-catchment government PRIMARY school identified in STEP 1. "
-        "Do NOT average across multiple schools. Do NOT re-search for ICSEA — use the value already found in STEP 1.\n"
-        "Assign school_quality_summary exactly as one of: Excellent, Strong, Average, Below Average, or Limited.\n"
-        "≥1080 ICSEA = Excellent, 1040–1079 = Strong, 1000–1039 = Average, 960–999 = Below Average, <960 = Limited.\n"
-        "If ICSEA was not found in STEP 1, return null.\n\n"
+        "Assign school_quality_summary for the in-catchment PRIMARY school based on its overall reputation.\n"
+        "Excellent = nationally recognised high-performing school; Strong = above-average community reputation; "
+        "Average = meets state standards; Below Average = known challenges; Limited = insufficient data.\n\n"
         "RETURN JSON WITH THESE KEYS\n"
-        "primary_schools (list: name, distance_km, icsea, in_catchment, walk_mins, naplan_reading_pct, naplan_numeracy_pct), "
+        "primary_schools (list: name, distance_km, in_catchment, walk_mins), "
         "secondary_schools (same fields), "
-        "private_schools (list: name, distance_km, icsea, school_type, fees_annual_aud, naplan_reading_pct, naplan_numeracy_pct), "
+        "private_schools (list: name, distance_km, school_type, fees_annual_aud), "
         "in_catchment_zone, school_quality_summary."
     ),
 
@@ -1078,14 +1187,16 @@ RESEARCH_TASKS_PERPLEXITY = {
         "From the combined results, pick the first 3 sales, similar type and size. "
         "STRICT DATE RULE: Only include sales from {current_year} or {prev_year}. Discard any result from {two_years_ago} or earlier. "
         "Do NOT include any sale for {address} itself. Return empty list only if both pages return zero results.\n\n"
-        "STEP 6\n"
-        "Add suburb-level days on market, auction clearance rate, and market outlook only if verifiable.\n\n"
+        "STEP 6 — MANDATORY: Find active comparable listings (currently for sale). Run ALL THREE searches:\n"
+        "  Search A: '[street name] [suburb] [state] for sale site:realestate.com.au'\n"
+        "  Search B: '[suburb] [state] house for sale site:domain.com.au'\n"
+        "  Search C: '[suburb] [state] property for sale realestate.com.au domain.com.au'\n"
+        "Combine all results. Pick up to 3 ACTIVE (not sold) listings within ~3km, matching the subject property's dwelling type and similar bedrooms. "
+        "Do NOT include {address} itself. Do NOT include sold properties. "
+        "Return empty list ONLY if all three searches return zero active for-sale results.\n\n"
         "STEP 7\n"
-        "Find comparable active for-sale listings near the subject property. Run BOTH searches below — do not skip either:\n"
-        "  Search A (street-level): search '[street name] [suburb] [state] house for sale site:realestate.com.au OR site:domain.com.au'\n"
-        "  Search B (suburb-level): search '[suburb] [state] house for sale site:realestate.com.au OR site:domain.com.au'\n"
-        "Combine results from both searches. Pick up to 3 active listings within ~2km of the subject property, similar type and size. "
-        "Do NOT include any listing for {address} itself. Return empty list only if no active listings of similar type exist in the suburb.\n\n"
+        "Add suburb-level days on market, auction clearance rate, and market outlook only if verifiable "
+        "(complete only if searches remain — this step is lower priority than STEP 6).\n\n"
         "RETURN JSON WITH THESE KEYS\n"
         "subject_property_last_sale (object: price (numeric AUD), date (string e.g. 'February 2025')), "
         "comparable_sales (list: address, sale_price, sale_date, bedrooms, bathrooms, land_sqm), "
@@ -1253,7 +1364,7 @@ def _parse_json(text: str, label: str = "") -> dict:
 
 # Tasks that need more web searches to reliably find specific data
 _TASK_MAX_SEARCHES = {
-    "property_market":     12,
+    "property_market":     14,
     "government_projects": 5,
     "suburb":              8,
     "schools":             5,
@@ -1400,14 +1511,16 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
         amenities_section=_build_amenities_section(amenities_data) if task_name == "suburb" else "",
     )
 
-    # Pre-fetch authoritative data for suburb task — inject into prompt so the AI
-    # skips those web searches and uses the pre-fetched values instead.
+    # Pre-fetch authoritative data — inject into prompt so the AI skips those
+    # web searches and uses the pre-fetched values instead.
     crime_data  = None
     median_data = None
-    if task_name == "suburb":
-        suburb_name  = _extract_suburb(address)
-        state_abbrev = _get_state_abbrev(address)
+    comps_data  = None
 
+    suburb_name  = _extract_suburb(address)
+    state_abbrev = _get_state_abbrev(address)
+
+    if task_name == "suburb":
         crime_data = _fetch_crime_data(suburb_name, state_abbrev)
         if crime_data and crime_data.get("coverage") == "available":
             prompt = _inject_crime_into_suburb_prompt(prompt, crime_data)
@@ -1415,7 +1528,7 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
         else:
             crime_data = None  # not available — let AI search
 
-        median_data = _fetch_median_price_data(suburb_name, state_abbrev)
+        median_data = _fetch_median_price_data(suburb_name, state_abbrev, _extract_postcode(address))
         if median_data and median_data.get("coverage") == "available":
             prompt = _inject_median_into_suburb_prompt(prompt, median_data)
             print(f"  ✅ Median MCP: {suburb_name} {state_abbrev} — house=${median_data.get('median_house_price')}")
@@ -1423,14 +1536,20 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
             median_data = None  # not available — let AI search
 
     # Dynamic search budget for suburb task:
-    # Base 2: STEP 2 (rental yield) + STEP 3 (price history)
-    # No crime MCP:     +2  (STEP 4 crime search)
-    # No median MCP:    +3  (STEP 1 median)
-    # No amenities API: +4  (STEP 5 supermarket×2, gym, park, GP)
+    # Base 3: STEP 2 (rental yield, 1) + STEP 3 (price history: REA + Domain pages, 2)
+    # Yield pre-fetched:    -1  (Domain scrape returned gross_rental_yield; STEP 2 skipped)
+    # History pre-fetched:  -2  (Domain scrape returned price_history_5yr; STEP 3 skipped)
+    # No crime MCP:         +2  (STEP 4 crime search)
+    # No median MCP:        +3  (STEP 1 median)
+    # No amenities API:     +4  (STEP 5 supermarket×2, gym, park, GP)
     suburb_max_searches = None
     amenities_has_data  = False
     if task_name == "suburb":
-        budget = 2
+        budget = 3
+        if median_data and median_data.get("gross_rental_yield") is not None:
+            budget -= 1  # yield already injected, AI skips STEP 2
+        if median_data and median_data.get("price_history_5yr"):
+            budget -= 2  # history already injected, AI skips STEP 3 (2 page fetches)
         if not crime_data:
             budget += 2
         if not median_data:
@@ -1497,6 +1616,10 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
             result["median_unit_price"] = median_data["median_unit_price"]
         if median_data.get("price_history_quarterly"):
             result["price_history_quarterly"] = median_data["price_history_quarterly"]
+        if median_data.get("price_history_5yr"):
+            result["price_history_5yr"] = median_data["price_history_5yr"]
+        if median_data.get("gross_rental_yield") is not None:
+            result["gross_rental_yield"] = median_data["gross_rental_yield"]
         result["median_price_data_source"] = median_data.get("data_source")
 
     # Overwrite amenity fields with GPS-accurate Google Places values (belt-and-suspenders —
@@ -1519,6 +1642,33 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
             result["nearby_parks"] = _places_to_amenity(amenities_data["nearby_parks"])
         if amenities_data.get("nearby_gps"):
             result["nearby_gps"] = _places_to_amenity(amenities_data["nearby_gps"])
+
+    # Post-fetch authoritative NAPLAN scores for each school returned by the AI.
+    # Done after the AI task so we use the exact school names the AI found.
+    # Results stored in _naplan_cache (dict of name → {naplan_performance, ...})
+    # and consumed by weasy_generator when building the schools table.
+    if task_name == "schools" and _myschool is not None:
+        _all_names = []
+        for _tier in ("primary_schools", "secondary_schools", "private_schools"):
+            for _s in result.get(_tier) or []:
+                if isinstance(_s, dict) and _s.get("name"):
+                    _all_names.append(_s["name"])
+        if _all_names:
+            try:
+                result["_naplan_cache"] = _myschool.get_naplan_for_schools(_all_names)
+                # Override school_quality_summary with authoritative NAPLAN data.
+                _primary_name = result.get("in_catchment_primary")
+                if isinstance(_primary_name, str) and _primary_name:
+                    _p_entry = result["_naplan_cache"].get(_primary_name)
+                    _p_perf  = (_p_entry or {}).get("naplan_performance")
+                    if _p_perf == "Above Average":
+                        result["school_quality_summary"] = "Strong"
+                    elif _p_perf == "Average":
+                        result["school_quality_summary"] = "Average"
+                    elif _p_perf == "Below Average":
+                        result["school_quality_summary"] = "Below Average"
+            except Exception as _naplan_err:
+                print(f"  ⚠️  NAPLAN batch fetch error: {_naplan_err}")
 
     return result
 
@@ -1543,7 +1693,7 @@ CONCISENESS RULES (data-dense, not text-heavy — retail buyers will skim):
   · Property Snapshot data table (## PROPERTY SNAPSHOT) — land/zoning/dev potentials
   · 5-year price history bar chart + Comparable Sales table (## MARKET ANALYSIS)
   · Amenities panel (## SUBURB PROFILE) — freeway, GPs, hospitals
-  · ICSEA bar chart (## SCHOOLS CATCHMENT) — individual school scores
+  · School Performance chart (## SCHOOLS CATCHMENT) — NAPLAN performance per school
   · Crime safety percentile bar + crime delta table (## RISK ASSESSMENT)
   · Weighted Score Breakdown bar chart (## VERDICT) — per-factor scores
   Reference each visual once in a summary sentence, then move on. Never list items the chart will show.
@@ -1640,7 +1790,7 @@ MISSING-DATA WORDING rules — never 'Data unavailable'.
 """ + _SHARED_RULES + """
 SECTIONS TO WRITE:
 ## SCHOOLS CATCHMENT
-[MAX 2 short sentences. Name the primary in-catchment school(s) and describe the overall quality level in plain language (e.g. "Taylors Lakes Primary School feeds this address — in-catchment schools average above the national ICSEA mean and are walkable from the property."). The detail table renders individual ICSEA scores and NAPLAN percentiles — do not enumerate those numbers in prose.]
+[MAX 2 short sentences. Name the primary in-catchment school(s) and describe the overall quality level in plain language (e.g. "Taylors Lakes Primary School feeds this address — school performance is above the national average and the school is walkable from the property."). The detail table renders individual School Performance labels from NAPLAN — do not enumerate those in prose.]
 
 ## INFRASTRUCTURE & DEVELOPMENT
 - [MAX 4 bullets total — combine major projects, planning reforms, recent completions. Each ≤18 words.]
@@ -1685,7 +1835,7 @@ Score calibration — use these as anchor points for consistency:
 - Rental Demand: 9-10 = gross yield >5% and tight vacancy; 7-8 = yield 3.5-5% with solid demand; 5-6 = modest yield, average vacancy; <5 = weak rental market
 - Infrastructure: 9-10 = train station <500m; 7-8 = station <2km or strong frequent-bus network; 5-6 = bus-only or infrequent services; <5 = car-dependent with no near-term improvement
 - Safety: derive from crime_violent_vs_state_avg_pct and crime_property_vs_state_avg_pct (negative = below state average = safer). Average the two deltas, then map: ≤−40% → 9–10; −20% to −40% → 7–8; −10% to −20% → 6–7; −10% to +10% → 5–6; +10% to +30% → 4–5; +30% to +60% → 2–4; >+60% → 1–2. If both deltas are null, fall back to crime_safety_percentile ÷ 10.
-- Family Suitability: 9-10 = ICSEA >1050 in catchment + walkable + high owner-occupancy; 7-8 = above-average schools, family demographic; 5-6 = average schools, mixed demographic; <5 = below-average schools or low family demand
+- Family Suitability: 9-10 = Above Average school performance (NAPLAN) in catchment + walkable + high owner-occupancy; 7-8 = Average school performance, family demographic; 5-6 = mixed school performance, mixed demographic; <5 = Below Average school performance or low family demand
 - Overall Score: weighted average — Growth 25%, Rental 20%, Infrastructure 20%, Safety 15%, Family 20%]
 
 ### Overall Assessment
@@ -1909,6 +2059,18 @@ def research_property(address: str, api_key: str = None) -> PropertyReport:
     state_abbrev  = _get_state_abbrev(address)
     suburb_name   = _extract_suburb(address)
 
+    # Fetch comparable sales in a dedicated daemon thread so the 20-30s Scrapfly
+    # wait runs fully in parallel with the AI tasks (doesn't consume a worker slot).
+    _comps_result: list = [None]
+    def _comps_worker():
+        _comps_result[0] = _fetch_comparable_sales(
+            suburb_name, state_abbrev,
+            _extract_postcode(address), _extract_street_name(address),
+        )
+    _comps_thread = threading.Thread(target=_comps_worker, daemon=True, name="comparable-sales-fetch")
+    _comps_thread.start()
+    print(f"  🔄 Comparable Sales MCP fetch started in background for {suburb_name} {state_abbrev}")
+
     with ThreadPoolExecutor(max_workers=3) as executor:
         domain_future = executor.submit(_domain_get_last_sale, address)
 
@@ -1970,9 +2132,29 @@ def research_property(address: str, api_key: str = None) -> PropertyReport:
             except Exception as e:
                 print(f"  ⚠️  [NSW DA] Result unavailable: {e}")
 
+    # Apply comparable sales from background thread (should already be done by now)
+    _comps_thread.join(timeout=45)  # generous fallback; AI tasks take 60-90s so thread is usually done
+    comps_data = _comps_result[0]
+    if comps_data and comps_data.get("coverage") == "available":
+        pm = research_data.get("property_market")
+        if not isinstance(pm, dict):
+            research_data["property_market"] = {}
+            pm = research_data["property_market"]
+        sales = comps_data.get("comparable_sales", [])
+        if sales:
+            pm["comparable_sales"] = sales[:5]
+            pm["comparable_sales_source"] = comps_data.get("data_source")
+            print(f"  ✅ Comparable Sales MCP: {len(sales[:5])} sales injected for {suburb_name} {state_abbrev}")
+        else:
+            print(f"  ⚠️  Comparable Sales MCP: available but 0 sales returned for {suburb_name} {state_abbrev}")
+    elif comps_data:
+        print(f"  ⚠️  Comparable Sales MCP: coverage={comps_data.get('coverage')} for {suburb_name} {state_abbrev}")
+    else:
+        print(f"  ⚠️  Comparable Sales MCP: no response for {suburb_name} {state_abbrev}")
+
     print("\n📝 All research complete. Synthesising...")
     print("=" * 60)
-    
+
     # Synthesise full narrative report
     summary = synthesise_report(client, address, research_data)
     

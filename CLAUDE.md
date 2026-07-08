@@ -76,6 +76,62 @@ No test suite exists. Manual testing via the dev endpoint or CLI is the primary 
 | `CRIME_MCP_URL` | URL for the au-crime-mcp `/suburb-crime` REST endpoint. Default: `https://au-crime-mcp-production.up.railway.app/suburb-crime`. On Railway, set to `http://au-crime-mcp.railway.internal:8080/suburb-crime` to use private networking. |
 | `MEDIAN_MCP_URL` | URL for the au-median-price-mcp `/suburb-median` REST endpoint. Default: `https://au-median-price-mcp-production.up.railway.app/suburb-median`. On Railway, set to `http://au-median-price-mcp.railway.internal:8080/suburb-median` to use private networking. Covers VIC + NSW; falls back to web search for all other states. |
 
+# PropertyReport — Competitive Gap Brief
+
+**Context:** Direct comparison against PropScan AI (propscanai.com.au), a $5/report competitor with a similar AI-generated property research format. Based on a side-by-side of two sample reports.
+
+---
+
+## Priority 1: Add an independent "Fair Value" estimate
+
+**The gap:** PropertyReport currently reports the suburb median and comments on whether the asking price looks reasonable, but never produces its own valuation of the subject property. PropScan's entire report is anchored around a specific dollar figure with a range (e.g. "$900,000, range $855,000–$945,000").
+
+**What to build:**
+- A headline "Our Estimated Value" figure + range, shown prominently (e.g. top of report, near the price growth chart).
+- Calculate via three methods, each shown with its own midpoint, range, and one-paragraph reasoning:
+  1. **Direct comparable** — weight same-street sales most heavily, then same-estate, then same-suburb.
+  2. **Median method** — suburb/segment median adjusted for property type, size, config.
+  3. **Growth-adjusted** — last known sale price of subject (or comparable) escalated by recent suburb growth rate.
+- Where the three methods diverge, widen the final range and flag lower confidence.
+
+---
+
+## Priority 2: Prioritize same-street / same-estate comparables
+
+**The gap:** Current comparables (e.g. 57 Waterside Dr, 1 Ginger Lane) are suburb-level. PropScan leads with literal next-door sales ("21 Strettle Crescent sold for $920,000 — same street, same estate, same config"), which reads as far more credible.
+
+**What to build:**
+- Comparable sales table grouped/labeled by proximity tier: Same Street → Same Estate → Same Suburb.
+- Each comp gets a short "why this matters" note (config match, recency, distance).
+
+---
+
+## Priority 3: Reconsider the single "Strong Buy" headline verdict
+
+**The gap:** The current report gave an 8.1/10 "Strong Buy" for a property listed at $1.4M–$1.5M against an $856K suburb median, with thin comparables and unverified flood risk. The nuanced "Indicative Suitability" section (HIGH for owner-occupiers, MODERATE for investors) contradicts the headline — and the headline is what gets screenshotted/shared.
+
+**What to build:**
+- Either drop the single blended "Strong Buy" score, or make it explicitly price-relative (i.e. factor in asking price vs. fair-value estimate from Priority 1 — a great suburb at a 65% premium with no Priority 1 should not score as "Strong Buy").
+- Lean into separate scores per buyer type (PropScan's "Owner-Occupier Fit 8/10 / Investor Fit 5/10" model), each with its own one-line rationale tied to the numbers (e.g. yield vs. mortgage cost).
+
+---
+
+## What PropertyReport already does better (keep/protect)
+
+- Visual dashboard layout (scorecard, charts, verdict at a glance) — more "product" feeling than PropScan's document-style report.
+- Suburb Scorecard across 5 dimensions (Growth, Rental Demand, Infrastructure, Safety, Family Suitability).
+- Development feasibility section (subdivision, KDR, renovation potential) — PropScan has nothing equivalent.
+- Environmental & planning checklist with specific government verification links (flood, bushfire, heritage) — strong differentiator for due-diligence-minded buyers.
+
+---
+
+## Suggested sequencing
+
+1. Priority 1 (fair value estimate) — closes the single biggest credibility/usefulness gap.
+2. Priority 2 (same-street comps) — feeds directly into Priority 1's "direct comparable" method, so build together.
+3. Priority 3 (verdict logic) — depends on Priority 1 being in place (need fair value to compute price-relative verdict).
+
+
 ## Deployment
 
 Deployed on Railway via `railway.toml`. Health check at `GET /health`. The `/dev/generate` endpoint is disabled when `ENV=production`.

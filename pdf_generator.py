@@ -559,45 +559,71 @@ def build_school_chart(report, styles: dict) -> list:
     ]
 
 
-def build_comparables_table(report, styles: dict) -> list:
+def build_market_evidence_table(report, styles: dict) -> list:
+    """Unified table: comparable sold properties (from MCP) + active for-sale listings (from AI)."""
     market = report.property_market if isinstance(getattr(report, "property_market", None), dict) else {}
-    raw_sales = market.get("comparable_sales") or market.get("recent_sales") or []
-    sales = [s for s in raw_sales if isinstance(s, dict)][:2]
-    if not sales:
+
+    raw_sales    = market.get("comparable_sales") or market.get("recent_sales") or []
+    raw_listings = market.get("comparable_listings") or []
+    sales    = [s for s in raw_sales    if isinstance(s, dict)][:5]
+    listings = [l for l in raw_listings if isinstance(l, dict)][:3]
+
+    if not sales and not listings:
         return []
 
-    rows = [["Address", "Sold", "Price", "Beds · Baths · Land"]]
-    for s in sales:
-        addr  = (s.get("address") or "").strip()[:40] or "—"
-        date  = str(s.get("sale_date") or s.get("date") or "—")[:14]
+    SOLD_GREEN  = colors.HexColor("#059669")
+    LISTED_BLUE = colors.HexColor("#2563eb")
+
+    rows = [["Address", "Status", "Date", "Config", "Price"]]
+    row_styles: list = []
+
+    for i, s in enumerate(sales, start=1):
+        addr  = (s.get("address") or "").strip()[:45] or "—"
+        date  = str(s.get("sale_date") or s.get("date") or "—")[:12]
         price = _format_price_compact(s.get("sale_price") or s.get("price"))
         beds  = s.get("bedrooms");  baths = s.get("bathrooms");  land = s.get("land_sqm")
         meta  = []
         if isinstance(beds,  (int, float)) and not isinstance(beds,  bool): meta.append(f"{int(beds)}br")
         if isinstance(baths, (int, float)) and not isinstance(baths, bool): meta.append(f"{int(baths)}ba")
         if isinstance(land,  (int, float)) and not isinstance(land,  bool): meta.append(f"{int(land)}m²")
-        rows.append([addr, date, price, " · ".join(meta) or "—"])
+        rows.append([addr, "Sold", date, " · ".join(meta) or "—", price])
+        row_styles.append(("TEXTCOLOR", (1, i), (1, i), SOLD_GREEN))
+        row_styles.append(("FONTNAME",  (1, i), (1, i), "Helvetica-Bold"))
 
-    t = Table(rows, colWidths=[72*mm, 28*mm, 26*mm, 54*mm])
+    sold_count = len(sales)
+    for j, l in enumerate(listings, start=sold_count + 1):
+        addr  = (l.get("address") or "").strip()[:45] or "—"
+        price = _format_price_compact(l.get("listing_price") or l.get("price"))
+        beds  = l.get("bedrooms");  baths = l.get("bathrooms");  land = l.get("land_sqm")
+        meta  = []
+        if isinstance(beds,  (int, float)) and not isinstance(beds,  bool): meta.append(f"{int(beds)}br")
+        if isinstance(baths, (int, float)) and not isinstance(baths, bool): meta.append(f"{int(baths)}ba")
+        if isinstance(land,  (int, float)) and not isinstance(land,  bool): meta.append(f"{int(land)}m²")
+        rows.append([addr, "For Sale", "—", " · ".join(meta) or "—", price])
+        row_styles.append(("TEXTCOLOR", (1, j), (1, j), LISTED_BLUE))
+        row_styles.append(("FONTNAME",  (1, j), (1, j), "Helvetica-Bold"))
+
+    t = Table(rows, colWidths=[65*mm, 20*mm, 25*mm, 38*mm, 32*mm])
     t.setStyle(TableStyle([
-        ("BACKGROUND",    (0,0), (-1,0),  NAVY),
-        ("TEXTCOLOR",     (0,0), (-1,0),  WHITE),
-        ("FONTNAME",      (0,0), (-1,0),  "Helvetica-Bold"),
-        ("FONTSIZE",      (0,0), (-1,-1), 8.5),
-        ("BACKGROUND",    (0,1), (-1,-1), LIGHT_GREY),
-        ("ALIGN",         (0,0), (0,-1),  "LEFT"),
-        ("ALIGN",         (1,0), (-1,-1), "LEFT"),
-        ("VALIGN",        (0,0), (-1,-1), "MIDDLE"),
-        ("TOPPADDING",    (0,0), (-1,-1), 6),
-        ("BOTTOMPADDING", (0,0), (-1,-1), 6),
-        ("LEFTPADDING",   (0,0), (-1,-1), 8),
-        ("RIGHTPADDING",  (0,0), (-1,-1), 8),
-        ("GRID",          (0,0), (-1,-1), 0.4, BORDER_GREY),
-    ]))
+        ("BACKGROUND",    (0, 0), (-1,  0),  NAVY),
+        ("TEXTCOLOR",     (0, 0), (-1,  0),  WHITE),
+        ("FONTNAME",      (0, 0), (-1,  0),  "Helvetica-Bold"),
+        ("FONTSIZE",      (0, 0), (-1, -1),  8.5),
+        ("BACKGROUND",    (0, 1), (-1, -1),  LIGHT_GREY),
+        ("ALIGN",         (0, 0), (0,  -1),  "LEFT"),
+        ("ALIGN",         (1, 0), (-1, -1),  "LEFT"),
+        ("VALIGN",        (0, 0), (-1, -1),  "MIDDLE"),
+        ("TOPPADDING",    (0, 0), (-1, -1),  6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1),  6),
+        ("LEFTPADDING",   (0, 0), (-1, -1),  8),
+        ("RIGHTPADDING",  (0, 0), (-1, -1),  8),
+        ("GRID",          (0, 0), (-1, -1),  0.4, BORDER_GREY),
+    ] + row_styles))
+
     caption = ParagraphStyle("cap", fontSize=8, fontName="Helvetica-Oblique",
                              textColor=MID_GREY, spaceAfter=2*mm)
     return [
-        Paragraph("Recent comparable sales — same suburb, similar property", caption),
+        Paragraph("Market evidence — comparable sold properties & active listings", caption),
         t,
         Spacer(1, 4*mm),
     ]
@@ -899,7 +925,7 @@ def _section_visual(heading: str, report, styles: dict) -> list:
     if "school" in lower:
         return build_school_chart(report, styles)
     if "market analysis" in lower or "property market" in lower:
-        return build_growth_chart(report, styles) + build_comparables_table(report, styles)
+        return build_growth_chart(report, styles) + build_market_evidence_table(report, styles)
     if "risk" in lower:
         return build_crime_chart(report, styles)
     if "verdict" in lower:

@@ -664,12 +664,12 @@ def build_view(report) -> dict:
     rental = _short(metrics.get("rental_yield") or _pick(s, "rental_yield", default="—"), 12)
     schools_quality = _short(metrics.get("school_quality") or _pick(sch, "school_quality_summary", default="—"), 14)
 
-    # School above-average: true if any catchment school has ICSEA > 1000 (national avg),
-    # or the quality summary text signals above-average performance.
-    _all_schools = (sch.get("primary_schools") or []) + (sch.get("secondary_schools") or [])
+    # School above-average: true if any school has "Above Average" NAPLAN performance,
+    # falling back to the quality summary text when NAPLAN cache is empty.
+    _naplan_cache_cov = sch.get("_naplan_cache") or {}
     _school_above_avg = any(
-        isinstance(sc_e, dict) and isinstance(sc_e.get("icsea"), (int, float)) and sc_e["icsea"] > 1000
-        for sc_e in _all_schools
+        isinstance(v, dict) and v.get("naplan_performance") == "Above Average"
+        for v in _naplan_cache_cov.values()
     )
     if not _school_above_avg:
         _qt = (_pick(sch, "school_quality_summary", default="") or "").lower()
@@ -697,9 +697,9 @@ def build_view(report) -> dict:
             history.append((yr, pr))
     history.sort()
 
-    # Comparable sales (max 4 for the table card)
+    # Comparable sales (max 3 for the dashboard widget)
     comps = []
-    for s_row in (mk.get("comparable_sales") or [])[:4]:
+    for s_row in (mk.get("comparable_sales") or [])[:3]:
         if not isinstance(s_row, dict):
             continue
         comps.append({
@@ -795,6 +795,7 @@ def build_view(report) -> dict:
                         "right": f"{fwy_km:.1f} km  ·  By Car"})
 
     # Schools
+    _naplan_cache_dash = sch.get("_naplan_cache") or {}
     schools_rows = []
     for tier_label, key in [("Primary", "primary_schools"), ("Secondary", "secondary_schools")]:
         for entry in (sch.get(key) or [])[:1]:
@@ -807,11 +808,13 @@ def build_view(report) -> dict:
                     proximity = f"{float(dist_km):.1f} km"
                 else:
                     proximity = "—"
+                _nc = _naplan_cache_dash.get(entry["name"])
+                naplan_perf = (_nc.get("naplan_performance") if isinstance(_nc, dict) else None)
                 schools_rows.append({
                     "name": entry["name"],
                     "tier": tier_label,
                     "distance": proximity,
-                    "icsea": entry.get("icsea") or "—",
+                    "naplan_perf": naplan_perf,
                     "in_catchment": entry.get("in_catchment"),
                 })
 
@@ -1188,53 +1191,43 @@ def _rental_chart(suburb: dict, market: dict) -> str:
 
 
 def _school_chart_svg(schools: dict) -> str:
-    """Horizontal bar chart of ICSEA scores for up to 6 nearby schools."""
+    """NAPLAN School Performance chart — colored badge per school."""
+    naplan_cache = schools.get("_naplan_cache") or {}
     entries = []
     for tier, key in (("Pri", "primary_schools"), ("Sec", "secondary_schools")):
         for s in (schools.get(key) or [])[:4]:
             if not isinstance(s, dict):
                 continue
-            icsea = s.get("icsea")
-            if isinstance(icsea, bool):
-                continue
-            if isinstance(icsea, str):
-                try:
-                    icsea = float(icsea)
-                except (ValueError, TypeError):
-                    continue
-            elif not isinstance(icsea, (int, float)):
-                continue
-            if not (800 <= float(icsea) <= 1300):
-                continue
             name = (s.get("name") or "").strip()
             if not name:
                 continue
-            entries.append((f"{name[:30]} ({tier})", int(icsea)))
-    if not entries:
+            perf = (naplan_cache.get(name) or {}).get("naplan_performance")
+            entries.append((f"{name[:32]} ({tier})", perf))
+    if not entries or all(p is None for _, p in entries):
         return ""
 
-    entries = entries[:6]
-    W = 600
-    bar_h = 26
-    label_w = 240
-    bar_max = W - label_w - 70
-    H = 36 + len(entries) * bar_h
-    val_min, val_span = 850, 350  # 850 → 1200
+    _perf_color = {
+        "Above Average": ("#10b981", "#d1fae5"),
+        "Average":       ("#64748b", "#f1f5f9"),
+        "Below Average": ("#ef4444", "#fee2e2"),
+    }
 
-    parts = []
-    ref_x = label_w + bar_max * (1000 - val_min) / val_span
-    parts.append(
-        f'<line x1="{ref_x}" y1="20" x2="{ref_x}" y2="{H - 6}" '
-        f'stroke="#94a3b8" stroke-dasharray="3 3" stroke-width="0.8"/>'
-        f'<text x="{ref_x + 4}" y="14" font-size="9" fill="#94a3b8">Nat. avg (1000)</text>'
-    )
-    for i, (name, score) in enumerate(entries):
-        y = 28 + i * bar_h
-        bw = bar_max * (score - val_min) / val_span
-        color = "#10b981" if score >= 1000 else "#f59e0b"
-        parts.append(f'<text x="0" y="{y + 14}" font-size="11" fill="#334155">{name}</text>')
-        parts.append(f'<rect x="{label_w}" y="{y + 3}" width="{bw:.1f}" height="14" fill="{color}" rx="2"/>')
-        parts.append(f'<text x="{label_w + bw + 6}" y="{y + 14}" font-size="11" font-weight="600" fill="#0f172a">{score}</text>')
+    W, row_h = 600, 30
+    H = 24 + len(entries) * row_h
+    parts = [
+        f'<text x="0" y="14" font-size="9" fill="#94a3b8">School Performance (NAPLAN — Reading &amp; Numeracy vs national avg)</text>'
+    ]
+    for i, (label, perf) in enumerate(entries):
+        y = 22 + i * row_h
+        fg, bg = _perf_color.get(perf, ("#94a3b8", "#f8fafc"))
+        badge = perf or "—"
+        parts.append(f'<text x="0" y="{y + 14}" font-size="10.5" fill="#334155">{label}</text>')
+        bw = max(len(badge) * 7, 80)
+        parts.append(
+            f'<rect x="370" y="{y + 2}" width="{bw}" height="18" fill="{bg}" rx="4"/>'
+            f'<text x="{370 + bw // 2}" y="{y + 14}" font-size="9.5" font-weight="600" '
+            f'fill="{fg}" text-anchor="middle">{badge}</text>'
+        )
 
     return (
         f'<svg viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg" '
@@ -1287,6 +1280,14 @@ def _score_chart_svg(scores: dict) -> str:
 
 def _school_detail_table_html(schools: dict) -> str:
     """Rich per-school comparison table for the body Schools section."""
+    naplan_cache = schools.get("_naplan_cache") or {}
+
+    def _naplan_perf(school_name: str) -> str | None:
+        entry = naplan_cache.get(school_name)
+        if isinstance(entry, dict):
+            return entry.get("naplan_performance")
+        return None
+
     rows = []
     for tier_label, key in [("Primary", "primary_schools"), ("Secondary", "secondary_schools")]:
         for s in (schools.get(key) or []):
@@ -1297,11 +1298,9 @@ def _school_detail_table_html(schools: dict) -> str:
                 "tier":      tier_label,
                 "sector":    "Public",
                 "in_catchment": s.get("in_catchment"),
-                "icsea":     s.get("icsea"),
                 "walk_mins": s.get("walk_mins"),
                 "dist_km":   s.get("distance_km"),
-                "read_pct":  s.get("naplan_reading_pct"),
-                "num_pct":   s.get("naplan_numeracy_pct"),
+                "naplan":    _naplan_perf(s["name"]),
                 "fees":      None,
             })
     for s in (schools.get("private_schools") or []):
@@ -1312,11 +1311,9 @@ def _school_detail_table_html(schools: dict) -> str:
             "tier":      "Private",
             "sector":    s.get("school_type") or "Independent",
             "in_catchment": None,
-            "icsea":     s.get("icsea"),
             "walk_mins": None,
             "dist_km":   s.get("distance_km"),
-            "read_pct":  s.get("naplan_reading_pct"),
-            "num_pct":   s.get("naplan_numeracy_pct"),
+            "naplan":    _naplan_perf(s["name"]),
             "fees":      s.get("fees_annual_aud"),
         })
 
@@ -1332,12 +1329,14 @@ def _school_detail_table_html(schools: dict) -> str:
             return '<span class="sch-badge sch-badge-out">Out of catchment</span>'
         return '<span style="color:#94a3b8">—</span>'
 
-    def _pct_cell(pct):
-        if not isinstance(pct, (int, float)) or isinstance(pct, bool):
-            return '<span style="color:#94a3b8">—</span>'
-        p = int(pct)
-        color = "#10b981" if p >= 60 else "#f59e0b" if p >= 40 else "#ef4444"
-        return f'<span class="sch-pct" style="color:{color}">{p}th</span>'
+    def _naplan_cell(perf: str | None) -> str:
+        if perf == "Above Average":
+            return '<span style="color:#10b981;font-weight:600">Above Average</span>'
+        if perf == "Below Average":
+            return '<span style="color:#ef4444;font-weight:600">Below Average</span>'
+        if perf == "Average":
+            return '<span style="color:#64748b">Average</span>'
+        return '<span style="color:#94a3b8">—</span>'
 
     def _proximity(walk_mins, dist_km):
         if isinstance(walk_mins, (int, float)) and not isinstance(walk_mins, bool):
@@ -1351,9 +1350,7 @@ def _school_detail_table_html(schools: dict) -> str:
         "<tr>"
         '<th class="sch-th">School</th>'
         '<th class="sch-th">Catchment</th>'
-        '<th class="sch-th sch-center">ICSEA</th>'
-        '<th class="sch-th sch-center">Reading</th>'
-        '<th class="sch-th sch-center">Numeracy</th>'
+        '<th class="sch-th sch-center">School Performance</th>'
         '<th class="sch-th">Proximity</th>'
         "</tr>"
     )
@@ -1370,15 +1367,14 @@ def _school_detail_table_html(schools: dict) -> str:
             f'<td class="sch-td"><strong class="sch-name">{row["name"]}</strong>'
             f'<br><span class="sch-sub" style="color:{tc}">{row["tier"]}{fees_str}</span></td>'
             f'<td class="sch-td">{_catchment_cell(row["in_catchment"], row["sector"])}</td>'
-            f'<td class="sch-td sch-center"><span class="sch-icsea">{row["icsea"] or "—"}</span></td>'
-            f'<td class="sch-td sch-center">{_pct_cell(row["read_pct"])}</td>'
-            f'<td class="sch-td sch-center">{_pct_cell(row["num_pct"])}</td>'
+            f'<td class="sch-td sch-center">{_naplan_cell(row["naplan"])}</td>'
             f'<td class="sch-td">{_proximity(row["walk_mins"], row["dist_km"])}</td>'
             "</tr>"
         )
 
     note = (
-        '<p class="sch-note">NAPLAN percentile = rank vs national average from myschool.edu.au. '
+        '<p class="sch-note">School Performance = Above/Average/Below national average, '
+        'based on NAPLAN Reading + Numeracy results from myschool.edu.au. '
         'Catchment zones should be confirmed at '
         '<a href="https://findmyschool.vic.gov.au">findmyschool.vic.gov.au</a>.</p>'
     )
@@ -1979,14 +1975,15 @@ body {
   font-size: 9px;
 }
 .school-row:last-child { border-bottom: none; }
-.school-row .icsea {
-  background: var(--violet-soft);
-  color: var(--violet);
+.school-row .naplan-badge {
   padding: 2px 6px;
   border-radius: 4px;
   font-weight: 700;
-  font-size: 8.5px;
+  font-size: 8px;
 }
+.school-row .naplan-above { background: #d1fae5; color: #059669; }
+.school-row .naplan-avg   { background: #f1f5f9; color: #475569; }
+.school-row .naplan-below { background: #fee2e2; color: #dc2626; }
 .verify-note {
   font-size: 8px;
   color: var(--slate-3);
@@ -2273,7 +2270,6 @@ body {
 .sch-center { text-align: center; }
 .sch-name { color: #0f172a; font-size: 10.5pt; }
 .sch-sub  { font-size: 8.5pt; }
-.sch-icsea { font-weight: 700; color: #0f172a; font-size: 11pt; }
 .sch-pct   { font-weight: 700; font-size: 11pt; }
 .sch-badge {
   display: inline-block; font-size: 8pt; font-weight: 600;
@@ -2425,7 +2421,7 @@ body {
         </div>
         <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
           {% if s.in_catchment is not none %}<span class="catchment-badge {% if s.in_catchment %}badge-in{% else %}badge-out{% endif %}">{% if s.in_catchment %}✓{% else %}✗{% endif %}</span>{% endif %}
-          <span class="icsea">ICSEA {{ s.icsea }}</span>
+          {% if s.naplan_perf %}<span class="naplan-badge {% if s.naplan_perf == 'Above Average' %}naplan-above{% elif s.naplan_perf == 'Below Average' %}naplan-below{% else %}naplan-avg{% endif %}">{{ s.naplan_perf }}</span>{% endif %}
         </div>
       </div>
       {% endfor %}

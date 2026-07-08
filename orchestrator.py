@@ -37,30 +37,15 @@ except ImportError:
     _myschool = None
 
 
-# Reuse state detection from pdf_generator
-_STATE_SOURCES = {
-    "VIC": {"label": "Victoria",           "planning": "planning.vic.gov.au",   "crime": "crimestats.vic.gov.au",                 "flood": "vicfloodmap.com.au",          "transport": "ptv.vic.gov.au",        "catchment": "findmyschool.vic.gov.au"},
-    "NSW": {"label": "New South Wales",    "planning": "planning.nsw.gov.au",   "crime": "bocsar.nsw.gov.au",                     "flood": "floodplanning.nsw.gov.au",    "transport": "transportnsw.info",     "catchment": "schoolfinder.education.nsw.gov.au"},
-    "QLD": {"label": "Queensland",         "planning": "dsdilgp.qld.gov.au",    "crime": "police.qld.gov.au/maps-and-statistics", "flood": "floodcheck.qld.gov.au",       "transport": "translink.com.au",      "catchment": "schoolfinder.education.qld.gov.au"},
-    "SA":  {"label": "South Australia",    "planning": "plan.sa.gov.au",        "crime": "police.sa.gov.au/services-and-stats",   "flood": "environment.sa.gov.au/flood", "transport": "adelaidemetro.com.au",  "catchment": "education.sa.gov.au/find-a-school"},
-    "WA":  {"label": "Western Australia",  "planning": "planning.wa.gov.au",    "crime": "police.wa.gov.au/crime-statistics/suburb-crime-data", "flood": "planning.wa.gov.au/flood",    "transport": "transperth.wa.gov.au",  "catchment": "det.wa.edu.au/schoolsonline/local_intake_school.do"},
-    "TAS": {"label": "Tasmania",           "planning": "listmap.tas.gov.au",    "crime": "justice.tas.gov.au/crime-statistics",   "flood": "dpipwe.tas.gov.au/flood",     "transport": "metrotas.com.au",       "catchment": "education.tas.gov.au/parents-carers/find-a-school"},
-    "ACT": {"label": "ACT",                "planning": "actmapi.act.gov.au",    "crime": "police.act.gov.au/crime-statistics",    "flood": "esa.act.gov.au/flood",        "transport": "transport.act.gov.au",  "catchment": "education.act.gov.au/public-school-enrolment/find-your-local-school"},
-    "NT":  {"label": "Northern Territory", "planning": "planning.nt.gov.au",    "crime": "pfes.nt.gov.au/crime-statistics",       "flood": "nt.gov.au/emergency/flood",   "transport": "nt.gov.au/driving-transport/public-transport", "catchment": "education.nt.gov.au/enrolment/find-a-school"},
-}
-_DEFAULT_STATE = {"label": "Australia", "planning": "planning.gov.au", "crime": "aic.gov.au", "flood": "ga.gov.au/flood", "transport": "transportnsw.info", "catchment": "myschool.edu.au"}
-
-_CRIME_MCP_URL = os.getenv(
-    "CRIME_MCP_URL",
-    "https://au-crime-mcp-production.up.railway.app/suburb-crime",
-)
-_MEDIAN_MCP_URL = os.getenv(
-    "MEDIAN_MCP_URL",
-    "https://au-median-price-mcp-production.up.railway.app/suburb-median",
-)
-_COMPARABLE_SALES_MCP_URL = os.getenv(
-    "COMPARABLE_SALES_MCP_URL",
-    "https://au-median-price-mcp-production.up.railway.app/comparable-sales",
+# State source URLs + median/crime/comparable-sales MCP clients live in suburb_data.py
+# (shared with pdf_generator.py's cover-page state lookup and the suburb comparator endpoint).
+from suburb_data import (
+    _STATE_SOURCES,
+    _DEFAULT_STATE,
+    _get_state,
+    _fetch_crime_data,
+    _fetch_median_price_data,
+    _fetch_comparable_sales,
 )
 
 _STREET_TYPE_RE = re.compile(
@@ -103,19 +88,6 @@ def _extract_street_name(address: str) -> str:
     chunk = address[:m.end()]                              # e.g. "35 Devereux Road"
     chunk = re.sub(r'^\d+[a-zA-Z]?\s*[/\\]?\s*\d*[a-zA-Z]?\s+', '', chunk)  # strip number
     return chunk.strip()
-
-
-def _fetch_crime_data(suburb: str, state: str) -> dict | None:
-    """Call the au-crime-mcp /suburb-crime endpoint. Returns None on failure."""
-    if not suburb or not state:
-        return None
-    try:
-        r = httpx.get(_CRIME_MCP_URL, params={"suburb": suburb, "state": state}, timeout=60)
-        if r.status_code == 200:
-            return r.json()
-    except Exception as e:
-        print(f"  ⚠️  Crime MCP unavailable ({e}), falling back to web search")
-    return None
 
 
 def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -341,22 +313,6 @@ def _inject_crime_into_suburb_prompt(prompt: str, crime: dict) -> str:
     return prompt
 
 
-def _fetch_median_price_data(suburb: str, state: str, postcode: str = "") -> dict | None:
-    """Call the au-median-price-mcp /suburb-median endpoint. Returns None on failure."""
-    if not suburb or not state:
-        return None
-    try:
-        params = {"suburb": suburb, "state": state}
-        if postcode:
-            params["postcode"] = postcode
-        r = httpx.get(_MEDIAN_MCP_URL, params=params, timeout=60)
-        if r.status_code == 200:
-            return r.json()
-    except Exception as e:
-        print(f"  ⚠️  Median Price MCP unavailable ({e}), falling back to web search")
-    return None
-
-
 def _inject_median_into_suburb_prompt(prompt: str, median: dict) -> str:
     """
     Replace pre-fetched STEP 1/2/3 blocks so the AI skips the corresponding
@@ -407,22 +363,6 @@ def _inject_median_into_suburb_prompt(prompt: str, median: dict) -> str:
     return prompt
 
 
-def _fetch_comparable_sales(suburb: str, state: str, postcode: str, street: str) -> dict | None:
-    """Call /comparable-sales on the median-price MCP. Returns None on failure."""
-    if not suburb or not state or not postcode:
-        return None
-    try:
-        params = {"suburb": suburb, "state": state, "postcode": postcode}
-        if street:
-            params["street"] = street
-        r = httpx.get(_COMPARABLE_SALES_MCP_URL, params=params, timeout=90)
-        if r.status_code == 200:
-            return r.json()
-    except Exception as e:
-        print(f"  ⚠️  Comparable Sales MCP unavailable ({e}), falling back to AI search")
-    return None
-
-
 def _inject_comparables_into_property_market_prompt(prompt: str, comps: dict) -> str:
     """Replace STEP 5 (comparable sales) with pre-fetched Scrapfly results."""
     sales = comps.get("comparable_sales", [])
@@ -449,11 +389,6 @@ def _inject_comparables_into_property_market_prompt(prompt: str, comps: dict) ->
         return prompt[:step5_start] + injected + "\n" + prompt[step6_start:]
 
     return prompt[:step5_start] + injected
-
-
-def _get_state(address: str) -> dict:
-    m = re.search(r'\b(VIC|NSW|QLD|SA|WA|TAS|ACT|NT)\b', address, re.IGNORECASE)
-    return _STATE_SOURCES.get(m.group(1).upper(), _DEFAULT_STATE) if m else _DEFAULT_STATE
 
 
 @dataclass

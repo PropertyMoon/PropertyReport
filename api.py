@@ -54,6 +54,8 @@ for _logger in ("fontTools", "fontTools.ttLib", "fontTools.subset",
 from orchestrator import research_property, PropertyReport
 from pdf_generator import generate_pdf
 from email_sender import send_report_email
+from suburb_db import init_suburb_db
+from compare_suburbs import get_suburb_comparison, check_compare_rate_limit, CompareSuburbsResponse
 
 # Phase 2B renderer — try import at module load so we know up-front if
 # WeasyPrint is available. Falls back to ReportLab generate_pdf on any failure.
@@ -178,6 +180,7 @@ def _ensure_sample_pdf() -> None:
 async def lifespan(app: FastAPI):
     _ensure_sample_pdf()
     init_db()
+    init_suburb_db()
     mode  = "TEST MODE" if IS_TEST_MODE else "LIVE MODE"
     price = f"${REPORT_PRICE_AUD_CENTS / 100:.2f} AUD"
     log.info("PropertyReport API | %s | Price: %s | ENV: %s | DB: %s", mode, price, ENV, DB_PATH)
@@ -490,6 +493,30 @@ async def dev_generate(
 def get_config():
     """Public config for the frontend — safe to expose (key is domain-restricted in Google Cloud)."""
     return {"google_maps_api_key": os.getenv("GOOGLE_MAPS_API_KEY", "")}
+
+
+@app.get("/api/v1/compare-suburbs", response_model=CompareSuburbsResponse)
+async def compare_suburbs(
+    request: Request,
+    suburb_a: str, state_a: str, postcode_a: str = "",
+    lat_a: Optional[float] = None, lng_a: Optional[float] = None,
+    suburb_b: str = "", state_b: str = "", postcode_b: str = "",
+    lat_b: Optional[float] = None, lng_b: Optional[float] = None,
+):
+    """Free suburb comparator — median price, crime, commute, ABS demographics for 2 suburbs."""
+    client_ip = request.client.host if request.client else "unknown"
+    if not check_compare_rate_limit(client_ip):
+        raise HTTPException(429, "Too many comparisons. Please try again shortly.")
+    if not suburb_b or not state_b:
+        raise HTTPException(400, "suburb_b and state_b are required")
+
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(
+        None,
+        get_suburb_comparison,
+        suburb_a, state_a, postcode_a, lat_a, lng_a,
+        suburb_b, state_b, postcode_b, lat_b, lng_b,
+    )
 
 
 # ─── Serve Frontend (must be last — API routes take priority) ─────────────────

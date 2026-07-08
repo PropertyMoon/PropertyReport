@@ -1,0 +1,2 @@
+# Only needed to run ingest_abs_census.py locally — not part of the deployed app.
+openpyxl>=3.1.0

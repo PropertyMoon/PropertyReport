@@ -36,6 +36,10 @@ try:
 except ImportError:
     _myschool = None
 
+# NAPLAN scraping is disabled pending permission to use myschool.edu.au data.
+# School quality is ICSEA-based (AI-sourced) until this is flipped back on.
+_NAPLAN_ENABLED = False
+
 
 # State source URLs + median/crime/comparable-sales MCP clients live in suburb_data.py
 # (also used by the suburb comparator's compare_suburbs.py; pdf_generator.py keeps
@@ -1588,7 +1592,9 @@ def run_research_task(client: anthropic.Anthropic, task_name: str, address: str)
     # Done after the AI task so we use the exact school names the AI found.
     # Results stored in _naplan_cache (dict of name → {naplan_performance, ...})
     # and consumed by weasy_generator when building the schools table.
-    if task_name == "schools" and _myschool is not None:
+    # Disabled for now — pending permission to use myschool.edu.au NAPLAN data.
+    # Flip _NAPLAN_ENABLED back to True once that's granted.
+    if task_name == "schools" and _NAPLAN_ENABLED and _myschool is not None:
         _all_names = []
         for _tier in ("primary_schools", "secondary_schools", "private_schools"):
             for _s in result.get(_tier) or []:

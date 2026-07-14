@@ -60,9 +60,10 @@ Copy `.env.example` to `.env` and fill in:
 | `STRIPE_SECRET_KEY` | ✅ | `sk_test_...` for test, `sk_live_...` for production |
 | `STRIPE_PUBLISHABLE_KEY` | ✅ | `pk_test_...` or `pk_live_...` |
 | `STRIPE_WEBHOOK_SECRET` | ✅ | From Stripe CLI or Dashboard |
-| `SENDGRID_API_KEY` | optional | From SendGrid dashboard. If omitted, falls back to SMTP (see `SMTP_*` vars) |
+| `SENDGRID_API_KEY` | optional | From SendGrid dashboard. Tried first if set; falls back to Brevo, then SMTP |
+| `BREVO_API_KEY` | optional | Brevo transactional email API key (300/day free). Tried if SendGrid is unset or fails — works on Railway's Free/Hobby plans since it's an HTTPS call, not SMTP |
 | `SENDER_EMAIL` | ✅ | Verified sender address |
-| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` | optional | Used only when `SENDGRID_API_KEY` is not set. Defaults to Gmail's SMTP (`smtp.gmail.com:587`) |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` | optional | Last-resort fallback. Defaults to Gmail's SMTP (`smtp.gmail.com:587`). Note: Railway blocks outbound SMTP ports on Free/Hobby plans |
 | `REPORT_PRICE_CENTS` | optional | Default: 4900 ($49 AUD) |
 | `FRONTEND_URL` | optional | Default: http://localhost:3000 |
 | `ENV` | optional | `development` or `production` |

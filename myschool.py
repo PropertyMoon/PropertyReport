@@ -20,7 +20,8 @@ In-process 24 h cache prevents re-scraping the same school within a report batch
 import asyncio
 import json
 import time
-import urllib.parse
+
+import httpx
 
 try:
     from playwright.async_api import async_playwright
@@ -32,7 +33,7 @@ _RESOURCE_PATH = (
     "/content/acara-myschool/au/en/school/naplan/results"
     "/jcr:content/root/container/globalconfig_1719137697.result_naplan"
 )
-_SEARCH_API = "/bin/acara/principals/searchschools.json?searchKey="
+_SEARCH_API = "/bin/acara/principals/searchschools.json"
 _BASE_URL   = "https://myschool.edu.au"
 
 # In-process cache: school_name (lower) → naplan dict | None
@@ -101,6 +102,27 @@ def _parse_naplan(data: dict) -> dict | None:
     }
 
 
+async def _search_acara_id(client: httpx.AsyncClient, name: str) -> int | None:
+    """
+    Look up a school's ACARA ID by name via the searchschools.json API directly.
+    Unlike the NAPLAN results endpoint, this one isn't behind Cloudflare's
+    Turnstile challenge, so a plain HTTP call is far more reliable than
+    navigating a headless browser to the search page and intercepting its XHR.
+    """
+    try:
+        resp = await client.get(
+            f"{_BASE_URL}{_SEARCH_API}",
+            params={"searchKey": name},
+            headers={"Accept": "application/json"},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        data_list = resp.json().get("data") or []
+        return data_list[0].get("schoolId") if data_list else None
+    except Exception:
+        return None
+
+
 async def _navigate_and_capture(page, url: str, match_substr: str, timeout: int,
                                  attempts: int = 2, retry_delay: float = 3.0) -> dict | None:
     """
@@ -125,16 +147,29 @@ async def _navigate_and_capture(page, url: str, match_substr: str, timeout: int,
 
 async def _fetch_naplan_batch(school_names: list[str]) -> dict[str, dict | None]:
     """
-    Open ONE headless browser, solve Turnstile once, then for each school:
-    1. Navigate to the school search page — the React app fires its own XHR to
-       the search API, which we intercept via expect_response().
-    2. Navigate to the school's NAPLAN results page — the React component fires
-       its own XHR, which we intercept the same way.
+    For each school: 1) look up its ACARA ID via a direct HTTP call to
+    searchschools.json (not behind Cloudflare's Turnstile, so no browser
+    needed), then 2) open ONE headless browser, solve Turnstile once, and
+    navigate to the school's NAPLAN results page — the React component fires
+    its own XHR, which we intercept.
 
-    Using browser navigation + response interception avoids the Cloudflare WAF
-    blocks that occur when calling these endpoints via in-page fetch() directly.
+    Browser navigation + response interception is only needed for step 2;
+    calling that endpoint via in-page fetch() directly hits Cloudflare WAF blocks.
     """
     results: dict[str, dict | None] = {n: None for n in school_names}
+
+    async with httpx.AsyncClient(
+        headers={
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/131.0.0.0 Safari/537.36"
+            )
+        }
+    ) as http_client:
+        acara_ids = {
+            name: await _search_acara_id(http_client, name) for name in school_names
+        }
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)

@@ -213,9 +213,14 @@ async def lifespan(app: FastAPI):
     }
     missing = [k for k, v in _required_prod.items() if not v]
 
-    # Email delivery needs either SendGrid or SMTP credentials, not both.
-    if ENV == "production" and not os.getenv("SENDGRID_API_KEY") and not os.getenv("SMTP_PASS"):
-        missing.append("SENDGRID_API_KEY or SMTP_PASS")
+    # Email delivery needs at least one of SendGrid, Brevo, or SMTP credentials.
+    if (
+        ENV == "production"
+        and not os.getenv("SENDGRID_API_KEY")
+        and not os.getenv("BREVO_API_KEY")
+        and not os.getenv("SMTP_PASS")
+    ):
+        missing.append("SENDGRID_API_KEY or BREVO_API_KEY or SMTP_PASS")
 
     if ENV == "production" and missing:
         raise RuntimeError(f"FATAL: Missing required env vars for production: {', '.join(missing)}")

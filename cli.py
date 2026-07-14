@@ -7,11 +7,12 @@ Usage:
 
 Environment variables required:
   ANTHROPIC_API_KEY     - Your Anthropic API key
-  SENDGRID_API_KEY      - Your SendGrid API key (or use SMTP vars below)
   SENDER_EMAIL          - Your verified sender email
+  One of: SENDGRID_API_KEY, BREVO_API_KEY, or SMTP_PASS (tried in that order)
 
-Optional SMTP fallback (if not using SendGrid):
-  SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS
+Optional email fallbacks:
+  BREVO_API_KEY                             - Brevo transactional email API key
+  SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS - raw SMTP relay (last resort)
 """
 
 import sys

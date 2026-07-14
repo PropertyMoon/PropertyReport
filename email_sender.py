@@ -7,6 +7,7 @@ import html
 import os
 import re
 import base64
+import httpx
 from orchestrator import PropertyReport
 
 
@@ -20,6 +21,7 @@ def send_report_email(
 ):
     sender_email = sender_email or os.getenv("SENDER_EMAIL", "reports@propertyreport.com.au")
     sendgrid_key = os.getenv("SENDGRID_API_KEY")
+    brevo_key    = os.getenv("BREVO_API_KEY")
     subject      = f"Your Property Report — {report.address}"
     html_body    = build_email_html(report, recipient_name)
 
@@ -29,8 +31,18 @@ def send_report_email(
             recipient_email, recipient_name, subject, html_body, pdf_attachment_path
         ):
             return True
-        print("⚠️  SendGrid failed — falling back to SMTP")
+        print("⚠️  SendGrid failed — falling back to next provider")
 
+    if brevo_key:
+        if _send_via_brevo(
+            brevo_key, sender_email, sender_name,
+            recipient_email, recipient_name, subject, html_body, pdf_attachment_path
+        ):
+            return True
+        print("⚠️  Brevo failed — falling back to SMTP")
+
+    # Last resort — raw SMTP. Note: Railway blocks outbound SMTP ports (465/587)
+    # on Free/Trial/Hobby plans, so this only works on Railway Pro+ or off-Railway.
     return _send_via_smtp(
         sender_email, recipient_email, subject, html_body, pdf_attachment_path
     )
@@ -235,6 +247,38 @@ def _send_via_sendgrid(api_key, sender_email, sender_name,
         return False
     except Exception as e:
         print(f"❌ SendGrid exception: {e}")
+        return False
+
+
+def _send_via_brevo(api_key, sender_email, sender_name,
+                     recipient_email, recipient_name, subject, html_body, pdf_path=None):
+    """Send via Brevo's transactional email HTTP API — a plain HTTPS call,
+    so it works on hosts (like Railway's free/hobby tiers) that block raw
+    outbound SMTP ports."""
+    payload = {
+        "sender": {"name": sender_name, "email": sender_email},
+        "to": [{"email": recipient_email, "name": recipient_name}],
+        "subject": subject,
+        "htmlContent": html_body,
+    }
+    pdf_data = _read_pdf_base64(pdf_path)
+    if pdf_data:
+        payload["attachment"] = [{"content": pdf_data, "name": "PropertyReport.pdf"}]
+
+    try:
+        response = httpx.post(
+            "https://api.brevo.com/v3/smtp/email",
+            headers={"api-key": api_key, "Content-Type": "application/json", "Accept": "application/json"},
+            json=payload,
+            timeout=30,
+        )
+        if response.status_code in (200, 201):
+            print(f"✅ Email sent to {recipient_email} via Brevo")
+            return True
+        print(f"❌ Brevo error: {response.status_code} {response.text[:300]}")
+        return False
+    except Exception as e:
+        print(f"❌ Brevo exception: {e}")
         return False
 
 

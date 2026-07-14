@@ -60,8 +60,9 @@ Copy `.env.example` to `.env` and fill in:
 | `STRIPE_SECRET_KEY` | ✅ | `sk_test_...` for test, `sk_live_...` for production |
 | `STRIPE_PUBLISHABLE_KEY` | ✅ | `pk_test_...` or `pk_live_...` |
 | `STRIPE_WEBHOOK_SECRET` | ✅ | From Stripe CLI or Dashboard |
-| `SENDGRID_API_KEY` | ✅ | From SendGrid dashboard |
+| `SENDGRID_API_KEY` | optional | From SendGrid dashboard. If omitted, falls back to SMTP (see `SMTP_*` vars) |
 | `SENDER_EMAIL` | ✅ | Verified sender address |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` | optional | Used only when `SENDGRID_API_KEY` is not set. Defaults to Gmail's SMTP (`smtp.gmail.com:587`) |
 | `REPORT_PRICE_CENTS` | optional | Default: 4900 ($49 AUD) |
 | `FRONTEND_URL` | optional | Default: http://localhost:3000 |
 | `ENV` | optional | `development` or `production` |

@@ -1,10 +1,13 @@
 """
 Shared suburb-level data sources.
 
-Consolidates state government source URLs and the median-price / crime MCP
-clients that were previously duplicated (and drifting) across orchestrator.py
-and pdf_generator.py. Used by the research pipeline, the PDF cover page's
-state lookup, and the suburb comparator endpoint.
+Consolidates the state government source URLs and the median-price / crime
+MCP clients that used to live only in orchestrator.py. Used by the research
+pipeline (orchestrator.py) and the suburb comparator (compare_suburbs.py).
+
+Note: pdf_generator.py has its own separate, smaller _STATE_SOURCES used only
+for the PDF cover page's display label — deliberately left as-is, since it
+formats state names differently for that specific purpose (see CLAUDE.md).
 """
 
 import os

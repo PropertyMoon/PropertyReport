@@ -101,6 +101,28 @@ def _parse_naplan(data: dict) -> dict | None:
     }
 
 
+async def _navigate_and_capture(page, url: str, match_substr: str, timeout: int,
+                                 attempts: int = 2, retry_delay: float = 3.0) -> dict | None:
+    """
+    Navigate to `url`, capturing the JSON body of the first XHR response whose
+    URL contains `match_substr`. Retries the whole navigation up to `attempts`
+    times — a Turnstile re-challenge or a slow XHR can make a single attempt
+    time out even when the site is otherwise healthy.
+    """
+    for attempt in range(attempts):
+        try:
+            async with page.expect_response(
+                lambda r: match_substr in r.url and r.ok, timeout=timeout,
+            ) as ctx:
+                await page.goto(url, wait_until="domcontentloaded", timeout=timeout + 10_000)
+            resp = await ctx.value
+            return await resp.json()
+        except Exception:
+            if attempt < attempts - 1:
+                await page.wait_for_timeout(int(retry_delay * 1000))
+    return None
+
+
 async def _fetch_naplan_batch(school_names: list[str]) -> dict[str, dict | None]:
     """
     Open ONE headless browser, solve Turnstile once, then for each school:
@@ -144,26 +166,15 @@ async def _fetch_naplan_batch(school_names: list[str]) -> dict[str, dict | None]
             try:
                 # Step 1 — navigate to search results page; capture the school's
                 # ACARA ID from the React app's own XHR call to the search API.
-                acara_id = None
+                # Retried — a single timed-out attempt doesn't necessarily mean
+                # the school isn't in ACARA's database.
                 search_url = (
                     f"{_BASE_URL}/school/search"
                     f"?SchoolSearchQuery={urllib.parse.quote_plus(name)}"
                 )
-                try:
-                    async with page.expect_response(
-                        lambda r: "searchschools" in r.url and r.ok,
-                        timeout=20_000,
-                    ) as search_ctx:
-                        await page.goto(
-                            search_url, wait_until="domcontentloaded", timeout=30_000
-                        )
-                    search_resp = await search_ctx.value
-                    search_data = await search_resp.json()
-                    data_list = search_data.get("data") or []
-                    if data_list:
-                        acara_id = data_list[0].get("schoolId")
-                except Exception:
-                    pass
+                search_data = await _navigate_and_capture(page, search_url, "searchschools", timeout=20_000)
+                data_list = (search_data or {}).get("data") or []
+                acara_id = data_list[0].get("schoolId") if data_list else None
 
                 if not acara_id:
                     print(f"  ⚠️  myschool: no ACARA ID for '{name}'")
@@ -171,20 +182,8 @@ async def _fetch_naplan_batch(school_names: list[str]) -> dict[str, dict | None]
 
                 # Step 2 — navigate to the NAPLAN results page; capture the JSON
                 # that the React NAPLAN component fetches on page load.
-                naplan_data = None
                 naplan_url = f"{_BASE_URL}/school/naplan/results?sml_id={acara_id}"
-                try:
-                    async with page.expect_response(
-                        lambda r: "result_naplan" in r.url and r.ok,
-                        timeout=25_000,
-                    ) as naplan_ctx:
-                        await page.goto(
-                            naplan_url, wait_until="domcontentloaded", timeout=45_000
-                        )
-                    naplan_resp = await naplan_ctx.value
-                    naplan_data = await naplan_resp.json()
-                except Exception:
-                    pass
+                naplan_data = await _navigate_and_capture(page, naplan_url, "result_naplan", timeout=25_000)
 
                 if naplan_data:
                     parsed = _parse_naplan(naplan_data)

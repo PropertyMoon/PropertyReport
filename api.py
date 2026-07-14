@@ -51,6 +51,26 @@ for _logger in ("fontTools", "fontTools.ttLib", "fontTools.subset",
                 "weasyprint", "weasyprint.progress"):
     logging.getLogger(_logger).setLevel(logging.ERROR)
 
+
+class _RedactApiKeysFilter(logging.Filter):
+    """httpx logs the full request URL (e.g. 'HTTP Request: GET https://...?key=SECRET ...')
+    at INFO level. Several calls we make pass API keys as a `key=` query param
+    (Google Maps, Scrapfly-style services), so strip those before they hit any handler."""
+    _pattern = re.compile(r"([?&]key=)[^&\s\"]+", re.IGNORECASE)
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.args:
+            record.args = tuple(
+                self._pattern.sub(r"\1***REDACTED***", a) if isinstance(a, str) else a
+                for a in record.args
+            )
+        if isinstance(record.msg, str):
+            record.msg = self._pattern.sub(r"\1***REDACTED***", record.msg)
+        return True
+
+
+logging.getLogger("httpx").addFilter(_RedactApiKeysFilter())
+
 from orchestrator import research_property, PropertyReport
 from pdf_generator import generate_pdf
 from email_sender import send_report_email
@@ -189,10 +209,13 @@ async def lifespan(app: FastAPI):
         "ANTHROPIC_API_KEY":    os.getenv("ANTHROPIC_API_KEY"),
         "STRIPE_SECRET_KEY":    stripe.api_key,
         "STRIPE_WEBHOOK_SECRET": STRIPE_WEBHOOK_SECRET,
-        "SENDGRID_API_KEY":     os.getenv("SENDGRID_API_KEY"),
         "SENDER_EMAIL":         os.getenv("SENDER_EMAIL"),
     }
     missing = [k for k, v in _required_prod.items() if not v]
+
+    # Email delivery needs either SendGrid or SMTP credentials, not both.
+    if ENV == "production" and not os.getenv("SENDGRID_API_KEY") and not os.getenv("SMTP_PASS"):
+        missing.append("SENDGRID_API_KEY or SMTP_PASS")
 
     if ENV == "production" and missing:
         raise RuntimeError(f"FATAL: Missing required env vars for production: {', '.join(missing)}")

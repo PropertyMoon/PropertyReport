@@ -24,14 +24,16 @@ def send_report_email(
     html_body    = build_email_html(report, recipient_name)
 
     if sendgrid_key:
-        return _send_via_sendgrid(
+        if _send_via_sendgrid(
             sendgrid_key, sender_email, sender_name,
             recipient_email, recipient_name, subject, html_body, pdf_attachment_path
-        )
-    else:
-        return _send_via_smtp(
-            sender_email, recipient_email, subject, html_body, pdf_attachment_path
-        )
+        ):
+            return True
+        print("⚠️  SendGrid failed — falling back to SMTP")
+
+    return _send_via_smtp(
+        sender_email, recipient_email, subject, html_body, pdf_attachment_path
+    )
 
 
 def _extract_executive_summary(summary: str) -> str:

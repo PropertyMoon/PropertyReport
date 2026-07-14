@@ -309,10 +309,18 @@ def _send_via_smtp(sender_email, recipient_email, subject, html_body, pdf_path=N
             msg.attach(part)
 
     try:
-        with smtplib.SMTP(smtp_host, smtp_port) as server:
-            server.starttls()
-            server.login(smtp_user, smtp_pass)
-            server.sendmail(sender_email, recipient_email, msg.as_string())
+        # Port 465 is implicit TLS from the first byte (smtplib.SMTP_SSL);
+        # port 587 (and others) start plaintext then upgrade via STARTTLS.
+        # Using the wrong class for the port fails the handshake outright.
+        if smtp_port == 465:
+            with smtplib.SMTP_SSL(smtp_host, smtp_port) as server:
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(sender_email, recipient_email, msg.as_string())
+        else:
+            with smtplib.SMTP(smtp_host, smtp_port) as server:
+                server.starttls()
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(sender_email, recipient_email, msg.as_string())
         print(f"✅ Email sent to {recipient_email} via SMTP")
         return True
     except Exception as e:
